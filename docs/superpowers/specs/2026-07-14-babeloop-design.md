@@ -189,6 +189,19 @@ BabeChat은 Airbridge를 사용 중임이 확인됐다. 이로써 가입·첫 �
 - MVP는 Airbridge 리포트 CSV 업로드(`AirbridgePerformanceProvider`의 CSV 경로)로 시작하고, Airbridge API 연동은 이후 슬라이스.
 - iOS는 ATT/SKAdNetwork 제약으로 광고 단위 귀속이 부분적일 수 있다 → 대시보드 그레인 표시가 OS별로 구분해야 한다 (Android 소재 단위 / iOS 제한 가능).
 
+### 성과 데이터의 실질 원천: Snowflake (2026-07-15, 사내 대시보드 샘플 코드 분석 결과)
+
+사내 대시보드(`dashboard_sample`)를 분석한 결과, 회사의 실질적 데이터 웨어하우스는 Snowflake이며 다음이 이미 적재되고 있다:
+
+- `BABECHAT_TW.AIRBRIDGE.WEB_EVENTS` (+ Order Complete 이벤트) — Airbridge 데이터 자동 적재. **TW 추적 시작 2026-06-10, 6/1~9 결손 구간 존재.**
+- `BABECHAT_TW.BABECHAT.*` — 운영 DB 복제본 (USERS, ORDERS, CHARACTERS, ATTENDANCES, FOLLOWS, DAILY_CHARACTER_STATS 등). 가입·결제 퍼널 이벤트를 SQL로 직접 조회 가능.
+- 리전별 DB: `BABECHAT_TW`(대만) / `BABECHAT`(한국) / `BABECHAT_JP`(일본), RAW_DATA JSON(variant) 컬럼 패턴.
+- 접속: 키페어 인증(SNOWFLAKE_JWT) 패턴이 사내에서 이미 사용 중.
+
+**설계 반영:** Airbridge API 직접 연동보다 `SnowflakePerformanceProvider`가 우선 후보다. 가입·결제는 운영 DB 복제본, 광고 귀속은 AIRBRIDGE 스키마에서 조인. CSV 업로드는 여전히 MVP 경로이자 영구 폴백.
+
+**실증된 데이터 품질 리스크** (그레인·출처 정직 표시 설계의 근거): 파이프라인 적재 중단 이력(TW USERS 06-30 정지), 통화 기준 변경(KRW→TWD 재적재로 스냅샷 간 비교 불가), 추적 시작일 이전 데이터 부재. → `performance_daily`에 적재 커버리지(coverage) 메타를 함께 저장하고 대시보드에 표시한다.
+
 ---
 
 ## 8. 생성물 상태 머신
@@ -356,9 +369,10 @@ MVP 완료 조건(스펙 26장) 14단계의 시스템 관점:
 
 코드가 아니라 사람이 답해야 하는 것. 답이 나오는 대로 이 문서를 갱신한다.
 
-1. ~~BabeChat 앱에 MMP가 붙어 있는가?~~ → **해소 (2026-07-14): Airbridge 사용 중.** 남은 확인 사항으로 좁혀짐:
-   - ① BabeChat이 Airbridge로 쏘는 인앱 이벤트 목록 (가입은 있을 가능성 높음. 첫 메시지·메시지 10개는 계측 추가 요청 필요할 수 있음)
-   - ② Airbridge 리포트 내보내기 권한과 형식 (광고 이름 차원이 포함된 리포트를 받을 수 있는지)
+1. ~~BabeChat 앱에 MMP가 붙어 있는가?~~ → **해소 (2026-07-14): Airbridge 사용 중, 데이터는 Snowflake에 적재됨.** 남은 확인 사항으로 좁혀짐:
+   - ① `BABECHAT_TW.AIRBRIDGE` 스키마에 캠페인/광고 소재 단위 귀속 필드(channel, campaign, ad group, ad creative)가 들어오는가 — Snowflake 접속 권한 확보 후 테이블 목록·컬럼 확인으로 판명. 사내 대시보드는 유저 ID·IP 국가만 사용해서 이 코드로는 확인 불가였음.
+   - ② BabeChat이 Airbridge로 쏘는 인앱 이벤트 목록 (Order Complete는 확인됨. 가입·첫 메시지·메시지 10개는 미확인 — 계측 추가 요청 필요할 수 있음)
+   - ③ BabeLoop용 Snowflake 읽기 전용 계정 발급 가능 여부
 2. **zh-TW 검수자의 실제 투입 가능 시간** — 검토 큐 적체 시 병목 지점.
 3. **Meta/TikTok 광고 계정 상태** — 성인향 앱 이력으로 제한받는 계정인지.
 4. **실제 AI Provider 선택** (텍스트/임베딩/OCR/STT) — MVP는 전부 Mock으로 돌므로 결정을 미룰 수 있음. 단 임베딩 차원(1536)은 스키마에 박히므로, 실제 임베딩 모델 선택 시 차원 확인 필요.
