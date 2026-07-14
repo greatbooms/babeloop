@@ -66,7 +66,7 @@ Docker Compose 서비스: `api`, `worker`, `scheduler`, `postgres`(pgvector), `r
 
 | 스펙 모듈 | MVP 범위 | MVP 제외 (인터페이스만 예약) |
 |---|---|---|
-| BabeRadar | 수동 등록만: URL 입력, 파일 업로드, CSV 일괄 등록 | Sensor Tower·Meta·TikTok 자동 동기화 |
+| BabeRadar | 수동 등록만: URL 입력, 파일 업로드, Sensor Tower Creative Gallery CSV 임포트(+미디어 즉시 다운로드) | Sensor Tower·Meta·TikTok API 자동 동기화 |
 | BabeStudio | OCR·전사(Mock) → 분석 → 임베딩 → 브리프 → 문구·스크립트 생성 → zh-TW 초안 | 이미지·영상 실생성, 영상 장면 분할 |
 | BabeReview | 검토 큐, zh-TW 검수 게이트, 승인/수정요청/거절, 버전 이력 | 담당자 자동 배정, 댓글 스레드 |
 | BabePublisher | **파일 내보내기만** — 추적코드가 파일명·메타에 각인된 패키지 생성 | Instagram/TikTok 게시 전체 (Phase 5) |
@@ -84,9 +84,20 @@ TextGenerationProvider      → MockTextGenerationProvider (결정적 응답)
 EmbeddingProvider           → MockEmbeddingProvider (해시 기반 결정적 벡터)
 OcrProvider                 → MockOcrProvider
 SpeechToTextProvider        → MockSttProvider
-CompetitorDataProvider      → ManualUrlProvider, ManualFileProvider, CsvImportProvider
-PerformanceDataProvider     → CsvPerformanceProvider, MockPerformanceProvider
+CompetitorDataProvider      → ManualUrlProvider, ManualFileProvider,
+                              SensorTowerCreativeGalleryCsvProvider
+PerformanceDataProvider     → CsvPerformanceProvider, AirbridgePerformanceProvider,
+                              MockPerformanceProvider
 ```
+
+### SensorTowerCreativeGalleryCsvProvider (2026-07-14 추가)
+
+Sensor Tower API 권한이 없어도 웹 UI의 Unified Creative Gallery 내보내기(CSV)를 수동 다운로드할 수 있음이 확인됐다. 실물 파일 기준 형식: **UTF-16LE + 탭 구분**, 컬럼 = Advertiser App ID/Name, Creative URL, Networks, Duration, First Seen, Last Seen, Impression Share, Countries, Type, Format, Placements, Dimensions, Video Duration.
+
+- First/Last Seen, Duration → 스펙 7장의 대리 신호에 직접 매핑
+- Impression Share → `isEstimated: true, confidence: MEDIUM`
+- **Creative URL은 만료 가능한 S3 링크이므로 임포트 즉시 `download-external-media` 작업으로 미디어를 자체 스토리지에 보관한다** (지연 시 소재 유실)
+- 파서는 인코딩(UTF-16/UTF-8) 자동 감지 필수. 실물 CSV 일부를 테스트 픽스처로 사용한다.
 
 - Provider 선택은 환경변수 (`TEXT_AI_PROVIDER=mock` 등).
 - Mock은 결정적(deterministic)이어야 한다 — 같은 입력에 같은 출력. E2E 테스트가 이것에 의존한다.
@@ -169,6 +180,14 @@ enum UserRole { ADMIN, EDITOR, REVIEWER, VIEWER }
 3. **운영 규칙: 소재 1개 = 광고 1개.** Meta Dynamic Creative처럼 광고 하나에 소재 여러 개를 묶으면 소재 단위 분석이 원천 불가능해진다. 내보내기 패키지에 이 규칙을 안내 문구로 포함한다.
 
 4. **MMP 연동은 `PerformanceDataProvider` 구현체 추가로 처리한다.** 도메인 로직·스키마·대시보드는 변경 없음. MMP를 붙이는 날 과거 CSV 데이터도 같은 추적코드로 조인되므로 연속성이 유지된다.
+
+### MMP 확정: Airbridge (2026-07-14)
+
+BabeChat은 Airbridge를 사용 중임이 확인됐다. 이로써 가입·첫 메시지의 소재 단위 귀속이 원칙적으로 가능하다.
+
+- 조인 경로: 광고 관리자 광고명에 추적코드 각인 → Airbridge 리포트의 캠페인/광고 이름 차원에 노출 → 리포트 CSV에서 추적코드 파싱 → `experiment_variants` 조인. 추적코드 설계가 그대로 유효하다.
+- MVP는 Airbridge 리포트 CSV 업로드(`AirbridgePerformanceProvider`의 CSV 경로)로 시작하고, Airbridge API 연동은 이후 슬라이스.
+- iOS는 ATT/SKAdNetwork 제약으로 광고 단위 귀속이 부분적일 수 있다 → 대시보드 그레인 표시가 OS별로 구분해야 한다 (Android 소재 단위 / iOS 제한 가능).
 
 ---
 
@@ -337,9 +356,9 @@ MVP 완료 조건(스펙 26장) 14단계의 시스템 관점:
 
 코드가 아니라 사람이 답해야 하는 것. 답이 나오는 대로 이 문서를 갱신한다.
 
-1. **BabeChat 앱에 MMP(AppsFlyer/Adjust/Singular) 또는 Meta/TikTok SDK가 붙어 있는가?**
-   → BabeChat 개발팀 확인 필요. 확인 질문: ① MMP SDK 유무 ② 없다면 Meta/TikTok SDK로 `complete_registration` 되쏘기 여부 ③ 둘 다 없다면 도입 의사.
-   → 답이 나올 때까지 가입 이후 퍼널은 캠페인 단위 그레인으로 표시.
+1. ~~BabeChat 앱에 MMP가 붙어 있는가?~~ → **해소 (2026-07-14): Airbridge 사용 중.** 남은 확인 사항으로 좁혀짐:
+   - ① BabeChat이 Airbridge로 쏘는 인앱 이벤트 목록 (가입은 있을 가능성 높음. 첫 메시지·메시지 10개는 계측 추가 요청 필요할 수 있음)
+   - ② Airbridge 리포트 내보내기 권한과 형식 (광고 이름 차원이 포함된 리포트를 받을 수 있는지)
 2. **zh-TW 검수자의 실제 투입 가능 시간** — 검토 큐 적체 시 병목 지점.
 3. **Meta/TikTok 광고 계정 상태** — 성인향 앱 이력으로 제한받는 계정인지.
 4. **실제 AI Provider 선택** (텍스트/임베딩/OCR/STT) — MVP는 전부 Mock으로 돌므로 결정을 미룰 수 있음. 단 임베딩 차원(1536)은 스키마에 박히므로, 실제 임베딩 모델 선택 시 차원 확인 필요.
