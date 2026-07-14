@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+apps/server/public/
+apps/server/src/generated/
+apps/server/generated/
+apps/web/src/generated/
+apps/web/dist/
+e2e/test-results/
+e2e/playwright-report/
+*.tsbuildinfo
+.serena/
+test-results/
