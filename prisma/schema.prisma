@@ -1,0 +1,102 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../apps/server/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Brand {
+  id          String           @id @default(cuid())
+  name        String
+  serviceUrl  String?
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  features    BrandFeature[]
+  guidelines  BrandGuideline[]
+
+  @@map("brands")
+}
+
+model BrandFeature {
+  id          String   @id @default(cuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+
+  @@map("brand_features")
+}
+
+model BrandGuideline {
+  id        String   @id @default(cuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("brand_guidelines")
+}
+
+model Market {
+  id            String   @id @default(cuid())
+  code          String   @unique // 예: TW
+  name          String
+  defaultLocale String   // 예: zh-TW
+  locales       String[]
+  createdAt     DateTime @default(now())
+
+  @@map("markets")
+}
+
+enum AiExecutionStatus {
+  SUCCESS
+  FAILURE
+}
+
+model AiExecutionLog {
+  id              String            @id @default(cuid())
+  provider        String
+  model           String
+  promptTemplate  String?
+  promptVersion   String?
+  inputRef        String? // 입력 데이터를 가리키는 참조 (예: "mediaAsset:abc123")
+  status          AiExecutionStatus
+  output          Json?
+  errorMessage    String?
+  inputTokens     Int?
+  outputTokens    Int?
+  latencyMs       Int
+  costEstimateUsd Decimal?          @db.Decimal(10, 6)
+  createdAt       DateTime          @default(now())
+
+  @@index([provider, model])
+  @@index([status])
+  @@map("ai_execution_logs")
+}
