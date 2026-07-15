@@ -1,4 +1,5 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
@@ -7,15 +8,24 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { validateEnv } from './common/env.validation';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { StorageModule } from './common/storage/storage.module';
 import { HealthController } from './health/health.controller';
 import { AiLogModule } from './modules/ai-log/ai-log.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BrandModule } from './modules/brand/brand.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 import { MarketModule } from './modules/market/market.module';
+import { MediaModule } from './modules/media/media.module';
+import { OcrModule } from './providers/ocr/ocr.module';
+import { SttModule } from './providers/stt/stt.module';
+import { redisConnectionFromUrl } from './queues/queue.constants';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    BullModule.forRootAsync({
+      useFactory: () => ({ connection: redisConnectionFromUrl(process.env.REDIS_URL!) }),
+    }),
     ...(existsSync(join(__dirname, '..', 'public'))
       ? [
           ServeStaticModule.forRoot({
@@ -25,10 +35,15 @@ import { MarketModule } from './modules/market/market.module';
         ]
       : []),
     PrismaModule,
+    StorageModule,
+    OcrModule,
+    SttModule,
     AiLogModule,
     AuthModule,
     BrandModule,
+    JobsModule,
     MarketModule,
+    MediaModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(__dirname, '..', 'src', 'generated', 'schema.gql'),

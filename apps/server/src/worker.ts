@@ -1,10 +1,18 @@
 import 'dotenv/config';
-import Redis from 'ioredis';
+import { NestFactory } from '@nestjs/core';
+import { createServer } from 'http';
+import { WorkerModule } from './worker.module';
 
 async function bootstrap() {
-  const redis = new Redis(process.env.REDIS_URL!);
-  await redis.ping();
-  console.log('worker ready (큐 프로세서는 슬라이스 1에서 등록)');
+  const ctx = await NestFactory.createApplicationContext(WorkerModule);
+  await ctx.init();
+
+  const port = Number(process.env.WORKER_PORT ?? 3001);
+  createServer((_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end('{"status":"ok","role":"worker"}');
+  }).listen(port);
+  console.log(`worker ready — media-processing 소비 중, health :${port}`);
 }
 bootstrap().catch((e) => {
   console.error(e);
