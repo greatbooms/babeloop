@@ -1,12 +1,15 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, INestApplicationContext } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer, StartedRedisContainer } from '@testcontainers/redis';
 import { execSync } from 'child_process';
 import * as path from 'path';
+import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers';
 
 let pg: StartedPostgreSqlContainer | undefined;
 let redis: StartedRedisContainer | undefined;
+let minio: StartedTestContainer | undefined;
 
 export interface TestApp {
   app: INestApplication;
@@ -17,6 +20,20 @@ export async function createTestApp(): Promise<TestApp> {
   if (!pg) {
     pg = await new PostgreSqlContainer('pgvector/pgvector:pg17').start();
     redis = await new RedisContainer('redis:7-alpine').start();
+    minio = await new GenericContainer('minio/minio:latest')
+      .withEnvironment({ MINIO_ROOT_USER: 'testuser', MINIO_ROOT_PASSWORD: 'testsecret-0123' })
+      .withCommand(['server', '/data'])
+      .withExposedPorts(9000)
+      .withWaitStrategy(Wait.forHttp('/minio/health/ready', 9000))
+      .start();
+    process.env.OBJECT_STORAGE_ENDPOINT = `http://${minio.getHost()}:${minio.getMappedPort(9000)}`;
+    process.env.OBJECT_STORAGE_REGION = 'us-east-1';
+    process.env.OBJECT_STORAGE_BUCKET = 'babeloop-test';
+    process.env.OBJECT_STORAGE_ACCESS_KEY = 'testuser';
+    process.env.OBJECT_STORAGE_SECRET_KEY = 'testsecret-0123';
+    process.env.WORKER_PORT = '0';
+    process.env.OCR_PROVIDER = 'mock';
+    process.env.STT_PROVIDER = 'mock';
     process.env.DATABASE_URL = pg.getConnectionUri();
     process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
     process.env.SESSION_SECRET = 'test-session-secret-0123456789';
@@ -48,9 +65,18 @@ export async function createTestApp(): Promise<TestApp> {
   };
 }
 
+export async function createWorkerContext(): Promise<INestApplicationContext> {
+  const { WorkerModule } = await import('../src/worker.module');
+  const ctx = await NestFactory.createApplicationContext(WorkerModule, { logger: false });
+  await ctx.init();
+  return ctx; // teardown: await ctx.close() — BullMQ Worker 연결이 닫힌다 (핸들 누수 방지)
+}
+
 export async function stopContainers(): Promise<void> {
   await pg?.stop();
   await redis?.stop();
+  await minio?.stop();
   pg = undefined;
   redis = undefined;
+  minio = undefined;
 }
