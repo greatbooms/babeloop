@@ -25,6 +25,7 @@ model User {
   role         UserRole
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  mediaAssets  MediaAsset[]
 
   @@map("users")
 }
@@ -99,4 +100,88 @@ model AiExecutionLog {
   @@index([provider, model])
   @@index([status])
   @@map("ai_execution_logs")
+}
+
+enum MediaAssetKind {
+  IMAGE
+  VIDEO
+}
+
+enum MediaAssetStatus {
+  PENDING     // Presigned URL 발급됨, 업로드 미완료
+  UPLOADED    // 업로드 확인됨, 처리 대기
+  PROCESSING
+  READY
+  FAILED
+}
+
+model MediaAsset {
+  id               String           @id @default(cuid())
+  kind             MediaAssetKind
+  status           MediaAssetStatus @default(PENDING)
+  originalFilename String
+  contentType      String
+  sizeBytes        Int?
+  contentHash      String? // sha256 — 중복 감지용
+  duplicateOfId    String? // 같은 해시의 기존 자산
+  storageKey       String           @unique
+  uploadedById     String?
+  uploadedBy       User?            @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  ocrResults       OcrResult[]
+  transcriptions   Transcription[]
+
+  @@index([status])
+  @@index([contentHash])
+  @@map("media_assets")
+}
+
+model OcrResult {
+  id           String     @id @default(cuid())
+  mediaAssetId String
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  text         String
+  provider     String
+  model        String
+  createdAt    DateTime   @default(now())
+
+  @@map("ocr_results")
+}
+
+model Transcription {
+  id           String     @id @default(cuid())
+  mediaAssetId String
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  text         String
+  language     String?
+  provider     String
+  model        String
+  createdAt    DateTime   @default(now())
+
+  @@map("transcriptions")
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model Job {
+  id         String    @id // BullMQ jobId와 동일 = idempotency key
+  queue      String
+  type       String
+  status     JobStatus @default(QUEUED)
+  payload    Json
+  result     Json?
+  error      String?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([status])
+  @@map("jobs")
 }
