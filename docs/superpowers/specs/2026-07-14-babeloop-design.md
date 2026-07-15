@@ -286,7 +286,7 @@ MVP 완료 조건(스펙 26장) 14단계의 시스템 관점:
 | AI가 잘못된 JSON 반환 | Zod 파싱 실패 → 오류 포함 재요청(repair prompt) 1회 → 재실패 시 Job 실패 기록, 사용자에게 원문 표시 |
 | 동일 URL 중복 등록 | URL 정규화 후 unique 제약 → 오류가 아니라 기존 레코드 안내 |
 | 동일 파일 중복 업로드 | 콘텐츠 해시로 감지 → 기존 레코드 안내 |
-| 동일 Job 중복 실행 | BullMQ jobId = 결정적 키 `{jobType}:{sourceId}:{inputHash}` — 큐 수준에서 차단 |
+| 동일 Job 중복 실행 | BullMQ jobId = 결정적 키 `{jobType}--{sourceId}--{inputHash}` — 큐 수준에서 차단. 주의: BullMQ 커스텀 jobId에 `:` 사용 불가 (Redis 키 구분자, 슬라이스 1에서 실측) |
 | CSV 중복 업로드 | 파일 해시 + 행 단위 `(tracking_code, date, platform)` upsert — 멱등 |
 | 업로드 중 이탈 (고아 파일) | `media_assets.status=PENDING` → maintenance 큐가 24시간 경과분을 MinIO 대조 후 정리 |
 | 영상 처리 실패 | 재시도 3회 지수 백오프 → 영구 실패는 사유와 함께 `jobs`에 기록, UI 수동 재실행 |

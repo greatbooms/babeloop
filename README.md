@@ -21,6 +21,7 @@ pnpm prisma:seed          # admin@babeloop.local / changeme-admin
 ```bash
 pnpm dev:server           # NestJS :3000 (GraphQL Playground /graphql)
 pnpm dev:web              # Vite :5173 (API는 :3000으로 프록시)
+pnpm --filter @babeloop/server build && pnpm start:worker  # BullMQ 워커 (업로드 분석에 필요)
 ```
 
 ## 프로덕션 모드 (단일 Origin)

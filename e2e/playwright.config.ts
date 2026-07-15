@@ -5,7 +5,7 @@ export default defineConfig({
   timeout: 30_000,
   use: { baseURL: 'http://localhost:3000' },
   webServer: {
-    command: 'pnpm build && pnpm start',
+    command: 'pnpm e2e:stack',
     cwd: '..',
     url: 'http://localhost:3000/health',
     reuseExistingServer: true,
