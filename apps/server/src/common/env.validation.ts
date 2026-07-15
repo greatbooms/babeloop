@@ -7,6 +7,14 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16),
+  OBJECT_STORAGE_ENDPOINT: z.string().url(),
+  OBJECT_STORAGE_REGION: z.string().default('us-east-1'),
+  OBJECT_STORAGE_BUCKET: z.string().min(1),
+  OBJECT_STORAGE_ACCESS_KEY: z.string().min(1),
+  OBJECT_STORAGE_SECRET_KEY: z.string().min(1),
+  WORKER_PORT: z.coerce.number().default(3001),
+  OCR_PROVIDER: z.enum(['mock']).default('mock'),
+  STT_PROVIDER: z.enum(['mock']).default('mock'),
 });
 
 export type Env = z.infer<typeof envSchema>;
