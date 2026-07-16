@@ -4,6 +4,7 @@ import { graphql } from './generated';
 import { LoginPage } from './pages/LoginPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { MediaPage } from './pages/MediaPage';
+import { SourceAdsPage } from './pages/SourceAdsPage';
 
 const MeDocument = graphql(`
   query Me { me { id email displayName role } }
@@ -19,13 +20,14 @@ export function App() {
     <>
       {me && (
         <nav>
-          <Link to="/brands">브랜드</Link> | <Link to="/media">미디어</Link>
+          <Link to="/brands">브랜드</Link> | <Link to="/media">미디어</Link> | <Link to="/ads">광고</Link>
         </nav>
       )}
       <Routes>
         <Route path="/login" element={me ? <Navigate to="/brands" /> : <LoginPage onLogin={() => refetch()} />} />
         <Route path="/brands" element={me ? <BrandsPage /> : <Navigate to="/login" />} />
         <Route path="/media" element={me ? <MediaPage /> : <Navigate to="/login" />} />
+        <Route path="/ads" element={me ? <SourceAdsPage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={me ? '/brands' : '/login'} />} />
       </Routes>
     </>
