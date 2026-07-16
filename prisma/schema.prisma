@@ -18,14 +18,16 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  displayName  String
-  role         UserRole
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  mediaAssets  MediaAsset[]
+  id                  String                @id @default(cuid())
+  email               String                @unique
+  passwordHash        String
+  displayName         String
+  role                UserRole
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  mediaAssets         MediaAsset[]
+  createdBriefs       CreativeBrief[]
+  localizationReviews LocalizationVersion[]
 
   @@map("users")
 }
@@ -39,6 +41,7 @@ model Brand {
   updatedAt   DateTime         @updatedAt
   features    BrandFeature[]
   guidelines  BrandGuideline[]
+  briefs      CreativeBrief[]
 
   @@map("brands")
 }
@@ -293,4 +296,95 @@ model CreativeEmbedding {
 
   @@unique([sourceAdId, model])
   @@map("creative_embeddings")
+}
+
+model CreativeBrief {
+  id                 String              @id @default(cuid())
+  title              String
+  marketCode         String              @default("TW")
+  locale             String              @default("zh-TW")
+  audienceHypothesis String
+  desire             String
+  hookType           String
+  messageAngle       String
+  visualFormat       String
+  callToAction       String
+  rationale          String
+  focusText          String?
+  sourceAdIds        String[]
+  brandId            String?
+  brand              Brand?              @relation(fields: [brandId], references: [id])
+  raw                Json
+  provider           String
+  model              String
+  promptVersion      String
+  createdById        String?
+  createdBy          User?               @relation(fields: [createdById], references: [id])
+  createdAt          DateTime            @default(now())
+  creatives          GeneratedCreative[]
+
+  @@map("creative_briefs")
+}
+
+enum CreativeType {
+  COPY
+  VIDEO_SCRIPT
+}
+
+enum CreativeStatus {
+  DRAFT
+  POLICY_CHECKED
+  IN_REVIEW
+  LOCALIZATION_APPROVED
+  APPROVED
+  EXPORTED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+model GeneratedCreative {
+  id            String                @id @default(cuid())
+  briefId       String
+  brief         CreativeBrief         @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  type          CreativeType
+  status        CreativeStatus        @default(DRAFT)
+  variantIndex  Int
+  hookType      String?
+  koreanText    String
+  scenes        Json?
+  raw           Json
+  provider      String
+  model         String
+  promptVersion String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  localizations LocalizationVersion[]
+
+  @@index([briefId])
+  @@index([status])
+  @@map("generated_creatives")
+}
+
+enum LocalizationKind {
+  AI_DRAFT
+  HUMAN_REVISED
+  APPROVED
+}
+
+model LocalizationVersion {
+  id         String            @id @default(cuid())
+  creativeId String
+  creative   GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  locale     String            @default("zh-TW")
+  kind       LocalizationKind
+  text       String
+  notes      String?
+  reviewerId String?
+  reviewer   User?             @relation(fields: [reviewerId], references: [id])
+  provider   String?
+  model      String?
+  createdAt  DateTime          @default(now())
+
+  @@index([creativeId])
+  @@map("localization_versions")
 }
