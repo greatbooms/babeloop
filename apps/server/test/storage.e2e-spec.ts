@@ -37,4 +37,13 @@ describe('storage', () => {
     const storage = t.app.get(StorageService);
     expect(await storage.head('test/no-such-key')).toBeNull();
   });
+
+  it('putBuffer로 저장하고 presignGet URL로 내려받을 수 있다', async () => {
+    const { StorageService } = await import('../src/common/storage/storage.service');
+    const storage = t.app.get(StorageService);
+    await storage.putBuffer('test/direct.txt', Buffer.from('direct-put'), 'text/plain');
+    const url = await storage.presignGet('test/direct.txt');
+    const res = await fetch(url);
+    expect(await res.text()).toBe('direct-put');
+  });
 });
