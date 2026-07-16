@@ -24,7 +24,7 @@ export class AiExecutionLogService {
       const result = await fn();
       await this.write(meta, {
         status: 'SUCCESS',
-        output: result as Prisma.InputJsonValue,
+        output: (Array.isArray(result) ? { length: result.length } : result) as Prisma.InputJsonValue,
         latencyMs: Date.now() - startedAt,
       });
       return result;

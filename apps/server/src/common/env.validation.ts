@@ -15,6 +15,8 @@ export const envSchema = z.object({
   WORKER_PORT: z.coerce.number().default(3001),
   OCR_PROVIDER: z.enum(['mock']).default('mock'),
   STT_PROVIDER: z.enum(['mock']).default('mock'),
+  TEXT_AI_PROVIDER: z.enum(['mock']).default('mock'),
+  EMBEDDING_PROVIDER: z.enum(['mock']).default('mock'),
 });
 
 export type Env = z.infer<typeof envSchema>;

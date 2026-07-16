@@ -29,4 +29,13 @@ describe('AiExecutionLogService', () => {
     expect(data.status).toBe('FAILURE');
     expect(data.errorMessage).toBe('provider exploded');
   });
+
+  it('배열 결과는 전체 값 대신 길이만 기록한다', async () => {
+    const result = await service.record(
+      { provider: 'mock', model: 'mock-embedding-1' },
+      async () => [0.1, 0.2, 0.3],
+    );
+    expect(result).toEqual([0.1, 0.2, 0.3]);
+    expect(createMock.mock.calls[0][0].data.output).toEqual({ length: 3 });
+  });
 });
