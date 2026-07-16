@@ -8,6 +8,7 @@ import { SourceAdsPage } from './pages/SourceAdsPage';
 import { BriefsPage } from './pages/BriefsPage';
 import { ExperimentsPage } from './pages/ExperimentsPage';
 import { ReviewPage } from './pages/ReviewPage';
+import { PerformancePage } from './pages/PerformancePage';
 
 const MeDocument = graphql(`
   query Me { me { id email displayName role } }
@@ -37,7 +38,8 @@ export function App() {
         <nav>
           <Link to="/brands">브랜드</Link> | <Link to="/media">미디어</Link> | <Link to="/ads">광고</Link> |{' '}
           <Link to="/briefs">브리프</Link>
-          {' | '}<Link to="/review">검토</Link> | <Link to="/experiments">실험</Link>{' '}
+          {' | '}<Link to="/review">검토</Link> | <Link to="/experiments">실험</Link> |{' '}
+          <Link to="/performance">성과</Link>{' '}
           <button onClick={() => void onLogout()}>로그아웃</button>
         </nav>
       )}
@@ -49,6 +51,7 @@ export function App() {
         <Route path="/briefs" element={me ? <BriefsPage /> : <Navigate to="/login" />} />
         <Route path="/review" element={me ? <ReviewPage /> : <Navigate to="/login" />} />
         <Route path="/experiments" element={me ? <ExperimentsPage /> : <Navigate to="/login" />} />
+        <Route path="/performance" element={me ? <PerformancePage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={me ? '/brands' : '/login'} />} />
       </Routes>
     </>
