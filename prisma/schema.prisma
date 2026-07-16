@@ -467,6 +467,7 @@ model ExperimentVariant {
   variantCode  String
   trackingCode String            @unique
   createdAt    DateTime          @default(now())
+  performance  PerformanceDaily[]
 
   @@unique([experimentId, creativeId])
   @@unique([experimentId, variantCode])
@@ -482,4 +483,51 @@ model ExportPackage {
   createdAt     DateTime @default(now())
 
   @@map("export_packages")
+}
+
+model PerformanceImport {
+  id                     String   @id @default(cuid())
+  filename               String
+  fileHash               String
+  importedRows           Int
+  updatedRows            Int
+  errorRows              Int
+  errors                  Json
+  unmatchedTrackingCodes String[]
+  createdById            String?
+  createdAt              DateTime @default(now())
+
+  @@index([fileHash])
+  @@map("performance_imports")
+}
+
+enum AdPlatform {
+  META
+  TIKTOK
+  OTHER
+}
+
+model PerformanceDaily {
+  id                  String             @id @default(cuid())
+  date                DateTime           @db.Date
+  platform            AdPlatform
+  trackingCode        String
+  experimentVariantId String?
+  experimentVariant   ExperimentVariant? @relation(fields: [experimentVariantId], references: [id])
+  impressions         Int?
+  clicks              Int?
+  installs            Int?
+  signups             Int?
+  firstMessages       Int?
+  cost                Decimal?           @db.Decimal(14, 2)
+  currency            String             @default("TWD")
+  provider            String             @default("csv")
+  isEstimated         Boolean            @default(false)
+  confidence          Confidence         @default(HIGH)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([date, platform, trackingCode])
+  @@index([trackingCode])
+  @@map("performance_daily")
 }
