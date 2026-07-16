@@ -356,9 +356,17 @@ model GeneratedCreative {
   provider      String
   model         String
   promptVersion String
+  revision      Int                   @default(1)
+  createdById   String?
+  lastEditedById String?
+  minorFlagged  Boolean               @default(false)
+  minorFlagNote String?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   localizations LocalizationVersion[]
+  experimentVariants ExperimentVariant[]
+  policyChecks PolicyCheck[]
+  reviewEvents ReviewRequest[]
 
   @@index([briefId])
   @@index([status])
@@ -387,4 +395,91 @@ model LocalizationVersion {
 
   @@index([creativeId])
   @@map("localization_versions")
+}
+
+enum PolicyCheckType {
+  BANNED_TERM
+  SIMILARITY
+  MINOR_SIGNAL
+}
+
+enum PolicyCheckStatus {
+  PASS
+  WARN
+  FLAGGED
+}
+
+model PolicyCheck {
+  id         String            @id @default(cuid())
+  creativeId String
+  creative   GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  checkType  PolicyCheckType
+  status     PolicyCheckStatus
+  detail     Json
+  createdAt  DateTime          @default(now())
+
+  @@index([creativeId])
+  @@map("policy_checks")
+}
+
+enum ReviewEventKind {
+  POLICY_CHECKED
+  REVIEW_REQUESTED
+  LOCALIZATION_REVISED
+  LOCALIZATION_APPROVED
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+  MINOR_FLAG_RELEASED
+  EXPORTED
+}
+
+model ReviewRequest {
+  id         String            @id @default(cuid())
+  creativeId String
+  creative   GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  kind       ReviewEventKind
+  actorId    String
+  note       String?
+  createdAt  DateTime          @default(now())
+
+  @@index([creativeId])
+  @@map("review_requests")
+}
+
+model Experiment {
+  id         String              @id @default(cuid())
+  code       String              @unique
+  name       String
+  marketCode String              @default("TW")
+  createdAt  DateTime            @default(now())
+  variants   ExperimentVariant[]
+
+  @@map("experiments")
+}
+
+model ExperimentVariant {
+  id           String            @id @default(cuid())
+  experimentId String
+  experiment   Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  creativeId   String
+  creative     GeneratedCreative @relation(fields: [creativeId], references: [id])
+  variantCode  String
+  trackingCode String            @unique
+  createdAt    DateTime          @default(now())
+
+  @@unique([experimentId, creativeId])
+  @@unique([experimentId, variantCode])
+  @@map("experiment_variants")
+}
+
+model ExportPackage {
+  id            String   @id @default(cuid())
+  experimentId  String
+  storagePrefix String
+  manifest      Json
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  @@map("export_packages")
 }

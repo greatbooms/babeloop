@@ -19,6 +19,19 @@ async function main() {
     },
   });
 
+  const reviewerEmail = process.env.REVIEWER_EMAIL ?? 'reviewer@babeloop.local';
+  const reviewerPassword = process.env.REVIEWER_PASSWORD ?? 'changeme-reviewer';
+  await prisma.user.upsert({
+    where: { email: reviewerEmail },
+    update: {},
+    create: {
+      email: reviewerEmail,
+      passwordHash: await argon2.hash(reviewerPassword),
+      displayName: 'Reviewer',
+      role: 'REVIEWER',
+    },
+  });
+
   await prisma.market.upsert({
     where: { code: 'TW' },
     update: {},
@@ -30,7 +43,7 @@ async function main() {
     },
   });
 
-  console.log('seed done:', email, '+ market TW');
+  console.log('seed done:', email, reviewerEmail, '+ market TW');
 }
 
 main().finally(() => prisma.$disconnect());
