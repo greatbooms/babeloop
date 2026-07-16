@@ -5,9 +5,11 @@ import { lexicographicSortSchema, printSchema } from 'graphql';
 import { join } from 'path';
 import { AuthResolver } from './modules/auth/auth.resolver';
 import { BrandResolver } from './modules/brand/brand.resolver';
+import { CompetitorResolver } from './modules/competitor/competitor.resolver';
 import { JobsResolver } from './modules/jobs/jobs.resolver';
 import { MarketResolver } from './modules/market/market.resolver';
 import { MediaResolver } from './modules/media/media.resolver';
+import { SourceAdResolver } from './modules/source-ad/source-ad.resolver';
 
 // DB·Redis 없이 스키마 SDL만 생성한다. web codegen이 이 파일을 읽으므로
 // 새 Resolver를 추가하면 아래 목록에도 추가해야 한다.
@@ -15,7 +17,15 @@ async function main() {
   const app = await NestFactory.create(GraphQLSchemaBuilderModule, { logger: false });
   await app.init();
   const factory = app.get(GraphQLSchemaFactory);
-  const schema = await factory.create([AuthResolver, BrandResolver, JobsResolver, MarketResolver, MediaResolver]);
+  const schema = await factory.create([
+    AuthResolver,
+    BrandResolver,
+    CompetitorResolver,
+    JobsResolver,
+    MarketResolver,
+    MediaResolver,
+    SourceAdResolver,
+  ]);
   const outDir = join(__dirname, '..', 'src', 'generated');
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'schema.gql'), printSchema(lexicographicSortSchema(schema)));

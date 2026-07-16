@@ -1,0 +1,132 @@
+import { InjectQueue } from '@nestjs/bullmq';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Queue } from 'bullmq';
+import { GraphQLError } from 'graphql';
+import { User } from '../../../generated/prisma';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  analyzeCreativeJobId,
+  CREATIVE_ANALYSIS_QUEUE,
+  JOB_TYPES,
+} from '../../queues/queue.constants';
+import { JobRecordService } from '../jobs/job-record.service';
+import { VectorSearchRepository } from '../creative-analysis/vector-search.repository';
+import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../../providers/embedding/embedding.provider';
+import { CreateSourceAdInput } from './source-ad.inputs';
+
+export const SOURCE_AD_INCLUDE = {
+  competitor: true,
+  analyses: { orderBy: { createdAt: 'desc' as const }, take: 1 },
+} as const;
+
+export function normalizeUrl(raw: string): string {
+  const u = new URL(raw);
+  u.hash = '';
+  u.searchParams.sort();
+  u.hostname = u.hostname.toLowerCase();
+  return u.toString();
+}
+
+@Injectable()
+export class SourceAdService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobRecord: JobRecordService,
+    @InjectQueue(CREATIVE_ANALYSIS_QUEUE) private readonly analysisQueue: Queue,
+    private readonly vectors: VectorSearchRepository,
+    @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
+  ) {}
+
+  private mapSourceAd<T extends { analyses: unknown[] }>(ad: T) {
+    return { ...ad, latestAnalysis: ad.analyses[0] ?? null };
+  }
+
+  private async enqueueAnalysis(sourceAdId: string) {
+    const jobId = analyzeCreativeJobId(sourceAdId);
+    await this.analysisQueue.add(
+      JOB_TYPES.ANALYZE_CREATIVE,
+      { sourceAdId },
+      {
+        jobId,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+    return this.jobRecord.enqueue(jobId, CREATIVE_ANALYSIS_QUEUE, JOB_TYPES.ANALYZE_CREATIVE, { sourceAdId });
+  }
+
+  async create(_user: User, input: CreateSourceAdInput) {
+    if (!input.adText && !input.sourceUrl) {
+      throw new GraphQLError('adText 또는 sourceUrl 중 하나는 필요합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    const externalId = input.sourceUrl ? normalizeUrl(input.sourceUrl) : null;
+    if (externalId) {
+      const existing = await this.prisma.sourceAd.findUnique({ where: { externalId } });
+      if (existing) {
+        throw new GraphQLError(`이미 등록된 광고입니다: ${existing.id}`, {
+          extensions: { code: 'DUPLICATE_SOURCE_AD', existingId: existing.id },
+        });
+      }
+    }
+    const created = await this.prisma.sourceAd.create({
+      data: {
+        origin: input.sourceUrl ? 'MANUAL_URL' : 'MANUAL_FILE',
+        title: input.title,
+        adText: input.adText,
+        sourceUrl: input.sourceUrl,
+        externalId,
+        competitorId: input.competitorId,
+        networks: [],
+        countries: [],
+        provider: 'manual',
+        confidence: 'HIGH',
+        isEstimated: false,
+      },
+      include: SOURCE_AD_INCLUDE,
+    });
+    const job = input.adText ? await this.enqueueAnalysis(created.id) : null;
+    return { sourceAd: this.mapSourceAd(created), job };
+  }
+
+  async analyze(sourceAdId: string) {
+    await this.findById(sourceAdId);
+    return this.enqueueAnalysis(sourceAdId);
+  }
+
+  async findAll() {
+    const ads = await this.prisma.sourceAd.findMany({
+      include: SOURCE_AD_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+    });
+    return ads.map((ad) => this.mapSourceAd(ad));
+  }
+
+  async findById(id: string) {
+    const ad = await this.prisma.sourceAd.findUnique({ where: { id }, include: SOURCE_AD_INCLUDE });
+    if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
+    return this.mapSourceAd(ad);
+  }
+
+  async findSimilar(sourceAdId: string, limit: number) {
+    const model = this.embedder.model;
+    const vector = await this.vectors.getEmbeddingVector(sourceAdId, model);
+    if (!vector) {
+      throw new GraphQLError('이 광고의 임베딩이 아직 없습니다 — 분석 완료 후 다시 시도하세요', {
+        extensions: { code: 'EMBEDDING_NOT_READY' },
+      });
+    }
+    const hits = await this.vectors.searchSimilar({ vector, model, limit, excludeSourceAdId: sourceAdId });
+    const ads = await this.prisma.sourceAd.findMany({
+      where: { id: { in: hits.map((hit) => hit.sourceAdId) } },
+      include: SOURCE_AD_INCLUDE,
+    });
+    const byId = new Map(ads.map((ad) => [ad.id, this.mapSourceAd(ad)]));
+    return hits
+      .filter((hit) => byId.has(hit.sourceAdId))
+      .map((hit) => ({ similarity: hit.similarity, sourceAd: byId.get(hit.sourceAdId)! }));
+  }
+}

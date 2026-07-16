@@ -13,11 +13,16 @@ import { HealthController } from './health/health.controller';
 import { AiLogModule } from './modules/ai-log/ai-log.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BrandModule } from './modules/brand/brand.module';
+import { CompetitorModule } from './modules/competitor/competitor.module';
+import { CreativeAnalysisModule } from './modules/creative-analysis/creative-analysis.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { MarketModule } from './modules/market/market.module';
 import { MediaModule } from './modules/media/media.module';
+import { SourceAdModule } from './modules/source-ad/source-ad.module';
+import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
+import { TextModule } from './providers/text/text.module';
 import { redisConnectionFromUrl } from './queues/queue.constants';
 
 @Module({
@@ -36,14 +41,19 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
       : []),
     PrismaModule,
     StorageModule,
+    EmbeddingModule,
     OcrModule,
     SttModule,
+    TextModule,
     AiLogModule,
     AuthModule,
     BrandModule,
+    CompetitorModule,
+    CreativeAnalysisModule,
     JobsModule,
     MarketModule,
     MediaModule,
+    SourceAdModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(__dirname, '..', 'src', 'generated', 'schema.gql'),

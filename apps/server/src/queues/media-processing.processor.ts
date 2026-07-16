@@ -7,7 +7,7 @@ import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.servic
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { OCR_PROVIDER, OcrProvider } from '../providers/ocr/ocr.provider';
 import { STT_PROVIDER, SttProvider } from '../providers/stt/stt.provider';
-import { MEDIA_PROCESSING_QUEUE } from './queue.constants';
+import { JOB_TYPES, MEDIA_PROCESSING_QUEUE } from './queue.constants';
 
 @Processor(MEDIA_PROCESSING_QUEUE)
 export class MediaProcessingProcessor extends WorkerHost {
@@ -22,7 +22,12 @@ export class MediaProcessingProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
+  async process(job: BullJob): Promise<void> {
+    if (job.name === JOB_TYPES.DOWNLOAD_EXTERNAL_MEDIA) return this.downloadExternalMedia(job);
+    return this.processMedia(job);
+  }
+
+  private async processMedia(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     const asset = await this.prisma.mediaAsset.findUniqueOrThrow({
@@ -61,6 +66,46 @@ export class MediaProcessingProcessor extends WorkerHost {
         await this.jobRecord.markFailed(jobId, message);
       }
       throw error; // BullMQ 재시도를 위해 다시 던진다
+    }
+  }
+
+  private async downloadExternalMedia(
+    job: BullJob<{ sourceAdId: string; url: string; type: string }>,
+  ): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const res = await fetch(job.data.url);
+      if (!res.ok) throw new Error(`다운로드 실패: HTTP ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
+      const kind = job.data.type === 'video' || contentType.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+      const storageKey = `source-ads/${job.data.sourceAdId}/original`;
+      await this.storage.putBuffer(storageKey, buffer, contentType);
+
+      let asset = await this.prisma.mediaAsset.findFirst({ where: { storageKey } });
+      if (!asset) {
+        asset = await this.prisma.mediaAsset.create({
+          data: {
+            kind,
+            status: 'UPLOADED',
+            originalFilename: `external-${job.data.sourceAdId}`,
+            contentType,
+            sizeBytes: buffer.length,
+            storageKey,
+          },
+        });
+      }
+      await this.prisma.sourceAd.update({
+        where: { id: job.data.sourceAdId },
+        data: { mediaAssetId: asset.id },
+      });
+      await this.jobRecord.markSucceeded(jobId, { mediaAssetId: asset.id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isFinalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+      if (isFinalAttempt) await this.jobRecord.markFailed(jobId, message);
+      throw error;
     }
   }
 }
