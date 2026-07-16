@@ -15,10 +15,12 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BrandModule } from './modules/brand/brand.module';
 import { CompetitorModule } from './modules/competitor/competitor.module';
 import { CreativeAnalysisModule } from './modules/creative-analysis/creative-analysis.module';
+import { ExperimentModule } from './modules/experiment/experiment.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { GenerationModule } from './modules/generation/generation.module';
 import { MarketModule } from './modules/market/market.module';
 import { MediaModule } from './modules/media/media.module';
+import { ReviewModule } from './modules/review/review.module';
 import { SourceAdModule } from './modules/source-ad/source-ad.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { OcrModule } from './providers/ocr/ocr.module';
@@ -51,10 +53,12 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
     BrandModule,
     CompetitorModule,
     CreativeAnalysisModule,
+    ExperimentModule,
     GenerationModule,
     JobsModule,
     MarketModule,
     MediaModule,
+    ReviewModule,
     SourceAdModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,

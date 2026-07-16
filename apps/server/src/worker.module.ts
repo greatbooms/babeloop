@@ -7,6 +7,7 @@ import { StorageModule } from './common/storage/storage.module';
 import { AiLogModule } from './modules/ai-log/ai-log.module';
 import { CreativeAnalysisModule } from './modules/creative-analysis/creative-analysis.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { PolicyModule } from './modules/policy/policy.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
@@ -16,12 +17,14 @@ import { MediaProcessingProcessor } from './queues/media-processing.processor';
 import { LocalizationProcessor } from './queues/localization.processor';
 import { CreativeAnalysisProcessor } from './queues/creative-analysis.processor';
 import { EmbeddingProcessor } from './queues/embedding.processor';
+import { PolicyCheckProcessor } from './queues/policy-check.processor';
 import {
   CREATIVE_ANALYSIS_QUEUE,
   CREATIVE_GENERATION_QUEUE,
   EMBEDDING_QUEUE,
   LOCALIZATION_QUEUE,
   MEDIA_PROCESSING_QUEUE,
+  POLICY_CHECK_QUEUE,
   redisConnectionFromUrl,
 } from './queues/queue.constants';
 
@@ -37,6 +40,7 @@ import {
       { name: EMBEDDING_QUEUE },
       { name: CREATIVE_GENERATION_QUEUE },
       { name: LOCALIZATION_QUEUE },
+      { name: POLICY_CHECK_QUEUE },
     ),
     PrismaModule,
     StorageModule,
@@ -44,6 +48,7 @@ import {
     AiLogModule,
     CreativeAnalysisModule,
     JobsModule,
+    PolicyModule,
     OcrModule,
     SttModule,
     TextModule,
@@ -54,6 +59,7 @@ import {
     EmbeddingProcessor,
     LocalizationProcessor,
     MediaProcessingProcessor,
+    PolicyCheckProcessor,
   ],
 })
 export class WorkerModule {}
