@@ -196,6 +196,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
               provider: this.textAi.name,
               model: this.textAi.model,
               promptVersion: GENERATION_PROMPT_VERSIONS.copyVariants,
+              createdById: brief.createdById,
             },
           });
           creativeIds.push(creative.id);
@@ -235,6 +236,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
               provider: this.textAi.name,
               model: this.textAi.model,
               promptVersion: GENERATION_PROMPT_VERSIONS.videoScript,
+              createdById: brief.createdById,
             },
           });
           creativeIds.push(creative.id);
