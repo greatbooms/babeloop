@@ -131,6 +131,7 @@ model MediaAsset {
   updatedAt        DateTime         @updatedAt
   ocrResults       OcrResult[]
   transcriptions   Transcription[]
+  sourceAds        SourceAd[]
 
   @@index([status])
   @@index([contentHash])
@@ -184,4 +185,112 @@ model Job {
 
   @@index([status])
   @@map("jobs")
+}
+
+enum ReferenceCategory {
+  DIRECT_COMPETITOR
+  LOCAL_MARKET_REFERENCE
+  CREATIVE_REFERENCE
+  FEATURE_REFERENCE
+  ONBOARDING_REFERENCE
+  MONETIZATION_REFERENCE
+  CREATOR_ECOSYSTEM_REFERENCE
+}
+
+model Competitor {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  category  ReferenceCategory
+  notes     String?
+  createdAt DateTime          @default(now())
+  sourceAds SourceAd[]
+
+  @@map("competitors")
+}
+
+enum SourceAdOrigin {
+  MANUAL_URL
+  MANUAL_FILE
+  SENSOR_TOWER_CSV
+}
+
+enum SourceAdStatus {
+  REGISTERED
+  ANALYZING
+  ANALYZED
+  FAILED
+}
+
+enum Confidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model SourceAd {
+  id              String              @id @default(cuid())
+  origin          SourceAdOrigin
+  status          SourceAdStatus      @default(REGISTERED)
+  competitorId    String?
+  competitor      Competitor?         @relation(fields: [competitorId], references: [id])
+  title           String?
+  adText          String?
+  sourceUrl       String?
+  externalId      String?             @unique
+  networks        String[]
+  countries       String[]
+  firstSeenAt     DateTime?
+  lastSeenAt      DateTime?
+  impressionShare Float?
+  mediaAssetId    String?
+  mediaAsset      MediaAsset?         @relation(fields: [mediaAssetId], references: [id])
+  provider        String
+  observedAt      DateTime?
+  importedAt      DateTime            @default(now())
+  isEstimated     Boolean             @default(false)
+  confidence      Confidence          @default(MEDIUM)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  analyses        CreativeAnalysis[]
+  embeddings      CreativeEmbedding[]
+
+  @@index([status])
+  @@index([competitorId])
+  @@map("source_ads")
+}
+
+model CreativeAnalysis {
+  id                String   @id @default(cuid())
+  sourceAdId        String
+  sourceAd          SourceAd @relation(fields: [sourceAdId], references: [id], onDelete: Cascade)
+  summary           String
+  hookText          String?
+  hookType          String
+  ctaText           String?
+  ctaType           String?
+  targetAudience    String[]
+  emotionalTriggers String[]
+  genres            String[]
+  language          String
+  raw               Json
+  provider          String
+  model             String
+  promptVersion     String
+  createdAt         DateTime @default(now())
+
+  @@index([sourceAdId])
+  @@map("creative_analyses")
+}
+
+model CreativeEmbedding {
+  id         String                       @id @default(cuid())
+  sourceAdId String
+  sourceAd   SourceAd                     @relation(fields: [sourceAdId], references: [id], onDelete: Cascade)
+  model      String
+  dimension  Int
+  embedding  Unsupported("vector(1536)")
+  createdAt  DateTime                     @default(now())
+
+  @@unique([sourceAdId, model])
+  @@map("creative_embeddings")
 }
