@@ -1,6 +1,15 @@
+export type ResponseHint =
+  | 'creative-analysis'
+  | 'creative-brief'
+  | 'copy-variants'
+  | 'video-script'
+  | 'zh-tw-localization';
+
 export interface TextGenerationInput {
   system: string;
   prompt: string;
+  /** 실제 Provider에서는 structured output 스키마 선택에, Mock에서는 응답 형태 분기에 사용 */
+  responseHint?: ResponseHint;
 }
 
 export interface TextGenerationProvider {

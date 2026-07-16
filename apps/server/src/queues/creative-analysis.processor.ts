@@ -46,7 +46,12 @@ export class CreativeAnalysisProcessor extends WorkerHost {
           promptVersion: PROMPT_VERSION,
           inputRef: `sourceAd:${sourceAdId}`,
         },
-        () => generateJsonWithRepair(this.textAi, { system: SYSTEM_PROMPT, prompt: inputText }, creativeAnalysisSchema),
+        () =>
+          generateJsonWithRepair(
+            this.textAi,
+            { system: SYSTEM_PROMPT, prompt: inputText, responseHint: 'creative-analysis' },
+            creativeAnalysisSchema,
+          ),
       );
 
       await this.prisma.creativeAnalysis.create({

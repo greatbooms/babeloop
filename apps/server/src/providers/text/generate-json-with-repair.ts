@@ -22,7 +22,7 @@ export async function generateJsonWithRepair<T extends z.ZodTypeAny>(
   if (!(typeof first === 'object' && first !== null && 'error' in first)) return first;
 
   const repairPrompt = `${input.prompt}\n\n이전 응답이 유효한 JSON 스키마 검증에 실패했다: ${first.error}\n스키마에 맞는 JSON만 출력하라.`;
-  const second = attempt(await provider.generate({ system: input.system, prompt: repairPrompt }));
+  const second = attempt(await provider.generate({ ...input, prompt: repairPrompt }));
   if (!(typeof second === 'object' && second !== null && 'error' in second)) return second;
 
   throw new Error(`AI JSON 응답 검증 실패 (repair 재시도 후): ${second.error}`);

@@ -6,6 +6,9 @@ const CTA_TYPES = ['무료 시작', '캐릭터 만나기', '앱 설치'];
 const AUDIENCES = ['로맨스 선호 성인 여성', '창작형 사용자', '롤플레이 사용자'];
 const TRIGGERS = ['설렘', '몰입', '호기심', '외로움 해소'];
 const GENRES = ['로맨스', '판타지', '이세계'];
+const DESIRES = ['나를 이해하는 캐릭터', '이야기 속 주인공이 되는 경험', '자유로운 롤플레이'];
+const ANGLES = ['감정 중심', '기능 중심', '비교형'];
+const FORMATS = ['채팅 캡처', '웹툰 패널', '앱 화면 녹화'];
 
 export class MockTextGenerationProvider implements TextGenerationProvider {
   readonly name = 'mock';
@@ -14,14 +17,57 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
   async generate(input: TextGenerationInput): Promise<string> {
     const h = createHash('sha256').update(input.prompt).digest();
     const pick = <T>(arr: T[], i: number) => arr[h[i] % arr.length];
-    return JSON.stringify({
-      summary: `[MOCK 분석] ${input.prompt.slice(0, 40)}`,
-      hook: { text: input.prompt.slice(0, 20), type: pick(HOOK_TYPES, 0) },
-      callToAction: { text: '免費開始', type: pick(CTA_TYPES, 1) },
-      targetAudience: [pick(AUDIENCES, 2)],
-      emotionalTriggers: [pick(TRIGGERS, 3), pick(TRIGGERS, 4)],
-      genres: [pick(GENRES, 5)],
-      language: 'zh-TW',
-    });
+    const countMatch = input.prompt.match(/변형\s*(\d+)\s*개/);
+    const count = countMatch ? Number(countMatch[1]) : 3;
+
+    switch (input.responseHint) {
+      case 'creative-brief':
+        return JSON.stringify({
+          title: `[MOCK 브리프] ${input.prompt.slice(0, 60)}`,
+          audienceHypothesis: pick(AUDIENCES, 0),
+          desire: pick(DESIRES, 1),
+          hookType: pick(HOOK_TYPES, 2),
+          messageAngle: pick(ANGLES, 3),
+          visualFormat: pick(FORMATS, 4),
+          callToAction: pick(CTA_TYPES, 5),
+          rationale: `[MOCK 근거] 참조 패턴 기반: ${pick(TRIGGERS, 6)}`,
+        });
+      case 'copy-variants':
+        return JSON.stringify({
+          variants: Array.from({ length: count }, (_, i) => ({
+            koreanText: `[MOCK 문구 ${i + 1}] ${pick(DESIRES, i)} — ${pick(HOOK_TYPES, i + 1)}`,
+            hookType: pick(HOOK_TYPES, i + 1),
+          })),
+        });
+      case 'video-script':
+        return JSON.stringify({
+          variants: Array.from({ length: count }, (_, i) => ({
+            durationSeconds: 15,
+            hookType: pick(HOOK_TYPES, i + 1),
+            scenes: [
+              {
+                seconds: 0,
+                visual: `[MOCK 장면] ${pick(FORMATS, i)}`,
+                dialogue: pick(DESIRES, i),
+                caption: '첫 훅',
+              },
+              { seconds: 12, visual: '앱 로고', dialogue: '', caption: pick(CTA_TYPES, i) },
+            ],
+          })),
+        });
+      case 'zh-tw-localization':
+        return JSON.stringify({ zhTw: `[MOCK zh-TW] ${input.prompt.slice(0, 30)}`, notes: 'mock 번역' });
+      case 'creative-analysis':
+      default:
+        return JSON.stringify({
+          summary: `[MOCK 분석] ${input.prompt.slice(0, 40)}`,
+          hook: { text: input.prompt.slice(0, 20), type: pick(HOOK_TYPES, 0) },
+          callToAction: { text: '免費開始', type: pick(CTA_TYPES, 1) },
+          targetAudience: [pick(AUDIENCES, 2)],
+          emotionalTriggers: [pick(TRIGGERS, 3), pick(TRIGGERS, 4)],
+          genres: [pick(GENRES, 5)],
+          language: 'zh-TW',
+        });
+    }
   }
 }

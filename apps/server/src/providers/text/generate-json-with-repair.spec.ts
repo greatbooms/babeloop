@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { generateJsonWithRepair } from './generate-json-with-repair';
-import { TextGenerationProvider } from './text-generation.provider';
+import { TextGenerationInput, TextGenerationProvider } from './text-generation.provider';
 
 const schema = z.object({ ok: z.boolean() });
 
@@ -29,5 +29,25 @@ describe('generateJsonWithRepair', () => {
     await expect(
       generateJsonWithRepair(fakeProvider(['bad', 'still-bad']), { system: 's', prompt: 'p' }, schema),
     ).rejects.toThrow('AI JSON 응답 검증 실패');
+  });
+
+  it('repair 재요청에도 responseHint를 유지한다', async () => {
+    const inputs: TextGenerationInput[] = [];
+    const provider: TextGenerationProvider = {
+      name: 'fake',
+      model: 'fake-1',
+      generate: async (input) => {
+        inputs.push(input);
+        return inputs.length === 1 ? 'bad' : '{"ok":true}';
+      },
+    };
+
+    await generateJsonWithRepair(
+      provider,
+      { system: 's', prompt: 'p', responseHint: 'creative-brief' },
+      schema,
+    );
+
+    expect(inputs[1].responseHint).toBe('creative-brief');
   });
 });
