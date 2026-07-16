@@ -5,6 +5,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
 import { JobRecordService } from '../modules/jobs/job-record.service';
+import { downloadExternal } from '../common/security/external-url.guard';
 import { OCR_PROVIDER, OcrProvider } from '../providers/ocr/ocr.provider';
 import { STT_PROVIDER, SttProvider } from '../providers/stt/stt.provider';
 import { JOB_TYPES, MEDIA_PROCESSING_QUEUE } from './queue.constants';
@@ -75,10 +76,8 @@ export class MediaProcessingProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const res = await fetch(job.data.url);
-      if (!res.ok) throw new Error(`다운로드 실패: HTTP ${res.status}`);
-      const buffer = Buffer.from(await res.arrayBuffer());
-      const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
+      // CSV의 Creative URL은 사용자 입력 — SSRF 관문을 통해서만 다운로드한다
+      const { buffer, contentType } = await downloadExternal(job.data.url);
       const kind = job.data.type === 'video' || contentType.startsWith('video/') ? 'VIDEO' : 'IMAGE';
       const storageKey = `source-ads/${job.data.sourceAdId}/original`;
       await this.storage.putBuffer(storageKey, buffer, contentType);

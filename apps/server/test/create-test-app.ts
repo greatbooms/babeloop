@@ -34,6 +34,7 @@ export async function createTestApp(): Promise<TestApp> {
     process.env.WORKER_PORT = '0';
     process.env.OCR_PROVIDER = 'mock';
     process.env.STT_PROVIDER = 'mock';
+    process.env.ALLOW_PRIVATE_EXTERNAL_URLS = 'true'; // 테스트 MinIO가 loopback이라 SSRF 관문 우회
     process.env.DATABASE_URL = pg.getConnectionUri();
     process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
     process.env.SESSION_SECRET = 'test-session-secret-0123456789';
