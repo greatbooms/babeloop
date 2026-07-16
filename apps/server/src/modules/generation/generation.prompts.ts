@@ -15,11 +15,15 @@ export function buildBriefPrompt(params: {
   focusText?: string;
   brandContext: string;
   referencePatterns: string;
+  performanceSection?: string;
 }): string {
   return [
     params.focusText ? `포커스: ${params.focusText}` : null,
     `## 브랜드 정보\n${params.brandContext}`,
     `## 참조 광고 패턴 (경쟁 광고 분석 결과 — 복제 금지, 패턴만 활용)\n${params.referencePatterns}`,
+    params.performanceSection
+      ? `## 검증된 자체 성과 패턴 (이 패턴을 발전시켜라)\n${params.performanceSection}`
+      : null,
     '위 정보로 대만(zh-TW) 시장용 광고 브리프 1개를 생성하라.',
   ]
     .filter(Boolean)

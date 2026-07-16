@@ -35,6 +35,15 @@ interface GenerateBriefJobData {
   brandId: string | null;
   sourceAdIds: string[];
   createdById: string;
+  performanceContext?: {
+    trackingCode: string;
+    hookType: string | null;
+    koreanText: string;
+    signups: number | null;
+    installs: number | null;
+    clicks: number | null;
+    impressions: number | null;
+  };
 }
 
 interface GenerateVariantsJobData {
@@ -101,10 +110,14 @@ export class CreativeGenerationProcessor extends WorkerHost {
         )
         .join('\n');
       const brandContext = await this.buildBrandContext(job.data.brandId);
+      const performanceSection = job.data.performanceContext
+        ? `추적코드 ${job.data.performanceContext.trackingCode} — 훅: ${job.data.performanceContext.hookType ?? 'none'}, 가입 ${job.data.performanceContext.signups ?? '?'}건/설치 ${job.data.performanceContext.installs ?? '?'}건\n문구: ${job.data.performanceContext.koreanText}`
+        : undefined;
       const prompt = buildBriefPrompt({
         focusText: job.data.focusText ?? undefined,
         brandContext,
         referencePatterns,
+        performanceSection,
       });
       const result = await this.aiLog.record(
         {
@@ -133,7 +146,9 @@ export class CreativeGenerationProcessor extends WorkerHost {
           focusText: job.data.focusText,
           sourceAdIds,
           brandId: job.data.brandId,
-          raw: result,
+          raw: job.data.performanceContext
+            ? { ...result, performanceContext: job.data.performanceContext }
+            : result,
           provider: this.textAi.name,
           model: this.textAi.model,
           promptVersion: GENERATION_PROMPT_VERSIONS.brief,

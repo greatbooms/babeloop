@@ -12,7 +12,11 @@ import {
   JOB_TYPES,
 } from '../../queues/queue.constants';
 import { JobRecordService } from '../jobs/job-record.service';
-import { GenerateCreativeBriefInput, GenerateCreativeVariantsInput } from './brief.inputs';
+import { PerformanceService } from '../performance/performance.service';
+import {
+  GenerateCreativeBriefInput,
+  GenerateCreativeVariantsInput,
+} from './brief.inputs';
 
 export const BRIEF_INCLUDE = {
   creatives: {
@@ -26,6 +30,7 @@ export class BriefService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobRecord: JobRecordService,
+    private readonly performance: PerformanceService,
     @InjectQueue(CREATIVE_GENERATION_QUEUE) private readonly queue: Queue,
   ) {}
 
@@ -77,6 +82,54 @@ export class BriefService {
       jobId,
       CREATIVE_GENERATION_QUEUE,
       JOB_TYPES.GENERATE_COPY_VARIANTS,
+      payload,
+    );
+    return { job };
+  }
+
+  async requestBriefFromPerformance(user: User, experimentId: string) {
+    const ranked = await this.performance.variantPerformance(experimentId);
+    const top =
+      ranked.find((variant) => variant.signups !== null) ??
+      ranked.find((variant) => variant.installs !== null);
+    if (!top) {
+      throw new GraphQLError('브리프에 환류할 성과 데이터가 없습니다', {
+        extensions: { code: 'NO_PERFORMANCE_DATA' },
+      });
+    }
+    const creative = await this.prisma.generatedCreative.findUniqueOrThrow({
+      where: { id: top.creativeId },
+      include: { brief: true },
+    });
+    const performanceContext = {
+      trackingCode: top.trackingCode,
+      hookType: creative.hookType,
+      koreanText: creative.koreanText,
+      signups: top.signups,
+      installs: top.installs,
+      clicks: top.clicks,
+      impressions: top.impressions,
+    };
+    const jobId = generateBriefJobId(randomUUID());
+    const payload = {
+      title: null,
+      focusText: creative.koreanText,
+      brandId: creative.brief.brandId,
+      sourceAdIds: [],
+      createdById: user.id,
+      performanceContext,
+    };
+    await this.queue.add(JOB_TYPES.GENERATE_BRIEF, payload, {
+      jobId,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+    const job = await this.jobRecord.enqueue(
+      jobId,
+      CREATIVE_GENERATION_QUEUE,
+      JOB_TYPES.GENERATE_BRIEF,
       payload,
     );
     return { job };

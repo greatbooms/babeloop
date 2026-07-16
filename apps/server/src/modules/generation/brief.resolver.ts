@@ -5,7 +5,11 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { GenerateCreativeBriefInput, GenerateCreativeVariantsInput } from './brief.inputs';
+import {
+  GenerateBriefFromPerformanceInput,
+  GenerateCreativeBriefInput,
+  GenerateCreativeVariantsInput,
+} from './brief.inputs';
 import { CreativeBriefModel, GenerateJobPayload } from './brief.models';
 import { BriefService } from './brief.service';
 
@@ -37,5 +41,14 @@ export class BriefResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   generateCreativeVariants(@Args('input') input: GenerateCreativeVariantsInput) {
     return this.briefService.requestVariants(input);
+  }
+
+  @Mutation(() => GenerateJobPayload)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  generateBriefFromPerformance(
+    @CurrentUser() user: User,
+    @Args('input') input: GenerateBriefFromPerformanceInput,
+  ) {
+    return this.briefService.requestBriefFromPerformance(user, input.experimentId);
   }
 }

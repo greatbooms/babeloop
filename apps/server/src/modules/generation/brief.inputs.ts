@@ -15,3 +15,8 @@ export class GenerateCreativeVariantsInput {
   @Field(() => CreativeType) type: CreativeType;
   @Field(() => Int, { nullable: true, defaultValue: 3 }) count: number;
 }
+
+@InputType()
+export class GenerateBriefFromPerformanceInput {
+  @Field(() => ID) experimentId: string;
+}
