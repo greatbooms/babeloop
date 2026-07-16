@@ -12,6 +12,7 @@ import { JobsResolver } from './modules/jobs/jobs.resolver';
 import { MarketResolver } from './modules/market/market.resolver';
 import { MediaResolver } from './modules/media/media.resolver';
 import { ReviewResolver } from './modules/review/review.resolver';
+import { PerformanceResolver } from './modules/performance/performance.resolver';
 import { SourceAdResolver } from './modules/source-ad/source-ad.resolver';
 
 // DB·Redis 없이 스키마 SDL만 생성한다. web codegen이 이 파일을 읽으므로
@@ -30,6 +31,7 @@ async function main() {
     MarketResolver,
     MediaResolver,
     ReviewResolver,
+    PerformanceResolver,
     SourceAdResolver,
   ]);
   const outDir = join(__dirname, '..', 'src', 'generated');

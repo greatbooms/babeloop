@@ -21,6 +21,7 @@ import { GenerationModule } from './modules/generation/generation.module';
 import { MarketModule } from './modules/market/market.module';
 import { MediaModule } from './modules/media/media.module';
 import { ReviewModule } from './modules/review/review.module';
+import { PerformanceModule } from './modules/performance/performance.module';
 import { SourceAdModule } from './modules/source-ad/source-ad.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { OcrModule } from './providers/ocr/ocr.module';
@@ -59,6 +60,7 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
     MarketModule,
     MediaModule,
     ReviewModule,
+    PerformanceModule,
     SourceAdModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
