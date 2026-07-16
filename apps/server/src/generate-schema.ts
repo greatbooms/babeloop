@@ -6,6 +6,7 @@ import { join } from 'path';
 import { AuthResolver } from './modules/auth/auth.resolver';
 import { BrandResolver } from './modules/brand/brand.resolver';
 import { CompetitorResolver } from './modules/competitor/competitor.resolver';
+import { BriefResolver } from './modules/generation/brief.resolver';
 import { JobsResolver } from './modules/jobs/jobs.resolver';
 import { MarketResolver } from './modules/market/market.resolver';
 import { MediaResolver } from './modules/media/media.resolver';
@@ -21,6 +22,7 @@ async function main() {
     AuthResolver,
     BrandResolver,
     CompetitorResolver,
+    BriefResolver,
     JobsResolver,
     MarketResolver,
     MediaResolver,

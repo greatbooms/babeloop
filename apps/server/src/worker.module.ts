@@ -11,12 +11,16 @@ import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
 import { TextModule } from './providers/text/text.module';
+import { CreativeGenerationProcessor } from './queues/creative-generation.processor';
 import { MediaProcessingProcessor } from './queues/media-processing.processor';
+import { LocalizationProcessor } from './queues/localization.processor';
 import { CreativeAnalysisProcessor } from './queues/creative-analysis.processor';
 import { EmbeddingProcessor } from './queues/embedding.processor';
 import {
   CREATIVE_ANALYSIS_QUEUE,
+  CREATIVE_GENERATION_QUEUE,
   EMBEDDING_QUEUE,
+  LOCALIZATION_QUEUE,
   MEDIA_PROCESSING_QUEUE,
   redisConnectionFromUrl,
 } from './queues/queue.constants';
@@ -31,6 +35,8 @@ import {
       { name: MEDIA_PROCESSING_QUEUE },
       { name: CREATIVE_ANALYSIS_QUEUE },
       { name: EMBEDDING_QUEUE },
+      { name: CREATIVE_GENERATION_QUEUE },
+      { name: LOCALIZATION_QUEUE },
     ),
     PrismaModule,
     StorageModule,
@@ -42,6 +48,12 @@ import {
     SttModule,
     TextModule,
   ],
-  providers: [CreativeAnalysisProcessor, EmbeddingProcessor, MediaProcessingProcessor],
+  providers: [
+    CreativeAnalysisProcessor,
+    CreativeGenerationProcessor,
+    EmbeddingProcessor,
+    LocalizationProcessor,
+    MediaProcessingProcessor,
+  ],
 })
 export class WorkerModule {}

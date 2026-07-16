@@ -16,6 +16,7 @@ import { BrandModule } from './modules/brand/brand.module';
 import { CompetitorModule } from './modules/competitor/competitor.module';
 import { CreativeAnalysisModule } from './modules/creative-analysis/creative-analysis.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { GenerationModule } from './modules/generation/generation.module';
 import { MarketModule } from './modules/market/market.module';
 import { MediaModule } from './modules/media/media.module';
 import { SourceAdModule } from './modules/source-ad/source-ad.module';
@@ -50,6 +51,7 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
     BrandModule,
     CompetitorModule,
     CreativeAnalysisModule,
+    GenerationModule,
     JobsModule,
     MarketModule,
     MediaModule,
