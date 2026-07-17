@@ -9,6 +9,7 @@ const CREATE_AD = `mutation C($input: CreateSourceAdInput!) {
 const SIMILAR = `query S($input: SimilarSourceAdsInput!) {
   similarSourceAds(input: $input) { similarity sourceAd { id adText } }
 }`;
+const REEMBED = `mutation { reembedSourceAds { enqueued } }`;
 
 describe('analysis pipeline', () => {
   let t: TestApp;
@@ -28,7 +29,7 @@ describe('analysis pipeline', () => {
         email: 'analysis@test.local',
         passwordHash: await argon2.hash('pw-123456'),
         displayName: 'A',
-        role: 'EDITOR',
+        role: 'ADMIN',
       },
     });
     agent = request.agent(t.app.getHttpServer());
@@ -96,5 +97,30 @@ describe('analysis pipeline', () => {
     expect(results.map((result) => result.sourceAd.id)).not.toContain(ids[0]);
     const different = results.find((result) => result.sourceAd.id === ids[2]);
     if (different) expect(different.similarity).toBeLessThan(results[0].similarity);
+  });
+
+  it('ANALYZED 광고를 inputText 없이 다시 임베딩한다', async () => {
+    const { PrismaService } = await import('../src/common/prisma/prisma.service');
+    const prisma = t.app.get(PrismaService);
+    const zeroVector = `[${Array.from({ length: 1536 }, () => 0).join(',')}]`;
+    await prisma.$executeRaw`
+      UPDATE creative_embeddings SET embedding = ${zeroVector}::vector
+      WHERE "sourceAdId" IN (${ids[0]}, ${ids[1]}, ${ids[2]}) AND model = 'mock-embedding-1'`;
+
+    const res = await agent.post('/graphql').send({ query: REEMBED });
+    expect(res.body.errors).toBeUndefined();
+    expect(res.body.data.reembedSourceAds.enqueued).toBeGreaterThanOrEqual(ids.length);
+
+    const deadline = Date.now() + 15_000;
+    let updated = 0;
+    while (Date.now() < deadline) {
+      const rows = await prisma.$queryRaw<Array<{ embedding: string }>>`
+        SELECT embedding::text AS embedding FROM creative_embeddings
+        WHERE "sourceAdId" IN (${ids[0]}, ${ids[1]}, ${ids[2]}) AND model = 'mock-embedding-1'`;
+      updated = rows.filter((row) => row.embedding !== zeroVector).length;
+      if (updated === ids.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(updated).toBe(ids.length);
   });
 });
