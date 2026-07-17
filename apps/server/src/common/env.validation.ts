@@ -15,8 +15,26 @@ export const envSchema = z.object({
   WORKER_PORT: z.coerce.number().default(3001),
   OCR_PROVIDER: z.enum(['mock']).default('mock'),
   STT_PROVIDER: z.enum(['mock']).default('mock'),
-  TEXT_AI_PROVIDER: z.enum(['mock']).default('mock'),
-  EMBEDDING_PROVIDER: z.enum(['mock']).default('mock'),
+  TEXT_AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+  TEXT_AI_API_KEY: z.string().optional(),
+  TEXT_AI_MODEL: z.string().optional(),
+  TEXT_AI_USD_PER_MTOK_INPUT: z.coerce.number().optional(),
+  TEXT_AI_USD_PER_MTOK_OUTPUT: z.coerce.number().optional(),
+  EMBEDDING_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+  EMBEDDING_API_KEY: z.string().optional(),
+  EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
+}).superRefine((env, ctx) => {
+  if (env.TEXT_AI_PROVIDER === 'openai') {
+    if (!env.TEXT_AI_API_KEY) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['TEXT_AI_API_KEY'], message: 'TEXT_AI_PROVIDER=openai이면 TEXT_AI_API_KEY가 필요합니다' });
+    }
+    if (!env.TEXT_AI_MODEL) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['TEXT_AI_MODEL'], message: 'TEXT_AI_PROVIDER=openai이면 TEXT_AI_MODEL이 필요합니다' });
+    }
+  }
+  if (env.EMBEDDING_PROVIDER === 'openai' && !env.EMBEDDING_API_KEY) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['EMBEDDING_API_KEY'], message: 'EMBEDDING_PROVIDER=openai이면 EMBEDDING_API_KEY가 필요합니다' });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

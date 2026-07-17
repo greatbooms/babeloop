@@ -3,6 +3,7 @@ import { Inject } from '@nestjs/common';
 import { Job as BullJob } from 'bullmq';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
+import { AnalysisService } from '../modules/creative-analysis/analysis.service';
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../providers/embedding/embedding.provider';
@@ -14,17 +15,19 @@ export class EmbeddingProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly aiLog: AiExecutionLogService,
     private readonly vectors: VectorSearchRepository,
+    private readonly analysis: AnalysisService,
     private readonly jobRecord: JobRecordService,
     @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
   ) {
     super();
   }
 
-  async process(job: BullJob<{ sourceAdId: string; inputText: string }>): Promise<void> {
+  async process(job: BullJob<{ sourceAdId: string; inputText?: string }>): Promise<void> {
     const jobId = job.id!;
-    const { sourceAdId, inputText } = job.data;
+    const { sourceAdId } = job.data;
     await this.jobRecord.markRunning(jobId);
     try {
+      const inputText = job.data.inputText ?? await this.analysis.buildInputText(sourceAdId);
       const vector = await this.aiLog.record(
         { provider: this.embedder.name, model: this.embedder.model, inputRef: `sourceAd:${sourceAdId}` },
         () => this.embedder.embed(inputText),

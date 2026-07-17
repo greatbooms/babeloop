@@ -2,7 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
 import { Job as BullJob, Queue } from 'bullmq';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
+import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { AnalysisService } from '../modules/creative-analysis/analysis.service';
 import { creativeAnalysisSchema, PROMPT_VERSION } from '../modules/creative-analysis/creative-analysis.schema';
 import { JobRecordService } from '../modules/jobs/job-record.service';
@@ -39,20 +39,21 @@ export class CreativeAnalysisProcessor extends WorkerHost {
       await this.prisma.sourceAd.update({ where: { id: sourceAdId }, data: { status: 'ANALYZING' } });
       const inputText = await this.analysis.buildInputText(sourceAdId);
 
-      const result = await this.aiLog.record(
-        {
-          provider: this.textAi.name,
-          model: this.textAi.model,
-          promptVersion: PROMPT_VERSION,
-          inputRef: `sourceAd:${sourceAdId}`,
-        },
-        () =>
-          generateJsonWithRepair(
+      const meta: AiExecutionMeta = {
+        provider: this.textAi.name,
+        model: this.textAi.model,
+        promptVersion: PROMPT_VERSION,
+        inputRef: `sourceAd:${sourceAdId}`,
+      };
+      const result = await this.aiLog.record(meta, async () => {
+          const { data, usage } = await generateJsonWithRepair(
             this.textAi,
             { system: SYSTEM_PROMPT, prompt: inputText, responseHint: 'creative-analysis' },
             creativeAnalysisSchema,
-          ),
-      );
+          );
+          Object.assign(meta, usage);
+          return data;
+      });
 
       await this.prisma.creativeAnalysis.create({
         data: {

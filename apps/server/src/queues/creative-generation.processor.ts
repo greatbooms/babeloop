@@ -3,7 +3,7 @@ import { Inject } from '@nestjs/common';
 import { Job as BullJob, Queue } from 'bullmq';
 import { CreativeType } from '../../generated/prisma';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
+import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
   BRIEF_SYSTEM,
@@ -119,20 +119,21 @@ export class CreativeGenerationProcessor extends WorkerHost {
         referencePatterns,
         performanceSection,
       });
-      const result = await this.aiLog.record(
-        {
-          provider: this.textAi.name,
-          model: this.textAi.model,
-          promptVersion: GENERATION_PROMPT_VERSIONS.brief,
-          inputRef: `brief-request:${jobId}`,
-        },
-        () =>
-          generateJsonWithRepair(
+      const meta: AiExecutionMeta = {
+        provider: this.textAi.name,
+        model: this.textAi.model,
+        promptVersion: GENERATION_PROMPT_VERSIONS.brief,
+        inputRef: `brief-request:${jobId}`,
+      };
+      const result = await this.aiLog.record(meta, async () => {
+          const { data, usage } = await generateJsonWithRepair(
             this.textAi,
             { system: BRIEF_SYSTEM, prompt, responseHint: 'creative-brief' },
             briefSchema,
-          ),
-      );
+          );
+          Object.assign(meta, usage);
+          return data;
+      });
       const brief = await this.prisma.creativeBrief.create({
         data: {
           title: job.data.title ?? result.title,
@@ -185,20 +186,21 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const creativeIds: string[] = [];
 
       if (job.data.type === 'COPY') {
-        const result = await this.aiLog.record(
-          {
-            provider: this.textAi.name,
-            model: this.textAi.model,
-            promptVersion: GENERATION_PROMPT_VERSIONS.copyVariants,
-            inputRef: `brief:${brief.id}`,
-          },
-          () =>
-            generateJsonWithRepair(
+        const meta: AiExecutionMeta = {
+          provider: this.textAi.name,
+          model: this.textAi.model,
+          promptVersion: GENERATION_PROMPT_VERSIONS.copyVariants,
+          inputRef: `brief:${brief.id}`,
+        };
+        const result = await this.aiLog.record(meta, async () => {
+            const { data, usage } = await generateJsonWithRepair(
               this.textAi,
               { system: COPY_SYSTEM, prompt, responseHint: 'copy-variants' },
               copyVariantsSchema,
-            ),
-        );
+            );
+            Object.assign(meta, usage);
+            return data;
+        });
         for (const [index, variant] of result.variants.slice(0, job.data.count).entries()) {
           const creative = await this.prisma.generatedCreative.create({
             data: {
@@ -218,20 +220,21 @@ export class CreativeGenerationProcessor extends WorkerHost {
           await this.enqueueLocalization(creative.id);
         }
       } else if (job.data.type === 'VIDEO_SCRIPT') {
-        const result = await this.aiLog.record(
-          {
-            provider: this.textAi.name,
-            model: this.textAi.model,
-            promptVersion: GENERATION_PROMPT_VERSIONS.videoScript,
-            inputRef: `brief:${brief.id}`,
-          },
-          () =>
-            generateJsonWithRepair(
+        const meta: AiExecutionMeta = {
+          provider: this.textAi.name,
+          model: this.textAi.model,
+          promptVersion: GENERATION_PROMPT_VERSIONS.videoScript,
+          inputRef: `brief:${brief.id}`,
+        };
+        const result = await this.aiLog.record(meta, async () => {
+            const { data, usage } = await generateJsonWithRepair(
               this.textAi,
               { system: SCRIPT_SYSTEM, prompt, responseHint: 'video-script' },
               videoScriptSchema,
-            ),
-        );
+            );
+            Object.assign(meta, usage);
+            return data;
+        });
         for (const [index, variant] of result.variants.slice(0, job.data.count).entries()) {
           const koreanText = variant.scenes
             .map(

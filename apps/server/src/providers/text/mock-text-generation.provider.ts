@@ -14,7 +14,7 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
   readonly name = 'mock';
   readonly model = 'mock-text-1';
 
-  async generate(input: TextGenerationInput): Promise<string> {
+  async generate(input: TextGenerationInput): Promise<{ text: string }> {
     const h = createHash('sha256').update(input.prompt).digest();
     const pick = <T>(arr: T[], i: number) => arr[h[i] % arr.length];
     const countMatch = input.prompt.match(/변형\s*(\d+)\s*개/);
@@ -22,7 +22,7 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
 
     switch (input.responseHint) {
       case 'creative-brief':
-        return JSON.stringify({
+        return { text: JSON.stringify({
           title: `[MOCK 브리프] ${input.prompt.slice(0, 60)}`,
           audienceHypothesis: pick(AUDIENCES, 0),
           desire: pick(DESIRES, 1),
@@ -31,16 +31,16 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
           visualFormat: pick(FORMATS, 4),
           callToAction: pick(CTA_TYPES, 5),
           rationale: `[MOCK 근거] 참조 패턴 기반: ${pick(TRIGGERS, 6)}`,
-        });
+        }) };
       case 'copy-variants':
-        return JSON.stringify({
+        return { text: JSON.stringify({
           variants: Array.from({ length: count }, (_, i) => ({
             koreanText: `[MOCK 문구 ${i + 1}] ${pick(DESIRES, i)} — ${pick(HOOK_TYPES, i + 1)}`,
             hookType: pick(HOOK_TYPES, i + 1),
           })),
-        });
+        }) };
       case 'video-script':
-        return JSON.stringify({
+        return { text: JSON.stringify({
           variants: Array.from({ length: count }, (_, i) => ({
             durationSeconds: 15,
             hookType: pick(HOOK_TYPES, i + 1),
@@ -54,12 +54,12 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
               { seconds: 12, visual: '앱 로고', dialogue: '', caption: pick(CTA_TYPES, i) },
             ],
           })),
-        });
+        }) };
       case 'zh-tw-localization':
-        return JSON.stringify({ zhTw: `[MOCK zh-TW] ${input.prompt.slice(0, 30)}`, notes: 'mock 번역' });
+        return { text: JSON.stringify({ zhTw: `[MOCK zh-TW] ${input.prompt.slice(0, 30)}`, notes: 'mock 번역' }) };
       case 'creative-analysis':
       default:
-        return JSON.stringify({
+        return { text: JSON.stringify({
           summary: `[MOCK 분석] ${input.prompt.slice(0, 40)}`,
           hook: { text: input.prompt.slice(0, 20), type: pick(HOOK_TYPES, 0) },
           callToAction: { text: '免費開始', type: pick(CTA_TYPES, 1) },
@@ -67,7 +67,7 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
           emotionalTriggers: [pick(TRIGGERS, 3), pick(TRIGGERS, 4)],
           genres: [pick(GENRES, 5)],
           language: 'zh-TW',
-        });
+        }) };
     }
   }
 }

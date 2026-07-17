@@ -2,7 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
 import { Job as BullJob } from 'bullmq';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
+import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { buildLocalizePrompt, LOCALIZE_SYSTEM } from '../modules/generation/generation.prompts';
 import { GENERATION_PROMPT_VERSIONS, localizationSchema } from '../modules/generation/generation.schemas';
 import { JobRecordService } from '../modules/jobs/job-record.service';
@@ -28,15 +28,14 @@ export class LocalizationProcessor extends WorkerHost {
       const creative = await this.prisma.generatedCreative.findUniqueOrThrow({
         where: { id: job.data.creativeId },
       });
-      const result = await this.aiLog.record(
-        {
-          provider: this.textAi.name,
-          model: this.textAi.model,
-          promptVersion: GENERATION_PROMPT_VERSIONS.localizeZhTw,
-          inputRef: `creative:${creative.id}`,
-        },
-        () =>
-          generateJsonWithRepair(
+      const meta: AiExecutionMeta = {
+        provider: this.textAi.name,
+        model: this.textAi.model,
+        promptVersion: GENERATION_PROMPT_VERSIONS.localizeZhTw,
+        inputRef: `creative:${creative.id}`,
+      };
+      const result = await this.aiLog.record(meta, async () => {
+          const { data, usage } = await generateJsonWithRepair(
             this.textAi,
             {
               system: LOCALIZE_SYSTEM,
@@ -44,8 +43,10 @@ export class LocalizationProcessor extends WorkerHost {
               responseHint: 'zh-tw-localization',
             },
             localizationSchema,
-          ),
-      );
+          );
+          Object.assign(meta, usage);
+          return data;
+      });
       await this.prisma.localizationVersion.deleteMany({
         where: { creativeId: creative.id, locale: 'zh-TW', kind: 'AI_DRAFT' },
       });
