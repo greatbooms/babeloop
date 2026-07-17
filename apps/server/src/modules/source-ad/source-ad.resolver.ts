@@ -16,6 +16,7 @@ import {
 import {
   CreateSourceAdPayload,
   ImportResultModel,
+  ReembedSourceAdsPayload,
   SimilarSourceAdModel,
   SourceAdModel,
 } from './source-ad.models';
@@ -60,5 +61,11 @@ export class SourceAdResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   importSensorTowerCsv(@Args('input') input: ImportSensorTowerCsvInput) {
     return this.csvImportService.importSensorTowerCsv(input.fileBase64, input.competitorId ?? undefined);
+  }
+
+  @Mutation(() => ReembedSourceAdsPayload)
+  @Roles('ADMIN')
+  reembedSourceAds() {
+    return this.sourceAdService.reembedAnalyzed();
   }
 }

@@ -7,6 +7,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   analyzeCreativeJobId,
   CREATIVE_ANALYSIS_QUEUE,
+  EMBEDDING_QUEUE,
+  generateEmbeddingJobId,
   JOB_TYPES,
 } from '../../queues/queue.constants';
 import { JobRecordService } from '../jobs/job-record.service';
@@ -33,6 +35,7 @@ export class SourceAdService {
     private readonly prisma: PrismaService,
     private readonly jobRecord: JobRecordService,
     @InjectQueue(CREATIVE_ANALYSIS_QUEUE) private readonly analysisQueue: Queue,
+    @InjectQueue(EMBEDDING_QUEUE) private readonly embeddingQueue: Queue,
     private readonly vectors: VectorSearchRepository,
     @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
   ) {}
@@ -95,6 +98,23 @@ export class SourceAdService {
   async analyze(sourceAdId: string) {
     await this.findById(sourceAdId);
     return this.enqueueAnalysis(sourceAdId);
+  }
+
+  async reembedAnalyzed(): Promise<{ enqueued: number }> {
+    const ads = await this.prisma.sourceAd.findMany({ where: { status: 'ANALYZED' }, select: { id: true } });
+    for (const ad of ads) {
+      const jobId = generateEmbeddingJobId(ad.id);
+      const payload = { sourceAdId: ad.id };
+      await this.embeddingQueue.add(JOB_TYPES.GENERATE_EMBEDDING, payload, {
+        jobId,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+      await this.jobRecord.enqueue(jobId, EMBEDDING_QUEUE, JOB_TYPES.GENERATE_EMBEDDING, payload);
+    }
+    return { enqueued: ads.length };
   }
 
   async findAll() {

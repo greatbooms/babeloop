@@ -62,3 +62,8 @@ export class SimilarSourceAdModel {
   @Field(() => Float) similarity: number;
   @Field(() => SourceAdModel) sourceAd: SourceAdModel;
 }
+
+@ObjectType()
+export class ReembedSourceAdsPayload {
+  @Field(() => Int) enqueued: number;
+}
