@@ -36,6 +36,14 @@ export class JobRecordService {
     });
   }
 
+  /** 실패한 잡의 수동 재시도 — BullMQ retry()와 짝으로 호출된다 */
+  requeue(id: string) {
+    return this.prisma.job.update({
+      where: { id },
+      data: { status: 'QUEUED', error: null, finishedAt: null },
+    });
+  }
+
   findById(id: string) {
     return this.prisma.job.findUnique({ where: { id } });
   }

@@ -94,8 +94,8 @@ export class MediaService {
         extensions: { code: 'UPLOAD_NOT_COMPLETED' },
       });
     }
-    // READY 재처리는 허용한다. 새 OCR/전사 결과는 기존 결과를 지우지 않고 추가한다.
-    if (asset.status !== 'UPLOADED' && asset.status !== 'READY') {
+    // READY 재처리(결과 추가)와 FAILED 재시도를 허용한다 — 실패한 자산이야말로 재처리 대상이다.
+    if (asset.status !== 'UPLOADED' && asset.status !== 'READY' && asset.status !== 'FAILED') {
       throw new GraphQLError(`현재 상태(${asset.status})에서는 미디어 텍스트를 추출할 수 없습니다`, {
         extensions: { code: 'MEDIA_NOT_PROCESSABLE' },
       });
@@ -103,6 +103,13 @@ export class MediaService {
 
     const payload = { mediaAssetId };
     const jobId = processMediaJobId(mediaAssetId);
+    // removeOnFail: false라 실패 잡이 Redis에 남아 같은 jobId의 add를 무시한다 —
+    // 재시도는 기존 실패 잡을 retry()로 되살려야 한다 (실측: STT 실패 자산 재처리가 무시됨).
+    const existing = await this.queue.getJob(jobId);
+    if (existing && (await existing.getState()) === 'failed') {
+      await existing.retry();
+      return this.jobRecord.requeue(jobId);
+    }
     await this.queue.add(JOB_TYPES.PROCESS_MEDIA, payload, {
       jobId,
       attempts: 3,
