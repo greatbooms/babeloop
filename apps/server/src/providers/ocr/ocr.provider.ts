@@ -6,6 +6,9 @@ export interface OcrInput {
 
 export interface OcrOutput {
   text: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  costEstimateUsd?: number;
 }
 
 export interface OcrProvider {

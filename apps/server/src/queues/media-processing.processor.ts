@@ -5,6 +5,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.service';
 import { JobRecordService } from '../modules/jobs/job-record.service';
+import { AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { downloadExternal } from '../common/security/external-url.guard';
 import { OCR_PROVIDER, OcrProvider } from '../providers/ocr/ocr.provider';
 import { STT_PROVIDER, SttProvider } from '../providers/stt/stt.provider';
@@ -40,9 +41,18 @@ export class MediaProcessingProcessor extends WorkerHost {
       const inputRef = `mediaAsset:${asset.id}`;
 
       if (asset.kind === 'IMAGE') {
+        const meta: AiExecutionMeta = { provider: this.ocr.name, model: this.ocr.model, inputRef };
         const out = await this.aiLog.record(
-          { provider: this.ocr.name, model: this.ocr.model, inputRef },
-          () => this.ocr.extractText({ buffer, contentType: asset.contentType, filename: asset.originalFilename }),
+          meta,
+          async () => {
+            const result = await this.ocr.extractText({ buffer, contentType: asset.contentType, filename: asset.originalFilename });
+            Object.assign(meta, {
+              inputTokens: result.inputTokens,
+              outputTokens: result.outputTokens,
+              costEstimateUsd: result.costEstimateUsd,
+            });
+            return result;
+          },
         );
         await this.prisma.ocrResult.create({
           data: { mediaAssetId: asset.id, text: out.text, provider: this.ocr.name, model: this.ocr.model },

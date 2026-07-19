@@ -86,6 +86,33 @@ export class MediaService {
     return { mediaAsset, job };
   }
 
+  async processMediaAsset(mediaAssetId: string) {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId } });
+    if (!asset) throw new NotFoundException('미디어 자산을 찾을 수 없습니다');
+    if (asset.status === 'PENDING') {
+      throw new GraphQLError('업로드 미완료: 파일 업로드를 완료한 뒤 다시 시도하세요', {
+        extensions: { code: 'UPLOAD_NOT_COMPLETED' },
+      });
+    }
+    // READY 재처리는 허용한다. 새 OCR/전사 결과는 기존 결과를 지우지 않고 추가한다.
+    if (asset.status !== 'UPLOADED' && asset.status !== 'READY') {
+      throw new GraphQLError(`현재 상태(${asset.status})에서는 미디어 텍스트를 추출할 수 없습니다`, {
+        extensions: { code: 'MEDIA_NOT_PROCESSABLE' },
+      });
+    }
+
+    const payload = { mediaAssetId };
+    const jobId = processMediaJobId(mediaAssetId);
+    await this.queue.add(JOB_TYPES.PROCESS_MEDIA, payload, {
+      jobId,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+    return this.jobRecord.enqueue(jobId, MEDIA_PROCESSING_QUEUE, JOB_TYPES.PROCESS_MEDIA, payload);
+  }
+
   findAll() {
     return this.prisma.mediaAsset.findMany({ include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
   }

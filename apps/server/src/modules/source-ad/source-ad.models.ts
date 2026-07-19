@@ -2,6 +2,7 @@ import { Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/gra
 import { Confidence, SourceAdOrigin, SourceAdStatus } from '../../../generated/prisma';
 import { CompetitorModel } from '../competitor/competitor.model';
 import { JobModel } from '../jobs/job.model';
+import { MediaAssetModel } from '../media/media.models';
 
 registerEnumType(SourceAdOrigin, { name: 'SourceAdOrigin' });
 registerEnumType(SourceAdStatus, { name: 'SourceAdStatus' });
@@ -42,6 +43,7 @@ export class SourceAdModel {
   @Field() createdAt: Date;
   @Field(() => CompetitorModel, { nullable: true }) competitor: CompetitorModel | null;
   @Field(() => CreativeAnalysisModel, { nullable: true }) latestAnalysis: CreativeAnalysisModel | null;
+  @Field(() => MediaAssetModel, { nullable: true }) mediaAsset: MediaAssetModel | null;
 }
 
 @ObjectType()

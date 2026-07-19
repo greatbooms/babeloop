@@ -18,6 +18,7 @@ import { CreateSourceAdInput } from './source-ad.inputs';
 
 export const SOURCE_AD_INCLUDE = {
   competitor: true,
+  mediaAsset: { include: { ocrResults: true, transcriptions: true } },
   analyses: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 } as const;
 

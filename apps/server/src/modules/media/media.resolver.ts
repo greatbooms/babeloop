@@ -7,6 +7,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CompleteMediaUploadInput, RequestMediaUploadInput } from './media.inputs';
 import { CompleteUploadModel, MediaAssetModel, UploadRequestModel } from './media.models';
+import { JobModel } from '../jobs/job.model';
 import { MediaService } from './media.service';
 
 @Resolver(() => MediaAssetModel)
@@ -34,5 +35,11 @@ export class MediaResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   completeMediaUpload(@Args('input') input: CompleteMediaUploadInput) {
     return this.mediaService.completeUpload(input);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  processMediaAsset(@Args('mediaAssetId', { type: () => ID }) mediaAssetId: string) {
+    return this.mediaService.processMediaAsset(mediaAssetId);
   }
 }
