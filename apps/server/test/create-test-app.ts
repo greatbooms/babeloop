@@ -32,8 +32,16 @@ export async function createTestApp(): Promise<TestApp> {
     process.env.OBJECT_STORAGE_ACCESS_KEY = 'testuser';
     process.env.OBJECT_STORAGE_SECRET_KEY = 'testsecret-0123';
     process.env.WORKER_PORT = '0';
+    // 통합 테스트는 어떤 경우에도 실제 AI API를 호출하지 않는다.
+    // ConfigModule이 루트 .env(운영 openai 설정)를 읽으므로, 여기서 먼저 세팅해 dotenv의 no-override로 이긴다.
+    // (실측: 키 입력 후 첫 전체 테스트에서 실호출 발생 — 이 블록이 그 재발 방지다)
     process.env.OCR_PROVIDER = 'mock';
     process.env.STT_PROVIDER = 'mock';
+    process.env.TEXT_AI_PROVIDER = 'mock';
+    process.env.EMBEDDING_PROVIDER = 'mock';
+    delete process.env.TEXT_AI_API_KEY;
+    delete process.env.EMBEDDING_API_KEY;
+    delete process.env.STT_API_KEY;
     process.env.ALLOW_PRIVATE_EXTERNAL_URLS = 'true'; // 테스트 MinIO가 loopback이라 SSRF 관문 우회
     process.env.DATABASE_URL = pg.getConnectionUri();
     process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;

@@ -4,6 +4,9 @@ import { OpenAITextGenerationProvider } from '../src/providers/text/openai-text-
 const hasTextKey = Boolean(process.env.TEXT_AI_API_KEY && process.env.TEXT_AI_MODEL);
 const hasEmbeddingKey = Boolean(process.env.EMBEDDING_API_KEY);
 
+// OCR·STT 라이브 검증은 운영 데이터 이미지 1건·영상 1건으로 각각 수동 수행한다.
+// 광고 분석도 이어지는 동일 광고 1건만 수행하며, 비용 통제를 위해 이 스모크 테스트에는 추가하지 않는다.
+
 (hasTextKey ? describe : describe.skip)('openai live smoke', () => {
   jest.setTimeout(30_000);
 

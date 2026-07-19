@@ -12,6 +12,9 @@ const COMPLETE_UPLOAD = `mutation Done($input: CompleteMediaUploadInput!) {
 const MEDIA_ASSET = `query Asset($id: ID!) {
   mediaAsset(id: $id) { id status ocrResults { text provider } }
 }`;
+const PROCESS_MEDIA = `mutation Process($mediaAssetId: ID!) {
+  processMediaAsset(mediaAssetId: $mediaAssetId) { id status }
+}`;
 
 async function login(t: TestApp) {
   const { PrismaService } = await import('../src/common/prisma/prisma.service');
@@ -101,6 +104,28 @@ describe('media pipeline', () => {
     const first = await uploadImage(agent, 'same-bytes', 'dup1.png');
     const second = await uploadImage(agent, 'same-bytes', 'dup2.png');
     expect(second.mediaAsset.duplicateOfId).toBe(first.mediaAsset.id);
+  });
+
+  it('READY 자산을 수동으로 재처리하면 기존 결과에 OCR 결과가 추가된다', async () => {
+    const agent = await login(t);
+    const { mediaAsset } = await uploadImage(agent, 'reprocess-bytes', 'reprocess.png');
+    const { PrismaService } = await import('../src/common/prisma/prisma.service');
+    const prisma = t.app.get(PrismaService);
+    const firstDeadline = Date.now() + 15_000;
+    while (Date.now() < firstDeadline) {
+      if ((await prisma.mediaAsset.findUniqueOrThrow({ where: { id: mediaAsset.id } })).status === 'READY') break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } })).toBe(1);
+
+    const process = await agent.post('/graphql').send({ query: PROCESS_MEDIA, variables: { mediaAssetId: mediaAsset.id } });
+    expect(process.body.errors).toBeUndefined();
+    const secondDeadline = Date.now() + 15_000;
+    while (Date.now() < secondDeadline) {
+      if (await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } }) >= 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } })).toBe(2);
   });
 
   it('업로드 없이 완료를 호출하면 오류', async () => {

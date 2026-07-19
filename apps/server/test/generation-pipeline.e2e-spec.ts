@@ -77,9 +77,15 @@ describe('generation pipeline', () => {
     expect(adResponse.body.errors).toBeUndefined();
     const sourceAdId = adResponse.body.data.createSourceAd.sourceAd.id as string;
     await waitForJob(adResponse.body.data.createSourceAd.job.id);
-    expect((await prisma.sourceAd.findUniqueOrThrow({ where: { id: sourceAdId } })).status).toBe(
-      'ANALYZED',
-    );
+    // ANALYZED는 분석 잡이 아니라 체인 뒤의 임베딩 잡이 설정한다 — 상태를 직접 폴링해야 레이스가 없다
+    const statusDeadline = Date.now() + 15_000;
+    let adStatus = '';
+    while (Date.now() < statusDeadline) {
+      adStatus = (await prisma.sourceAd.findUniqueOrThrow({ where: { id: sourceAdId } })).status;
+      if (adStatus === 'ANALYZED' || adStatus === 'FAILED') break;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    expect(adStatus).toBe('ANALYZED');
 
     const briefResponse = await agent.post('/graphql').send({
       query: GENERATE_BRIEF,
