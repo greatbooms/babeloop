@@ -15,8 +15,10 @@ import {
   JOB_TYPES,
 } from './queue.constants';
 
-const SYSTEM_PROMPT =
-  '너는 광고 크리에이티브 분석가다. 주어진 광고 텍스트를 분석해 지정된 JSON 스키마로만 응답한다.';
+const SYSTEM_PROMPT = `너는 광고 크리에이티브 분석가다. 주어진 광고 텍스트를 분석한다.
+
+반드시 아래 JSON 구조로만 응답하라 (배열 값은 문자열 배열):
+{"summary": "...", "hook": {"text": "훅 문구", "type": "훅 유형"}, "callToAction": {"text": "...", "type": "..."}, "targetAudience": ["..."], "emotionalTriggers": ["..."], "genres": ["..."], "language": "ko 또는 zh-TW 등"}`;
 
 @Processor(CREATIVE_ANALYSIS_QUEUE)
 export class CreativeAnalysisProcessor extends WorkerHost {
