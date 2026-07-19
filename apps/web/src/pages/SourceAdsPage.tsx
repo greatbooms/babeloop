@@ -6,7 +6,7 @@ import { useJobPolling } from '../hooks/useJobPolling';
 const SourceAdsDocument = graphql(`
   query SourceAds {
     sourceAds {
-      id status title adText origin createdAt
+      id status title adText origin sourceUrl createdAt
       mediaAsset { id status }
       latestAnalysis { id summary hookType genres }
     }
@@ -43,6 +43,12 @@ const AnalyzeSourceAdDocument = graphql(`
   }
 `);
 
+const RedownloadMediaDocument = graphql(`
+  mutation RedownloadSourceAdMedia($sourceAdId: ID!) {
+    redownloadSourceAdMedia(sourceAdId: $sourceAdId) { id status }
+  }
+`);
+
 function fileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -58,6 +64,7 @@ export function SourceAdsPage() {
   const [importCsv] = useMutation(ImportCsvDocument);
   const [processMediaAsset] = useMutation(ProcessMediaAssetDocument);
   const [analyzeSourceAd] = useMutation(AnalyzeSourceAdDocument);
+  const [redownloadMedia] = useMutation(RedownloadMediaDocument);
   const [loadSimilar, similarQuery] = useLazyQuery(SimilarDocument);
   const [title, setTitle] = useState('');
   const [adText, setAdText] = useState('');
@@ -156,6 +163,16 @@ export function SourceAdsPage() {
     }
   }
 
+  async function onRedownload(sourceAdId: string) {
+    setError(null);
+    try {
+      const result = await redownloadMedia({ variables: { sourceAdId } });
+      setJobId(result.data!.redownloadSourceAdMedia.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
   return (
     <main>
       <h1>광고</h1>
@@ -202,6 +219,9 @@ export function SourceAdsPage() {
                 <button onClick={() => void onProcessMedia(ad.mediaAsset!.id)}>미디어 텍스트 추출</button>
                 <button onClick={() => void onAnalyze(ad.id)}>광고 분석</button>
               </>
+            )}
+            {ad.sourceUrl && (
+              <button onClick={() => void onRedownload(ad.id)}>재다운로드</button>
             )}
             <button onClick={() => void onSimilar(ad.id)}>유사 광고</button>
             {selectedAdId === ad.id && similarQuery.loading && <p>검색 중…</p>}

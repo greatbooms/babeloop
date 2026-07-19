@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
+
+export const DEFAULT_JOB_OPTS = {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 2000 },
+  removeOnComplete: true,
+  removeOnFail: false,
+} as const;
 
 @Injectable()
 export class JobRecordService {
@@ -46,5 +54,28 @@ export class JobRecordService {
 
   findById(id: string) {
     return this.prisma.job.findUnique({ where: { id } });
+  }
+
+  /**
+   * 등록 또는 재시도 — removeOnFail 잡이 Redis에 남아 같은 jobId의 add를 무시하므로
+   * 실패 상태면 retry()로 되살린다 (실측: STT 실패 자산 재처리가 조용히 무시되던 문제).
+   * 대기·실행 중이면 그대로 둔다 (중복 등록 방지).
+   */
+  async enqueueOrRetry(
+    queue: Queue,
+    queueName: string,
+    jobName: string,
+    jobId: string,
+    payload: Prisma.InputJsonValue,
+  ) {
+    const existing = await queue.getJob(jobId);
+    if (existing && (await existing.getState()) === 'failed') {
+      await existing.retry();
+      return this.requeue(jobId);
+    }
+    if (!existing) {
+      await queue.add(jobName, payload, { jobId, ...DEFAULT_JOB_OPTS });
+    }
+    return this.enqueue(jobId, queueName, jobName, payload);
   }
 }

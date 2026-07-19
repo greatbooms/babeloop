@@ -7,9 +7,11 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   analyzeCreativeJobId,
   CREATIVE_ANALYSIS_QUEUE,
+  downloadExternalMediaJobId,
   EMBEDDING_QUEUE,
   generateEmbeddingJobId,
   JOB_TYPES,
+  MEDIA_PROCESSING_QUEUE,
 } from '../../queues/queue.constants';
 import { JobRecordService } from '../jobs/job-record.service';
 import { VectorSearchRepository } from '../creative-analysis/vector-search.repository';
@@ -37,6 +39,7 @@ export class SourceAdService {
     private readonly jobRecord: JobRecordService,
     @InjectQueue(CREATIVE_ANALYSIS_QUEUE) private readonly analysisQueue: Queue,
     @InjectQueue(EMBEDDING_QUEUE) private readonly embeddingQueue: Queue,
+    @InjectQueue(MEDIA_PROCESSING_QUEUE) private readonly mediaQueue: Queue,
     private readonly vectors: VectorSearchRepository,
     @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
   ) {}
@@ -130,6 +133,23 @@ export class SourceAdService {
     const ad = await this.prisma.sourceAd.findUnique({ where: { id }, include: SOURCE_AD_INCLUDE });
     if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
     return this.mapSourceAd(ad);
+  }
+
+  /** 미디어 재다운로드 — 다운로드가 실패했거나 원본을 다시 받아야 할 때. sourceUrl이 있는 광고만. */
+  async redownloadMedia(sourceAdId: string) {
+    const ad = await this.prisma.sourceAd.findUnique({ where: { id: sourceAdId } });
+    if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
+    if (!ad.sourceUrl) {
+      throw new GraphQLError('원본 URL이 없는 광고는 재다운로드할 수 없습니다', {
+        extensions: { code: 'NO_SOURCE_URL' },
+      });
+    }
+    const jobId = downloadExternalMediaJobId(ad.id);
+    return this.jobRecord.enqueueOrRetry(this.mediaQueue, MEDIA_PROCESSING_QUEUE, JOB_TYPES.DOWNLOAD_EXTERNAL_MEDIA, jobId, {
+      sourceAdId: ad.id,
+      url: ad.sourceUrl,
+      type: 'auto', // kind는 응답 contentType으로 판별된다
+    });
   }
 
   async findSimilar(sourceAdId: string, limit: number) {

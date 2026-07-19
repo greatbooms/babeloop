@@ -57,6 +57,12 @@ export class SourceAdResolver {
     return this.sourceAdService.analyze(input.sourceAdId);
   }
 
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  redownloadSourceAdMedia(@Args('sourceAdId', { type: () => ID }) sourceAdId: string) {
+    return this.sourceAdService.redownloadMedia(sourceAdId);
+  }
+
   @Mutation(() => ImportResultModel)
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   importSensorTowerCsv(@Args('input') input: ImportSensorTowerCsvInput) {

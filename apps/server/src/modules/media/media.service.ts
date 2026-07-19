@@ -103,21 +103,7 @@ export class MediaService {
 
     const payload = { mediaAssetId };
     const jobId = processMediaJobId(mediaAssetId);
-    // removeOnFail: false라 실패 잡이 Redis에 남아 같은 jobId의 add를 무시한다 —
-    // 재시도는 기존 실패 잡을 retry()로 되살려야 한다 (실측: STT 실패 자산 재처리가 무시됨).
-    const existing = await this.queue.getJob(jobId);
-    if (existing && (await existing.getState()) === 'failed') {
-      await existing.retry();
-      return this.jobRecord.requeue(jobId);
-    }
-    await this.queue.add(JOB_TYPES.PROCESS_MEDIA, payload, {
-      jobId,
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 2000 },
-      removeOnComplete: true,
-      removeOnFail: false,
-    });
-    return this.jobRecord.enqueue(jobId, MEDIA_PROCESSING_QUEUE, JOB_TYPES.PROCESS_MEDIA, payload);
+    return this.jobRecord.enqueueOrRetry(this.queue, MEDIA_PROCESSING_QUEUE, JOB_TYPES.PROCESS_MEDIA, jobId, payload);
   }
 
   findAll() {
