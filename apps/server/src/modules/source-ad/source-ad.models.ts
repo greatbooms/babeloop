@@ -9,6 +9,12 @@ registerEnumType(SourceAdStatus, { name: 'SourceAdStatus' });
 registerEnumType(Confidence, { name: 'Confidence' });
 
 @ObjectType()
+export class BriefRefModel {
+  @Field(() => ID) id: string;
+  @Field() title: string;
+}
+
+@ObjectType()
 export class CreativeAnalysisModel {
   @Field(() => ID) id: string;
   @Field() summary: string;
@@ -44,6 +50,7 @@ export class SourceAdModel {
   @Field(() => CompetitorModel, { nullable: true }) competitor: CompetitorModel | null;
   @Field(() => CreativeAnalysisModel, { nullable: true }) latestAnalysis: CreativeAnalysisModel | null;
   @Field(() => MediaAssetModel, { nullable: true }) mediaAsset: MediaAssetModel | null;
+  @Field(() => [BriefRefModel]) referencingBriefs: BriefRefModel[];
 }
 
 @ObjectType()

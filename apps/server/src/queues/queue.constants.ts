@@ -7,6 +7,7 @@ export const POLICY_CHECK_QUEUE = 'policy-check';
 
 export const JOB_TYPES = {
   PROCESS_MEDIA: 'process-media',
+  GENERATE_THUMBNAIL: 'generate-thumbnail',
   ANALYZE_CREATIVE: 'analyze-creative',
   GENERATE_EMBEDDING: 'generate-embedding',
   DOWNLOAD_EXTERNAL_MEDIA: 'download-external-media',
@@ -19,6 +20,10 @@ export const JOB_TYPES = {
 // BullMQ 커스텀 jobId에는 ':'를 쓸 수 없다 (Redis 키 구분자로 예약) — 구분자는 '--'
 export function processMediaJobId(mediaAssetId: string): string {
   return `${JOB_TYPES.PROCESS_MEDIA}--${mediaAssetId}`;
+}
+
+export function generateThumbnailJobId(mediaAssetId: string): string {
+  return `${JOB_TYPES.GENERATE_THUMBNAIL}--${mediaAssetId}`;
 }
 
 export function analyzeCreativeJobId(sourceAdId: string): string {

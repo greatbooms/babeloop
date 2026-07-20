@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { FormField } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
+import { HelpPanel } from '../components/HelpPanel';
 
 const PerformanceExperimentsDocument = graphql(`
   query PerformanceExperiments {
@@ -150,8 +151,9 @@ export function PerformancePage() {
   const rows = performanceData?.variantPerformance ?? [];
 
   return (
-    <section>
+    <section className="stage-performance">
       <PageHeader title="성과" step="루프 6단계 — 성과·환류" description="광고 집행 결과를 배우는 곳입니다. 성과 CSV를 올리면 추적코드로 소재와 연결되어 퍼널(클릭·설치·가입)이 표시되고, 「이 성과로 브리프 생성」을 누르면 잘된 패턴이 다음 브리프에 반영되어 루프가 다시 시작됩니다." />
+      <HelpPanel page="performance" />
       <Card className="page-form-card">
         <h2>성과 CSV 업로드</h2>
         <details className="csv-guide"><summary>CSV 형식 안내</summary><p>
@@ -162,7 +164,7 @@ export function PerformancePage() {
             accept=".csv,text/csv"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           /></FormField>
-        <Button variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
+        <Button data-hint="CSV를 읽어 추적코드별 성과를 저장합니다 (무료)" variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
           성과 업로드
         </Button></div>
 
@@ -222,6 +224,7 @@ export function PerformancePage() {
               </tbody>
             </table></div>
             <Button
+              data-hint="상위 성과를 근거로 새 브리프를 생성합니다 (AI 비용 발생)"
               type="button"
               disabled={Boolean(jobId) || rows.length === 0}
               onClick={() => void onGenerateBrief()}

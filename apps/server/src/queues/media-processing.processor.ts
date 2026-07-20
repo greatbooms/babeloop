@@ -10,6 +10,7 @@ import { downloadExternal } from '../common/security/external-url.guard';
 import { OCR_PROVIDER, OcrProvider } from '../providers/ocr/ocr.provider';
 import { STT_PROVIDER, SttProvider } from '../providers/stt/stt.provider';
 import { JOB_TYPES, MEDIA_PROCESSING_QUEUE } from './queue.constants';
+import { extractVideoThumbnail } from '../common/media/video-thumbnail';
 
 @Processor(MEDIA_PROCESSING_QUEUE)
 export class MediaProcessingProcessor extends WorkerHost {
@@ -26,7 +27,33 @@ export class MediaProcessingProcessor extends WorkerHost {
 
   async process(job: BullJob): Promise<void> {
     if (job.name === JOB_TYPES.DOWNLOAD_EXTERNAL_MEDIA) return this.downloadExternalMedia(job);
+    if (job.name === JOB_TYPES.GENERATE_THUMBNAIL) return this.generateThumbnail(job);
     return this.processMedia(job);
+  }
+
+  private async createAndStoreThumbnail(asset: { id: string; storageKey: string }): Promise<string> {
+    const buffer = await this.storage.getBuffer(asset.storageKey);
+    const thumbnail = await extractVideoThumbnail(buffer);
+    const thumbnailKey = `${asset.storageKey}.thumb.jpg`;
+    await this.storage.putBuffer(thumbnailKey, thumbnail, 'image/jpeg');
+    await this.prisma.mediaAsset.update({ where: { id: asset.id }, data: { thumbnailKey } });
+    return thumbnailKey;
+  }
+
+  private async generateThumbnail(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const asset = await this.prisma.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId } });
+      if (asset.kind !== 'VIDEO') throw new Error('영상 자산만 썸네일을 생성할 수 있습니다');
+      if (!asset.thumbnailKey) await this.createAndStoreThumbnail(asset);
+      await this.jobRecord.markSucceeded(jobId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isFinalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+      if (isFinalAttempt) await this.jobRecord.markFailed(jobId, message);
+      throw error;
+    }
   }
 
   private async processMedia(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
@@ -65,6 +92,13 @@ export class MediaProcessingProcessor extends WorkerHost {
         await this.prisma.transcription.create({
           data: { mediaAssetId: asset.id, text: out.text, language: out.language, provider: this.stt.name, model: this.stt.model },
         });
+        if (!asset.thumbnailKey) {
+          try {
+            await this.createAndStoreThumbnail(asset);
+          } catch {
+            // 썸네일은 부가물이다. 텍스트 추출 성공 여부에는 영향을 주지 않는다.
+          }
+        }
       }
 
       await this.prisma.mediaAsset.update({ where: { id: asset.id }, data: { status: 'READY' } });
@@ -104,6 +138,13 @@ export class MediaProcessingProcessor extends WorkerHost {
             storageKey,
           },
         });
+      }
+      if (kind === 'VIDEO' && !asset.thumbnailKey) {
+        try {
+          await this.createAndStoreThumbnail(asset);
+        } catch {
+          // 외부 미디어 다운로드는 썸네일 생성 실패와 무관하게 성공 처리한다.
+        }
       }
       await this.prisma.sourceAd.update({
         where: { id: job.data.sourceAdId },

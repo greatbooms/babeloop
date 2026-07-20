@@ -47,18 +47,26 @@ export class SourceAdService {
   ) {}
 
   private mapSourceAd<T extends { analyses: unknown[] }>(ad: T) {
-    return { ...ad, latestAnalysis: ad.analyses[0] ?? null };
+    return { ...ad, latestAnalysis: ad.analyses[0] ?? null, referencingBriefs: [] };
   }
 
-  private async mapSourceAdWithThumbnail<T extends { analyses: unknown[]; mediaAsset: { kind: string; status: string; storageKey: string } | null }>(ad: T) {
+  private async mapSourceAdWithThumbnail<T extends { id: string; analyses: unknown[]; mediaAsset: { kind: string; status: string; storageKey: string; thumbnailKey: string | null } | null }>(
+    ad: T,
+    briefsByAdId: Map<string, Array<{ id: string; title: string }>> = new Map(),
+  ) {
     const mapped = this.mapSourceAd(ad);
-    if (!ad.mediaAsset) return mapped;
-    const canShowImage = ad.mediaAsset.kind === 'IMAGE' && ['READY', 'UPLOADED'].includes(ad.mediaAsset.status);
+    const referencingBriefs = briefsByAdId.get(ad.id) ?? [];
+    if (!ad.mediaAsset) return { ...mapped, referencingBriefs };
+    const thumbnailKey = ad.mediaAsset.kind === 'IMAGE'
+      ? ad.mediaAsset.storageKey
+      : ad.mediaAsset.thumbnailKey;
     return {
       ...mapped,
+      referencingBriefs,
       mediaAsset: {
         ...ad.mediaAsset,
-        thumbnailUrl: canShowImage ? await this.storage.presignGet(ad.mediaAsset.storageKey) : null,
+        thumbnailUrl: thumbnailKey ? await this.storage.presignGet(thumbnailKey) : null,
+        mediaUrl: await this.storage.presignGet(ad.mediaAsset.storageKey),
       },
     };
   }
@@ -163,7 +171,23 @@ export class SourceAdService {
       this.prisma.sourceAd.findMany({ where, include: SOURCE_AD_INCLUDE, orderBy: { createdAt: 'desc' }, skip: offset, take: limit }),
       this.prisma.sourceAd.count({ where }),
     ]);
-    return { items: await Promise.all(items.map((ad) => this.mapSourceAdWithThumbnail(ad))), totalCount };
+    const briefs = await this.prisma.creativeBrief.findMany({
+      select: { id: true, title: true, sourceAdIds: true },
+    });
+    const itemIds = new Set(items.map((item) => item.id));
+    const briefsByAdId = new Map<string, Array<{ id: string; title: string }>>();
+    for (const brief of briefs) {
+      for (const sourceAdId of brief.sourceAdIds) {
+        if (!itemIds.has(sourceAdId)) continue;
+        const refs = briefsByAdId.get(sourceAdId) ?? [];
+        refs.push({ id: brief.id, title: brief.title });
+        briefsByAdId.set(sourceAdId, refs);
+      }
+    }
+    return {
+      items: await Promise.all(items.map((ad) => this.mapSourceAdWithThumbnail(ad, briefsByAdId))),
+      totalCount,
+    };
   }
 
   async findById(id: string) {

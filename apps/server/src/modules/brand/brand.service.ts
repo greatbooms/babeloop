@@ -38,4 +38,24 @@ export class BrandService {
       include: BRAND_INCLUDE,
     });
   }
+
+  async addFeature(brandId: string, name: string, description: string) {
+    await this.findById(brandId);
+    return this.prisma.brandFeature.create({ data: { brandId, name, description } });
+  }
+
+  async deleteFeature(id: string): Promise<boolean> {
+    await this.prisma.brandFeature.delete({ where: { id } });
+    return true;
+  }
+
+  async addGuideline(brandId: string, title: string, content: string) {
+    await this.findById(brandId);
+    return this.prisma.brandGuideline.create({ data: { brandId, title, content } });
+  }
+
+  async deleteGuideline(id: string): Promise<boolean> {
+    await this.prisma.brandGuideline.delete({ where: { id } });
+    return true;
+  }
 }

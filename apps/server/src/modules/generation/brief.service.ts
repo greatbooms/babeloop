@@ -140,18 +140,39 @@ export class BriefService {
       include: BRIEF_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    return briefs.map((brief) => this.mapBrief(brief));
+    const adIds = [...new Set(briefs.flatMap((brief) => brief.sourceAdIds))];
+    const ads = adIds.length
+      ? await this.prisma.sourceAd.findMany({
+          where: { id: { in: adIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const adsById = new Map(ads.map((ad) => [ad.id, ad]));
+    return briefs.map((brief) => this.mapBrief(brief, adsById));
   }
 
   async findById(id: string) {
     const brief = await this.prisma.creativeBrief.findUnique({ where: { id }, include: BRIEF_INCLUDE });
     if (!brief) throw new NotFoundException('브리프를 찾을 수 없습니다');
-    return this.mapBrief(brief);
+    const ads = brief.sourceAdIds.length
+      ? await this.prisma.sourceAd.findMany({
+          where: { id: { in: brief.sourceAdIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    return this.mapBrief(brief, new Map(ads.map((ad) => [ad.id, ad])));
   }
 
-  private mapBrief<T extends { creatives: Array<{ scenes: unknown }> }>(brief: T) {
+  private mapBrief<T extends { sourceAdIds: string[]; creatives: Array<{ scenes: unknown }> }>(
+    brief: T,
+    adsById: Map<string, { id: string; title: string | null }>,
+  ) {
     return {
       ...brief,
+      referencedAds: brief.sourceAdIds.flatMap((id) => {
+        const ad = adsById.get(id);
+        return ad ? [ad] : [];
+      }),
       creatives: brief.creatives.map((creative) => ({
         ...creative,
         scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,

@@ -16,6 +16,20 @@
   --surface-strong: #f2f2f2;
   --on-primary: #ffffff;
 
+  /* workflow stages */
+  --step-collect-bg: #fff0f3;
+  --step-collect-fg: #e00b41;
+  --step-create-bg: #f3efff;
+  --step-create-fg: #5b3df5;
+  --step-review-bg: #e9f7f5;
+  --step-review-fg: #0f766e;
+  --step-export-bg: #eef4ff;
+  --step-export-fg: #1d4ed8;
+  --step-perf-bg: #e8f6ea;
+  --step-perf-fg: #1d7a2c;
+  --step-prep-bg: #fff7e8;
+  --step-prep-fg: #b45309;
+
   /* status badges */
   --status-positive-bg: #e8f6ea;
   --status-positive-fg: #1d7a2c;

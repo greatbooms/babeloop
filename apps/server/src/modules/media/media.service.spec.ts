@@ -1,5 +1,10 @@
 import { MediaService } from './media.service';
-import { JOB_TYPES, MEDIA_PROCESSING_QUEUE, processMediaJobId } from '../../queues/queue.constants';
+import {
+  generateThumbnailJobId,
+  JOB_TYPES,
+  MEDIA_PROCESSING_QUEUE,
+  processMediaJobId,
+} from '../../queues/queue.constants';
 
 // 등록·재시도 분기 자체는 JobRecordService.enqueueOrRetry 스펙이 검증한다 —
 // 여기서는 상태 가드와 위임 인자만 확인한다.
@@ -38,5 +43,55 @@ describe('MediaService.processMediaAsset', () => {
       processMediaJobId('asset-1'),
       { mediaAssetId: 'asset-1' },
     );
+  });
+});
+
+describe('MediaService.generateVideoThumbnails', () => {
+  it('썸네일이 없는 VIDEO마다 STT와 분리된 GENERATE_THUMBNAIL 잡만 등록한다', async () => {
+    const assets = [{ id: 'video-1' }, { id: 'video-2' }];
+    const prisma = { mediaAsset: { findMany: jest.fn().mockResolvedValue(assets) } };
+    const queue = { name: MEDIA_PROCESSING_QUEUE };
+    const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ status: 'QUEUED' }) };
+    const service = new MediaService(prisma as never, {} as never, jobRecord as never, queue as never);
+
+    await expect(service.generateVideoThumbnails()).resolves.toEqual({ enqueued: 2 });
+    expect(prisma.mediaAsset.findMany).toHaveBeenCalledWith({
+      where: { kind: 'VIDEO', thumbnailKey: null },
+      select: { id: true },
+    });
+    expect(jobRecord.enqueueOrRetry).toHaveBeenNthCalledWith(
+      1,
+      queue,
+      MEDIA_PROCESSING_QUEUE,
+      JOB_TYPES.GENERATE_THUMBNAIL,
+      generateThumbnailJobId('video-1'),
+      { mediaAssetId: 'video-1' },
+    );
+    expect(JOB_TYPES.GENERATE_THUMBNAIL).not.toBe(JOB_TYPES.PROCESS_MEDIA);
+  });
+});
+
+describe('MediaService relationships', () => {
+  it('자산에 원본·썸네일 URL과 연결 광고를 붙인다', async () => {
+    const asset = {
+      id: 'media-1',
+      kind: 'VIDEO',
+      storageKey: 'original',
+      thumbnailKey: 'thumbnail',
+      ocrResults: [],
+      transcriptions: [],
+      sourceAds: [{ id: 'ad-1', title: '광고 하나' }],
+    };
+    const prisma = { mediaAsset: { findMany: jest.fn().mockResolvedValue([asset]) } };
+    const storage = { presignGet: jest.fn(async (key: string) => `signed:${key}`) };
+    const service = new MediaService(prisma as never, storage as never, {} as never, {} as never);
+
+    await expect(service.findAll()).resolves.toEqual([
+      expect.objectContaining({
+        linkedSourceAds: [{ id: 'ad-1', title: '광고 하나' }],
+        mediaUrl: 'signed:original',
+        thumbnailUrl: 'signed:thumbnail',
+      }),
+    ]);
   });
 });

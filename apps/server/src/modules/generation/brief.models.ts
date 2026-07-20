@@ -7,6 +7,12 @@ registerEnumType(CreativeStatus, { name: 'CreativeStatus' });
 registerEnumType(LocalizationKind, { name: 'LocalizationKind' });
 
 @ObjectType()
+export class AdRefModel {
+  @Field(() => ID) id: string;
+  @Field(() => String, { nullable: true }) title: string | null;
+}
+
+@ObjectType()
 export class LocalizationVersionModel {
   @Field(() => ID) id: string;
   @Field() locale: string;
@@ -49,6 +55,7 @@ export class CreativeBriefModel {
   @Field() rationale: string;
   @Field(() => String, { nullable: true }) focusText: string | null;
   @Field(() => [ID]) sourceAdIds: string[];
+  @Field(() => [AdRefModel]) referencedAds: AdRefModel[];
   @Field(() => ID, { nullable: true }) brandId: string | null;
   @Field() provider: string;
   @Field() model: string;

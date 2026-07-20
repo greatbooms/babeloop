@@ -6,12 +6,15 @@ import { useJobPolling } from '../hooks/useJobPolling';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
+import { HelpPanel } from '../components/HelpPanel';
 import { StatusBadge } from '../components/StatusBadge';
+import { Link } from 'react-router';
 
 const MediaAssetsDocument = graphql(`
   query MediaAssets {
     mediaAssets {
-      id status kind originalFilename createdAt
+      id status kind originalFilename createdAt mediaUrl thumbnailUrl
+      linkedSourceAds { id title }
       ocrResults { id text }
       transcriptions { id text }
     }
@@ -64,8 +67,9 @@ export function MediaPage() {
   }
 
   return (
-    <section>
+    <section className="stage-prep">
       <PageHeader title="미디어" step="보조 도구" description="광고 탭과 별개로, 파일 하나를 직접 올려 텍스트 추출(이미지 OCR·영상 전사)만 해보는 단건 도구입니다. 경쟁 광고 수집·분석은 광고 탭에서 하세요." />
+      <HelpPanel page="media" />
       <Card className="upload-card">
       <div className="inline-actions">
         <input type="file" ref={fileRef} accept="image/*,video/*" />
@@ -79,7 +83,9 @@ export function MediaPage() {
         {data?.mediaAssets.map((a) => (
           <li key={a.id}>
             <Card className="card-stack">
+            <div className="media-preview">{a.kind === MediaAssetKind.Video ? (a.thumbnailUrl ? <img src={a.thumbnailUrl} alt="" /> : <video controls src={a.mediaUrl} />) : <img src={a.mediaUrl} alt={a.originalFilename} />}</div>
             <div className="inline-actions"><strong>{a.originalFilename}</strong><StatusBadge status={a.status} /></div>
+            {a.linkedSourceAds.map((ad) => <p key={ad.id} className="muted">광고 <Link to={`/ads?search=${encodeURIComponent(ad.title ?? ad.id)}`}>「{ad.title ?? ad.id}」</Link>에 연결됨</p>)}
             {a.ocrResults.map((o) => (
               <p key={o.id}>{o.text}</p>
             ))}

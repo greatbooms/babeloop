@@ -5,6 +5,7 @@ import { Card } from '../components/Card';
 import { FormField } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
+import { HelpPanel } from '../components/HelpPanel';
 import { graphql } from '../generated';
 import { MediaAssetKind, SourceAdStatus } from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
@@ -20,7 +21,8 @@ const SourceAdsPageDocument = graphql(`
       items {
         id status title adText origin sourceUrl networks countries firstSeenAt lastSeenAt createdAt
         competitor { id name }
-        mediaAsset { id status kind thumbnailUrl }
+        mediaAsset { id status kind thumbnailUrl mediaUrl }
+        referencingBriefs { id title }
         latestAnalysis { id summary hookType genres }
       }
     }
@@ -69,6 +71,7 @@ export function SourceAdsPage() {
   const [sourceUrl, setSourceUrl] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const [selectedAdId, setSelectedAdId] = useState<string | null>(null);
+  const [expandedAdId, setExpandedAdId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
@@ -118,8 +121,9 @@ export function SourceAdsPage() {
   const end = Math.min(offset + PAGE_SIZE, total);
 
   return (
-    <section>
+    <section className="stage-collect">
       <PageHeader title="광고" step="루프 1·2단계 — 수집·분석" description="경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요." actions={<label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>} />
+      <HelpPanel page="ads" />
       <div className="ads-registration-layout">
         <Card className="ad-registration-card">
           <h2>광고 수동 등록</h2>
@@ -142,21 +146,24 @@ export function SourceAdsPage() {
             {page?.items.map((ad) => (
               <li key={ad.id}>
                 <Card className="ad-card">
-                  <div className="ad-media">
+                  <button type="button" className="ad-media" aria-label={`${ad.title ?? '광고'} 미디어 보기`} onClick={() => setExpandedAdId((current) => current === ad.id ? null : ad.id)}>
                     {ad.mediaAsset?.thumbnailUrl ? <img src={ad.mediaAsset.thumbnailUrl} alt="" /> : <span>{ad.mediaAsset?.kind === MediaAssetKind.Video ? '영상' : '이미지 없음'}</span>}
+                    {ad.mediaAsset?.kind === MediaAssetKind.Video && <span className="play-overlay" aria-hidden="true">▶</span>}
                     <StatusBadge status={ad.status} />
-                  </div>
+                  </button>
+                  {expandedAdId === ad.id && ad.mediaAsset && <div className="inline-media-viewer">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={ad.mediaAsset.mediaUrl} /> : <img src={ad.mediaAsset.mediaUrl} alt={ad.title ?? '광고 원본'} />}<a href={ad.mediaAsset.mediaUrl} download>원본 다운로드</a></div>}
                   <div className="ad-meta">
                     <strong title={ad.title ?? ad.adText ?? ad.id}>{ad.competitor?.name ? `${ad.competitor.name} · ` : ''}{ad.title ?? ad.adText ?? ad.id}</strong>
                     <p>{[...ad.networks, ...ad.countries].join(' · ') || '네트워크·국가 정보 없음'}</p>
                     <p>{dateLabel(ad.firstSeenAt)} ~ {dateLabel(ad.lastSeenAt)}</p>
                     {ad.adText && <p className="ad-copy">{ad.adText}</p>}
                     {ad.latestAnalysis && <p className="hook-line">훅: {ad.latestAnalysis.hookType}</p>}
+                    {ad.referencingBriefs.length > 0 && <div className="reference-list"><strong>이 광고를 참조한 브리프</strong><ul>{ad.referencingBriefs.map((brief) => <li key={brief.id}>{brief.title}</li>)}</ul></div>}
                   </div>
                   <div className="ad-actions">
-                    {ad.mediaAsset && <><Button size="sm" onClick={() => void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button><Button size="sm" onClick={() => void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id)}>광고 분석</Button></>}
-                    {ad.sourceUrl && <Button size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
-                    <Button size="sm" onClick={() => void onSimilar(ad.id)}>유사 광고</Button>
+                    {ad.mediaAsset && <><Button data-hint="이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" onClick={() => void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button><Button data-hint="추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트)" size="sm" onClick={() => void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id)}>광고 분석</Button></>}
+                    {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
+                    <Button data-hint="비슷한 메시지의 광고를 검색합니다 (무료)" size="sm" onClick={() => void onSimilar(ad.id)}>유사 광고</Button>
                   </div>
                   {selectedAdId === ad.id && similarQuery.loading && <p>검색 중…</p>}
                   {selectedAdId === ad.id && similarQuery.data && <ul className="similar-list">{similarQuery.data.similarSourceAds.map((similar) => <li key={similar.sourceAd.id}>{similar.similarity.toFixed(2)} — {similar.sourceAd.title ?? similar.sourceAd.adText ?? similar.sourceAd.id}</li>)}</ul>}

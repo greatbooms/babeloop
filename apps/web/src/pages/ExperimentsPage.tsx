@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { FormField } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
+import { HelpPanel } from '../components/HelpPanel';
 
 const ExperimentsPageDocument = graphql(`
   query ExperimentsPage {
@@ -76,8 +77,9 @@ export function ExperimentsPage() {
   }
 
   return (
-    <section>
+    <section className="stage-export">
       <PageHeader title="실험" step="루프 5단계 — 내보내기" description="승인된 문구를 실험 단위로 묶어 광고로 내보내는 곳입니다. 실험 생성 → 검토 탭에서 승인 문구를 실험에 추가 → 내보내기를 누르면 추적코드(BL-…)가 각인된 집행용 파일을 받습니다. 이 코드가 나중에 성과를 소재별로 연결합니다." />
+      <HelpPanel page="experiments" />
       <Card className="page-form-card"><form className="page-form" onSubmit={onCreate}>
         <FormField label="실험 코드" htmlFor="experiment-code"><input id="experiment-code" required value={code} onChange={(event) => setCode(event.target.value)} /></FormField>
         <FormField label="실험 이름" htmlFor="experiment-name"><input id="experiment-name" required value={name} onChange={(event) => setName(event.target.value)} /></FormField>
@@ -99,7 +101,7 @@ export function ExperimentsPage() {
                   <tr key={variant.id}><td>{variant.variantCode}</td><td>{variant.trackingCode}</td><td>{variant.creative.koreanText.slice(0, 100)}</td></tr>
                 ))}
               </tbody></table></div>
-              <Button onClick={() => void onExport(experiment.id)}>내보내기</Button>
+              <Button data-hint="추적코드가 붙은 집행용 파일을 생성합니다 (무료)" onClick={() => void onExport(experiment.id)}>내보내기</Button>
               {exported && (
                 <div>
                   {exported.files.map((file) => (

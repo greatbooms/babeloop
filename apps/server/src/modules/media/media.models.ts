@@ -1,6 +1,7 @@
 import { Field, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { MediaAssetKind, MediaAssetStatus } from '../../../generated/prisma';
 import { JobModel } from '../jobs/job.model';
+import { AdRefModel } from '../generation/brief.models';
 
 registerEnumType(MediaAssetKind, { name: 'MediaAssetKind' });
 registerEnumType(MediaAssetStatus, { name: 'MediaAssetStatus' });
@@ -32,10 +33,18 @@ export class MediaAssetModel {
   @Field(() => Int, { nullable: true }) sizeBytes: number | null;
   @Field(() => String, { nullable: true }) duplicateOfId: string | null;
   @Field() storageKey: string;
+  @Field(() => String, { nullable: true }) thumbnailKey?: string | null;
   @Field(() => String, { nullable: true }) thumbnailUrl?: string | null;
+  @Field() mediaUrl: string;
   @Field() createdAt: Date;
   @Field(() => [OcrResultModel]) ocrResults: OcrResultModel[];
   @Field(() => [TranscriptionModel]) transcriptions: TranscriptionModel[];
+  @Field(() => [AdRefModel]) linkedSourceAds: AdRefModel[];
+}
+
+@ObjectType()
+export class GenerateVideoThumbnailsPayload {
+  @Field(() => Int) enqueued: number;
 }
 
 @ObjectType()

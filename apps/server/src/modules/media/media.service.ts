@@ -7,10 +7,19 @@ import { User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { JobRecordService } from '../jobs/job-record.service';
-import { JOB_TYPES, MEDIA_PROCESSING_QUEUE, processMediaJobId } from '../../queues/queue.constants';
+import {
+  generateThumbnailJobId,
+  JOB_TYPES,
+  MEDIA_PROCESSING_QUEUE,
+  processMediaJobId,
+} from '../../queues/queue.constants';
 import { CompleteMediaUploadInput, RequestMediaUploadInput } from './media.inputs';
 
-const MEDIA_INCLUDE = { ocrResults: true, transcriptions: true } as const;
+const MEDIA_INCLUDE = {
+  ocrResults: true,
+  transcriptions: true,
+  sourceAds: { select: { id: true, title: true } },
+} as const;
 
 @Injectable()
 export class MediaService {
@@ -106,13 +115,42 @@ export class MediaService {
     return this.jobRecord.enqueueOrRetry(this.queue, MEDIA_PROCESSING_QUEUE, JOB_TYPES.PROCESS_MEDIA, jobId, payload);
   }
 
-  findAll() {
-    return this.prisma.mediaAsset.findMany({ include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
+  async generateVideoThumbnails(): Promise<{ enqueued: number }> {
+    const assets = await this.prisma.mediaAsset.findMany({
+      where: { kind: 'VIDEO', thumbnailKey: null },
+      select: { id: true },
+    });
+    for (const asset of assets) {
+      const payload = { mediaAssetId: asset.id };
+      await this.jobRecord.enqueueOrRetry(
+        this.queue,
+        MEDIA_PROCESSING_QUEUE,
+        JOB_TYPES.GENERATE_THUMBNAIL,
+        generateThumbnailJobId(asset.id),
+        payload,
+      );
+    }
+    return { enqueued: assets.length };
+  }
+
+  private async mapMediaAsset<T extends { kind: string; storageKey: string; thumbnailKey: string | null; sourceAds: Array<{ id: string; title: string | null }> }>(asset: T) {
+    const thumbnailKey = asset.kind === 'IMAGE' ? asset.storageKey : asset.thumbnailKey;
+    return {
+      ...asset,
+      linkedSourceAds: asset.sourceAds,
+      mediaUrl: await this.storage.presignGet(asset.storageKey),
+      thumbnailUrl: thumbnailKey ? await this.storage.presignGet(thumbnailKey) : null,
+    };
+  }
+
+  async findAll() {
+    const assets = await this.prisma.mediaAsset.findMany({ include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
+    return Promise.all(assets.map((asset) => this.mapMediaAsset(asset)));
   }
 
   async findById(id: string) {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id }, include: MEDIA_INCLUDE });
     if (!asset) throw new NotFoundException('미디어 자산을 찾을 수 없습니다');
-    return asset;
+    return this.mapMediaAsset(asset);
   }
 }
