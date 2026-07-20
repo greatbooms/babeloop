@@ -36,6 +36,8 @@ type FormValues = z.infer<typeof schema>;
 type Brand = BrandsQuery['brands'][number];
 
 function BrandEditor({ brand, refetch }: { brand: Brand; refetch: () => Promise<unknown> }) {
+  const [name, setName] = useState(brand.name);
+  const [serviceUrl, setServiceUrl] = useState(brand.serviceUrl ?? '');
   const [description, setDescription] = useState(brand.description ?? '');
   const [featureName, setFeatureName] = useState('');
   const [featureDescription, setFeatureDescription] = useState('');
@@ -49,10 +51,11 @@ function BrandEditor({ brand, refetch }: { brand: Brand; refetch: () => Promise<
 
   return (
     <Card className="card-stack brand-editor">
-      <h2>{brand.name}</h2>
-      {brand.serviceUrl && <a href={brand.serviceUrl}>{brand.serviceUrl}</a>}
+      <div className="brand-editor-head"><h2>{brand.name}</h2><span className="edit-hint">이 카드에서 바로 수정됩니다</span></div>
+      <FormField label="브랜드명 수정" htmlFor={`brand-name-${brand.id}`}><input id={`brand-name-${brand.id}`} value={name} onChange={(event) => setName(event.target.value)} /></FormField>
+      <FormField label="서비스 URL 수정" htmlFor={`brand-url-${brand.id}`}><input id={`brand-url-${brand.id}`} type="url" value={serviceUrl} onChange={(event) => setServiceUrl(event.target.value)} /></FormField>
       <FormField label="소개" htmlFor={`brand-description-${brand.id}`}><textarea id={`brand-description-${brand.id}`} value={description} onChange={(event) => setDescription(event.target.value)} /></FormField>
-      <Button size="sm" onClick={() => void updateBrand({ variables: { input: { id: brand.id, description } } }).then(() => refetch())}>소개 저장</Button>
+      <Button size="sm" onClick={() => void updateBrand({ variables: { input: { id: brand.id, name, serviceUrl: serviceUrl || null, description } } }).then(() => refetch())}>기본 정보 저장</Button>
       <section className="brand-subsection"><h3>주요 기능</h3>
         <ul className="compact-list">{brand.features.map((feature) => <li key={feature.id}><span><strong>{feature.name}</strong> — {feature.description}</span><Button size="sm" onClick={() => void deleteFeature({ variables: { id: feature.id } }).then(() => refetch())}>삭제</Button></li>)}</ul>
         <FormField label="기능 이름" htmlFor={`feature-name-${brand.id}`}><input id={`feature-name-${brand.id}`} value={featureName} onChange={(event) => setFeatureName(event.target.value)} /></FormField>
@@ -87,21 +90,31 @@ export function BrandsPage() {
       <PageHeader title="브랜드" step="준비 — 브리프 재료" description="BabeChat 제품 소개와 기능 정보를 등록하는 곳입니다. 여기 등록된 내용이 브리프 생성 시 「우리 제품」 재료로 AI에게 전달됩니다. 처음 한 번 등록하고 제품이 바뀔 때 갱신하세요." />
       <HelpPanel page="brands" />
       <p className="data-flow-note">여기 내용은 → 브리프 생성 시 AI 프롬프트의 「우리 제품」 섹션으로 들어갑니다</p>
-      <Card className="page-form-card">
-      <form className="page-form" onSubmit={onSubmit}>
-        <FormField label="브랜드명" htmlFor="brand-name"><input id="brand-name" {...register('name')} /></FormField>
-        {formState.errors.name && <p role="alert">{formState.errors.name.message}</p>}
-        <FormField label="서비스 URL" htmlFor="brand-url"><input id="brand-url" {...register('serviceUrl')} /></FormField>
-        <Button variant="primary" type="submit" disabled={formState.isSubmitting}>브랜드 등록</Button>
-      </form>
-      </Card>
-      <ul className="card-list card-grid">
-        {data?.brands.map((b) => (
-          <li key={b.id}>
-            <BrandEditor brand={b} refetch={refetch} />
-          </li>
-        ))}
-      </ul>
+
+      <section className="brand-section">
+        <h2>등록된 브랜드 ({data?.brands.length ?? 0})</h2>
+        {data?.brands.length === 0 && <p className="muted">아직 등록된 브랜드가 없습니다. 아래에서 브랜드를 먼저 등록하세요.</p>}
+        <ul className="card-list card-grid">
+          {data?.brands.map((b) => (
+            <li key={b.id}>
+              <BrandEditor brand={b} refetch={refetch} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="brand-section">
+        <h2>새 브랜드 등록</h2>
+        <p className="muted">이름과 URL로 브랜드를 만든 뒤, 위 카드에서 소개·기능·가이드라인을 채웁니다.</p>
+        <Card className="page-form-card">
+        <form className="page-form" onSubmit={onSubmit}>
+          <FormField label="브랜드명" htmlFor="brand-name"><input id="brand-name" {...register('name')} /></FormField>
+          {formState.errors.name && <p role="alert">{formState.errors.name.message}</p>}
+          <FormField label="서비스 URL" htmlFor="brand-url"><input id="brand-url" {...register('serviceUrl')} /></FormField>
+          <Button variant="primary" type="submit" disabled={formState.isSubmitting}>브랜드 등록</Button>
+        </form>
+        </Card>
+      </section>
     </section>
   );
 }

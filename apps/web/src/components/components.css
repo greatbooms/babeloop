@@ -85,3 +85,10 @@
 .review-card button { align-self: flex-start; }
 .review-card button + button { margin-top: var(--sp-xs); }
 .review-card label { display: block; }
+
+/* 브랜드 — 등록 목록/신규 등록 섹션 구분과 편집 안내 */
+.brand-section { margin-top: var(--sp-xl); }
+.brand-section > h2 { margin-bottom: var(--sp-sm); }
+.brand-section > .muted { margin-bottom: var(--sp-base); color: var(--muted); font-size: 14px; }
+.brand-editor-head { display: flex; align-items: baseline; gap: var(--sp-md); }
+.edit-hint { font-size: 12px; color: var(--muted); background: var(--surface-soft); border-radius: var(--r-full); padding: 3px 10px; }
