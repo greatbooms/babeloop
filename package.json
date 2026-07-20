@@ -39,6 +39,7 @@
       "argon2",
       "cpu-features",
       "esbuild",
+      "ffmpeg-static",
       "prisma",
       "protobufjs",
       "ssh2"
