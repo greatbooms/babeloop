@@ -123,7 +123,7 @@ export function ReviewPage() {
             experimentSelections[creative.id] ?? experimentsData?.experiments[0]?.id ?? '';
           return (
             <li key={creative.id}>
-              <Card className="card-stack">
+              <Card className="card-stack review-card">
               <h2>{creative.briefTitle}</h2>
               <p className="inline-actions"><StatusBadge status={creative.status} /><span className="muted">revision {creative.revision}</span></p>
               <p>{creative.koreanText.length > 240 ? `${creative.koreanText.slice(0, 240)}…` : creative.koreanText}</p>

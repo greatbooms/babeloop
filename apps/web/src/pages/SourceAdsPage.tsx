@@ -71,7 +71,8 @@ export function SourceAdsPage() {
   const [sourceUrl, setSourceUrl] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const [selectedAdId, setSelectedAdId] = useState<string | null>(null);
-  const [expandedAdId, setExpandedAdId] = useState<string | null>(null);
+  // 뷰어 URL은 확장 시점에 고정한다 — 3초 폴링이 presigned URL을 재발급해 재생 중 src가 바뀌는 문제 방지
+  const [expandedAd, setExpandedAd] = useState<{ id: string; mediaUrl: string; kind: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
@@ -146,12 +147,12 @@ export function SourceAdsPage() {
             {page?.items.map((ad) => (
               <li key={ad.id}>
                 <Card className="ad-card">
-                  <button type="button" className="ad-media" aria-label={`${ad.title ?? '광고'} 미디어 보기`} onClick={() => setExpandedAdId((current) => current === ad.id ? null : ad.id)}>
+                  <button type="button" className="ad-media" aria-label={`${ad.title ?? '광고'} 미디어 보기`} onClick={() => setExpandedAd((current) => current?.id === ad.id || !ad.mediaAsset?.mediaUrl ? null : { id: ad.id, mediaUrl: ad.mediaAsset.mediaUrl, kind: ad.mediaAsset.kind })}>
                     {ad.mediaAsset?.thumbnailUrl ? <img src={ad.mediaAsset.thumbnailUrl} alt="" /> : <span>{ad.mediaAsset?.kind === MediaAssetKind.Video ? '영상' : '이미지 없음'}</span>}
                     {ad.mediaAsset?.kind === MediaAssetKind.Video && <span className="play-overlay" aria-hidden="true">▶</span>}
                     <StatusBadge status={ad.status} />
                   </button>
-                  {expandedAdId === ad.id && ad.mediaAsset && <div className="inline-media-viewer">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={ad.mediaAsset.mediaUrl} /> : <img src={ad.mediaAsset.mediaUrl} alt={ad.title ?? '광고 원본'} />}<a href={ad.mediaAsset.mediaUrl} download>원본 다운로드</a></div>}
+                  {expandedAd?.id === ad.id && <div className="inline-media-viewer">{expandedAd.kind === MediaAssetKind.Video ? <video controls src={expandedAd.mediaUrl} /> : <img src={expandedAd.mediaUrl} alt={ad.title ?? '광고 원본'} />}<a href={expandedAd.mediaUrl} download>원본 다운로드</a></div>}
                   <div className="ad-meta">
                     <strong title={ad.title ?? ad.adText ?? ad.id}>{ad.competitor?.name ? `${ad.competitor.name} · ` : ''}{ad.title ?? ad.adText ?? ad.id}</strong>
                     <p>{[...ad.networks, ...ad.countries].join(' · ') || '네트워크·국가 정보 없음'}</p>

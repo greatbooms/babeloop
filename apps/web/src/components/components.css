@@ -78,3 +78,10 @@
 .stage-export { --stage-bg: var(--step-export-bg); --stage-fg: var(--step-export-fg); }
 .stage-performance { --stage-bg: var(--step-perf-bg); --stage-fg: var(--step-perf-fg); }
 .stage-prep { --stage-bg: var(--step-prep-bg); --stage-fg: var(--step-prep-fg); }
+
+/* 검토 카드 — 버튼·텍스트영역 간격 (사용자 피드백: 요소가 너무 붙어 보임) */
+.review-card section, .review-card .review-actions { display: flex; flex-direction: column; gap: var(--sp-md); margin-top: var(--sp-md); }
+.review-card textarea { min-height: 96px; margin-top: var(--sp-sm); }
+.review-card button { align-self: flex-start; }
+.review-card button + button { margin-top: var(--sp-xs); }
+.review-card label { display: block; }
