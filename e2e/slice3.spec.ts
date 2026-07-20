@@ -28,8 +28,9 @@ test('브리프 생성 → 변형 3개 → zh-TW 초안 표시', async ({ page }
   await expect(briefCard).toBeVisible({ timeout: 30_000 });
 
   // 변형 3개 + zh-TW 초안
-  await briefCard.getByRole('button', { name: '문구 변형 3개 생성' }).click();
-  await expect(briefCard.getByText('[MOCK 문구 1]')).toBeVisible({ timeout: 30_000 });
-  await expect(briefCard.getByText('[MOCK 문구 3]')).toBeVisible({ timeout: 30_000 });
-  await expect(briefCard.getByText('[MOCK zh-TW]').first()).toBeVisible({ timeout: 30_000 });
+  await briefCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '문구 변형 3개 생성' }).click();
+  await expect(page.getByText('[MOCK 문구 1]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('[MOCK 문구 3]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('[MOCK zh-TW]').first()).toBeVisible({ timeout: 30_000 });
 });

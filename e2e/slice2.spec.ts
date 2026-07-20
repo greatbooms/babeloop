@@ -26,6 +26,7 @@ test('광고 2개 등록 → 분석 → 유사 광고 검색', async ({ page }) 
   const rowB = page.locator('li', { hasText: `B-${stamp}` });
   await expect(rowB.getByText('ANALYZED')).toBeVisible({ timeout: 30_000 });
 
-  await rowA.getByRole('button', { name: '유사 광고' }).click();
-  await expect(rowA.getByText(`B-${stamp}`)).toBeVisible({ timeout: 10_000 });
+  await rowA.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '유사 광고' }).click();
+  await expect(page.getByText(`B-${stamp}`)).toBeVisible({ timeout: 10_000 });
 });

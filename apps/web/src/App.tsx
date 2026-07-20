@@ -7,9 +7,13 @@ import { BrandsPage } from './pages/BrandsPage';
 import { BrandDetailPage } from './pages/BrandDetailPage';
 import { MediaPage } from './pages/MediaPage';
 import { SourceAdsPage } from './pages/SourceAdsPage';
+import { SourceAdDetailPage } from './pages/SourceAdDetailPage';
 import { BriefsPage } from './pages/BriefsPage';
+import { BriefDetailPage } from './pages/BriefDetailPage';
 import { ExperimentsPage } from './pages/ExperimentsPage';
+import { ExperimentDetailPage } from './pages/ExperimentDetailPage';
 import { ReviewPage } from './pages/ReviewPage';
+import { ReviewDetailPage } from './pages/ReviewDetailPage';
 import { PerformancePage } from './pages/PerformancePage';
 import { HomePage } from './pages/HomePage';
 
@@ -44,9 +48,13 @@ export function App() {
         <Route path="/brands/:id" element={me ? <BrandDetailPage /> : <Navigate to="/login" />} />
         <Route path="/media" element={me ? <MediaPage /> : <Navigate to="/login" />} />
         <Route path="/ads" element={me ? <SourceAdsPage /> : <Navigate to="/login" />} />
+        <Route path="/ads/:id" element={me ? <SourceAdDetailPage /> : <Navigate to="/login" />} />
         <Route path="/briefs" element={me ? <BriefsPage /> : <Navigate to="/login" />} />
+        <Route path="/briefs/:id" element={me ? <BriefDetailPage /> : <Navigate to="/login" />} />
         <Route path="/review" element={me ? <ReviewPage /> : <Navigate to="/login" />} />
+        <Route path="/review/:id" element={me ? <ReviewDetailPage /> : <Navigate to="/login" />} />
         <Route path="/experiments" element={me ? <ExperimentsPage /> : <Navigate to="/login" />} />
+        <Route path="/experiments/:id" element={me ? <ExperimentDetailPage /> : <Navigate to="/login" />} />
         <Route path="/performance" element={me ? <PerformancePage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={me ? '/brands' : '/login'} />} />
       </Routes></AppShell> : <Routes>

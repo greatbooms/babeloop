@@ -454,7 +454,8 @@ model Experiment {
   name       String
   marketCode String              @default("TW")
   createdAt  DateTime            @default(now())
-  variants   ExperimentVariant[]
+  variants       ExperimentVariant[]
+  exportPackages ExportPackage[]
 
   @@map("experiments")
 }
@@ -478,6 +479,7 @@ model ExperimentVariant {
 model ExportPackage {
   id            String   @id @default(cuid())
   experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   storagePrefix String
   manifest      Json
   createdById   String?

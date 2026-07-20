@@ -32,6 +32,11 @@ export class ExperimentResolver {
     return this.experimentService.findAll();
   }
 
+  @Query(() => ExperimentModel)
+  experiment(@Args('id', { type: () => ID }) id: string) {
+    return this.experimentService.findById(id);
+  }
+
   @Query(() => [ExportPackageModel])
   exportPackages(@Args('experimentId', { type: () => ID }) experimentId: string) {
     return this.exportService.findPackages(experimentId);

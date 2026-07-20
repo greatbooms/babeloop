@@ -20,6 +20,7 @@ export const EXPERIMENT_INCLUDE = {
       },
     },
   },
+  exportPackages: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 } as const;
 
 @Injectable()
@@ -35,7 +36,8 @@ export class ExperimentService {
     const existing = await this.prisma.experiment.findUnique({ where: { code: input.code } });
     if (existing) this.duplicate('이미 사용 중인 실험 코드입니다');
     try {
-      return await this.prisma.experiment.create({ data: input, include: EXPERIMENT_INCLUDE });
+      const created = await this.prisma.experiment.create({ data: input, include: EXPERIMENT_INCLUDE });
+      return this.mapExperiment(created);
     } catch (error) {
       if (this.isUniqueViolation(error)) this.duplicate('이미 사용 중인 실험 코드입니다');
       throw error;
@@ -91,11 +93,22 @@ export class ExperimentService {
     }
   }
 
-  findAll() {
-    return this.prisma.experiment.findMany({
+  async findAll() {
+    const experiments = await this.prisma.experiment.findMany({
       include: EXPERIMENT_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
+    return experiments.map((experiment) => this.mapExperiment(experiment));
+  }
+
+  async findById(id: string) {
+    const experiment = await this.prisma.experiment.findUnique({ where: { id }, include: EXPERIMENT_INCLUDE });
+    if (!experiment) throw new NotFoundException('실험을 찾을 수 없습니다');
+    return this.mapExperiment(experiment);
+  }
+
+  private mapExperiment<T extends { exportPackages: unknown[] }>(experiment: T) {
+    return { ...experiment, hasExports: experiment.exportPackages.length > 0 };
   }
 
   private duplicate(message: string): never {

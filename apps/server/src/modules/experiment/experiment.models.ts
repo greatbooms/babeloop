@@ -29,6 +29,7 @@ export class ExperimentModel {
   @Field() marketCode: string;
   @Field() createdAt: Date;
   @Field(() => [ExperimentVariantModel]) variants: ExperimentVariantModel[];
+  @Field() hasExports: boolean;
 }
 
 @ObjectType()

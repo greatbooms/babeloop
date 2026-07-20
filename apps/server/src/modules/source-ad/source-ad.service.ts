@@ -193,7 +193,11 @@ export class SourceAdService {
   async findById(id: string) {
     const ad = await this.prisma.sourceAd.findUnique({ where: { id }, include: SOURCE_AD_INCLUDE });
     if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
-    return this.mapSourceAd(ad);
+    const briefs = await this.prisma.creativeBrief.findMany({
+      where: { sourceAdIds: { has: id } },
+      select: { id: true, title: true },
+    });
+    return this.mapSourceAdWithThumbnail(ad, new Map([[id, briefs]]));
   }
 
   /** 미디어 재다운로드 — 다운로드가 실패했거나 원본을 다시 받아야 할 때. sourceUrl이 있는 광고만. */

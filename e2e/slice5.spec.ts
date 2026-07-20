@@ -24,61 +24,67 @@ test('MVP 전체 루프 — 승인·내보내기 소재의 성과 업로드 → 
     page.locator('li', { hasText: `ad-${tag}` }).getByText('ANALYZED'),
   ).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole('link', { name: '브리프' }).click();
+  await page.getByRole('link', { name: '브리프', exact: true }).click();
   await page.getByLabel('포커스').fill(`성과 e2e ${tag}`);
   await page.getByRole('button', { name: '브리프 생성' }).click();
   const briefCard = page.locator('li', { hasText: `성과 e2e ${tag}` }).first();
   await expect(briefCard).toBeVisible({ timeout: 30_000 });
-  await briefCard.getByRole('button', { name: '문구 변형 3개 생성' }).click();
-  await expect(briefCard.getByText('[MOCK zh-TW]').first()).toBeVisible({ timeout: 60_000 });
+  await briefCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '문구 변형 3개 생성' }).click();
+  await expect(page.getByText('[MOCK zh-TW]').first()).toBeVisible({ timeout: 60_000 });
 
-  await page.getByRole('link', { name: '검토' }).click();
+  await page.getByRole('link', { name: '검토', exact: true }).click();
   const card = page
     .locator('li', { hasText: `성과 e2e ${tag}` })
     .filter({ hasText: '[MOCK 문구 1]' })
     .first();
-  await card.getByRole('button', { name: '정책 검사' }).click();
-  await expect(card.getByText('POLICY_CHECKED')).toBeVisible({ timeout: 30_000 });
-  await card.getByRole('button', { name: '검토 요청' }).click();
-  await expect(card.getByText('IN_REVIEW')).toBeVisible({ timeout: 15_000 });
+  await card.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '정책 검사' }).click();
+  await expect(page.getByText('POLICY_CHECKED').first()).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: '검토 요청' }).click();
+  await expect(page.getByText('IN_REVIEW').first()).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('button', { name: '로그아웃' }).click();
   await login(page, 'reviewer@babeloop.local', 'changeme-reviewer');
-  await page.getByRole('link', { name: '검토' }).click();
+  await page.getByRole('link', { name: '검토', exact: true }).click();
   const reviewerCard = page
     .locator('li', { hasText: `성과 e2e ${tag}` })
     .filter({ hasText: '[MOCK 문구 1]' })
     .first();
-  await reviewerCard.getByLabel('zh-TW 수정').fill(`最終審校完成 ${tag}`);
-  await reviewerCard.getByRole('button', { name: '수정 저장' }).click();
-  await reviewerCard.getByRole('button', { name: '현지화 승인' }).click();
-  await expect(reviewerCard.getByText('LOCALIZATION_APPROVED')).toBeVisible({ timeout: 15_000 });
-  await reviewerCard.getByRole('button', { name: '최종 승인' }).click();
-  await expect(reviewerCard.getByText('APPROVED', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await reviewerCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByLabel('zh-TW 수정').fill(`最終審校完成 ${tag}`);
+  await page.getByRole('button', { name: '수정 저장' }).click();
+  await page.getByRole('button', { name: '현지화 승인' }).click();
+  await expect(page.getByText('LOCALIZATION_APPROVED').first()).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: '최종 승인' }).click();
+  await expect(page.getByText('APPROVED', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole('link', { name: '실험' }).click();
+  await page.getByRole('link', { name: '실험', exact: true }).click();
+  await page.getByRole('button', { name: '새 실험 생성' }).click();
   await page.getByLabel('실험 코드').fill(expCode);
   await page.getByLabel('실험 이름').fill(`E2E 실험 ${tag}`);
-  await page.getByRole('button', { name: '실험 생성' }).click();
+  await page.getByRole('button', { name: '실험 생성', exact: true }).click();
   await expect(page.locator('li', { hasText: `E2E 실험 ${tag}` })).toBeVisible({ timeout: 10_000 });
 
-  await page.getByRole('link', { name: '검토' }).click();
+  await page.getByRole('link', { name: '검토', exact: true }).click();
   const approvedCard = page
     .locator('li', { hasText: `성과 e2e ${tag}` })
     .filter({ hasText: '[MOCK 문구 1]' })
     .first();
-  await approvedCard.getByLabel('실험 선택').selectOption({ label: `E2E 실험 ${tag}` });
-  await approvedCard.getByRole('button', { name: '실험에 추가' }).click();
-  await expect(approvedCard.getByText(trackingCode)).toBeVisible({ timeout: 10_000 });
+  await approvedCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByLabel('실험 선택').selectOption({ label: `E2E 실험 ${tag}` });
+  await page.getByRole('button', { name: '실험에 추가' }).click();
+  await expect(page.getByText(trackingCode)).toBeVisible({ timeout: 10_000 });
 
-  await page.getByRole('link', { name: '실험' }).click();
+  await page.getByRole('link', { name: '실험', exact: true }).click();
   const exportCard = page.locator('li', { hasText: `E2E 실험 ${tag}` });
-  await exportCard.getByRole('button', { name: '내보내기' }).click();
-  await expect(exportCard.getByRole('link', { name: `${trackingCode}.txt` })).toBeVisible({
+  await exportCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '내보내기' }).click();
+  await expect(page.getByRole('link', { name: `${trackingCode}.txt` })).toBeVisible({
     timeout: 15_000,
   });
 
-  await page.getByRole('link', { name: '성과' }).click();
+  await page.getByRole('link', { name: '성과', exact: true }).click();
   await expect(page.getByRole('heading', { name: '성과', exact: true })).toBeVisible();
   const csv = [
     'date,platform,tracking_code,impressions,clicks,installs,signups,first_messages,cost,currency',
@@ -100,6 +106,6 @@ test('MVP 전체 루프 — 승인·내보내기 소재의 성과 업로드 → 
   await page.getByRole('button', { name: '이 성과로 브리프 생성' }).click();
   await expect(page.getByText('브리프가 생성되었습니다')).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole('link', { name: '브리프' }).click();
+  await page.getByRole('link', { name: '브리프', exact: true }).click();
   await expect(page.locator('li', { hasText: '[MOCK 브리프]' }).first()).toBeVisible({ timeout: 15_000 });
 });
