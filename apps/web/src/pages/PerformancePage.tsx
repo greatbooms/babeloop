@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 import { graphql } from '../generated';
 import { JobStatus, PerformanceCoverage } from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { FormField } from '../components/FormField';
+import { PageHeader } from '../components/PageHeader';
 
 const PerformanceExperimentsDocument = graphql(`
   query PerformanceExperiments {
@@ -73,7 +77,7 @@ function funnelText(
   coverage: PerformanceCoverage,
 ) {
   if (coverage === PerformanceCoverage.Missing) {
-    return <span title="CSV에 소재 단위 값이 없습니다">소재 단위 없음</span>;
+    return <span className="warn-text" title="CSV에 소재 단위 값이 없습니다">소재 단위 없음</span>;
   }
   return <>{numberText(value)}{coverage === PerformanceCoverage.Partial ? ' (부분)' : ''}</>;
 }
@@ -146,25 +150,21 @@ export function PerformancePage() {
   const rows = performanceData?.variantPerformance ?? [];
 
   return (
-    <main>
-      <h1>성과</h1>
-
-      <section>
+    <section>
+      <PageHeader title="성과" description="집행 결과 CSV를 올리면 추적코드로 연결되어 소재별 퍼널이 표시됩니다." />
+      <Card className="page-form-card">
         <h2>성과 CSV 업로드</h2>
-        <p>
+        <details className="csv-guide"><summary>CSV 형식 안내</summary><p>
           CSV 헤더: date,platform,tracking_code,impressions,clicks,installs,signups,first_messages,cost,currency
-        </p>
-        <label>
-          성과 CSV
-          <input
+        </p></details>
+        <div className="page-form"><FormField label="성과 CSV" htmlFor="performance-csv"><input id="performance-csv"
             type="file"
             accept=".csv,text/csv"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <button type="button" disabled={!file || importing} onClick={() => void onUpload()}>
+          /></FormField>
+        <Button variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
           성과 업로드
-        </button>
+        </Button></div>
 
         {summary && (
           <div>
@@ -184,23 +184,20 @@ export function PerformancePage() {
             )}
           </div>
         )}
-      </section>
+      </Card>
 
-      <section>
+      <Card className="card-stack">
         <h2>퍼널 대시보드</h2>
-        <label>
-          실험
-          <select value={experimentId} onChange={(event) => setExperimentId(event.target.value)}>
+        <FormField label="실험" htmlFor="performance-experiment"><select id="performance-experiment" value={experimentId} onChange={(event) => setExperimentId(event.target.value)}>
             <option value="">선택하세요</option>
             {experimentsData?.experiments.map((experiment) => (
               <option key={experiment.id} value={experiment.id}>{experiment.name}</option>
             ))}
-          </select>
-        </label>
+          </select></FormField>
 
         {experimentId && (
           <>
-            <table>
+            <div className="table-wrap"><table className="data-table">
               <thead>
                 <tr>
                   <th>추적코드</th><th>훅</th><th>노출</th><th>클릭</th><th>CTR</th>
@@ -223,21 +220,21 @@ export function PerformancePage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-            <button
+            </table></div>
+            <Button
               type="button"
               disabled={Boolean(jobId) || rows.length === 0}
               onClick={() => void onGenerateBrief()}
             >
               이 성과로 브리프 생성
-            </button>
+            </Button>
           </>
         )}
-      </section>
+      </Card>
 
       {jobId && <p>브리프 생성 중…</p>}
       {message && <p>{message}</p>}
       {error && <p role="alert">{error}</p>}
-    </main>
+    </section>
   );
 }

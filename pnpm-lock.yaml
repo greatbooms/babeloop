@@ -162,6 +162,9 @@ importers:
       graphql:
         specifier: ^16.10.0
         version: 16.14.2
+      pretendard:
+        specifier: ^1.3.9
+        version: 1.3.9
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -4348,6 +4351,9 @@ packages:
   postcss@8.5.19:
     resolution: {integrity: sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ==}
     engines: {node: ^10 || ^12 || >=14}
+
+  pretendard@1.3.9:
+    resolution: {integrity: sha512-PaQAADyLY5v4kYFwkpSJHbSSYIkiriY/1xXw75TKoZ9UQQqeU+tvP05yTdZAWibiIYoo8ZKtRv8PM7w0IaywSw==}
 
   pretty-format@29.7.0:
     resolution: {integrity: sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==}
@@ -10102,6 +10108,8 @@ snapshots:
       nanoid: 3.3.16
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  pretendard@1.3.9: {}
 
   pretty-format@29.7.0:
     dependencies:

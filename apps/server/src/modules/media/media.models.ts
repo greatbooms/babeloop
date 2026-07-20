@@ -32,6 +32,7 @@ export class MediaAssetModel {
   @Field(() => Int, { nullable: true }) sizeBytes: number | null;
   @Field(() => String, { nullable: true }) duplicateOfId: string | null;
   @Field() storageKey: string;
+  @Field(() => String, { nullable: true }) thumbnailUrl?: string | null;
   @Field() createdAt: Date;
   @Field(() => [OcrResultModel]) ocrResults: OcrResultModel[];
   @Field(() => [TranscriptionModel]) transcriptions: TranscriptionModel[];

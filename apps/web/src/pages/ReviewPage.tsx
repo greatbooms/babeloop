@@ -2,6 +2,9 @@ import { useMutation, useQuery } from '@apollo/client';
 import { useState } from 'react';
 import { graphql } from '../generated';
 import { CreativeStatus, UserRole } from '../generated/graphql';
+import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
+import { StatusBadge } from '../components/StatusBadge';
 
 const ReviewCreativesDocument = graphql(`
   query ReviewCreatives {
@@ -108,23 +111,24 @@ export function ReviewPage() {
   }
 
   return (
-    <main>
-      <h1>검토</h1>
+    <section className="review-page">
+      <PageHeader title="검토" description="생성된 문구를 정책 검사 → 검수 → 승인하는 곳입니다. 자기가 만든 문구는 자기가 승인할 수 없습니다." />
       {error && <p role="alert">{error}</p>}
-      <ul>
+      <ul className="card-list">
         {data?.creatives.map((creative) => {
           const latestLocalization = creative.localizations[0];
           const selectedExperiment =
             experimentSelections[creative.id] ?? experimentsData?.experiments[0]?.id ?? '';
           return (
             <li key={creative.id}>
+              <Card className="card-stack">
               <h2>{creative.briefTitle}</h2>
-              <p><strong>{creative.status}</strong> · revision {creative.revision}</p>
+              <p className="inline-actions"><StatusBadge status={creative.status} /><span className="muted">revision {creative.revision}</span></p>
               <p>{creative.koreanText.length > 240 ? `${creative.koreanText.slice(0, 240)}…` : creative.koreanText}</p>
               <p>zh-TW: {latestLocalization?.text ?? '없음'}</p>
               {creative.minorFlagged && (
-                <section>
-                  <p>⚠️ 미성년자 신호: {creative.minorFlagNote}</p>
+                <section className="minor-warning">
+                  <p>미성년자 신호: {creative.minorFlagNote}</p>
                   {canApprove && (
                     <>
                       <label>
@@ -336,10 +340,11 @@ export function ReviewPage() {
               {creative.experimentVariants.map((variant) => (
                 <p key={variant.id}>{variant.trackingCode}</p>
               ))}
+              </Card>
             </li>
           );
         })}
       </ul>
-    </main>
+    </section>
   );
 }

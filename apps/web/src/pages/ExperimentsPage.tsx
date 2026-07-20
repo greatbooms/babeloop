@@ -1,6 +1,10 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useState } from 'react';
 import { graphql } from '../generated';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { FormField } from '../components/FormField';
+import { PageHeader } from '../components/PageHeader';
 
 const ExperimentsPageDocument = graphql(`
   query ExperimentsPage {
@@ -72,36 +76,30 @@ export function ExperimentsPage() {
   }
 
   return (
-    <main>
-      <h1>실험</h1>
-      <form onSubmit={onCreate}>
-        <label>
-          실험 코드
-          <input required value={code} onChange={(event) => setCode(event.target.value)} />
-        </label>
-        <label>
-          실험 이름
-          <input required value={name} onChange={(event) => setName(event.target.value)} />
-        </label>
-        <button type="submit">실험 생성</button>
+    <section>
+      <PageHeader title="실험" description="승인된 문구를 실험에 배정하면 추적코드(BL-…)가 발급되고, 내보내기로 광고 집행용 파일을 받습니다." />
+      <Card className="page-form-card"><form className="page-form" onSubmit={onCreate}>
+        <FormField label="실험 코드" htmlFor="experiment-code"><input id="experiment-code" required value={code} onChange={(event) => setCode(event.target.value)} /></FormField>
+        <FormField label="실험 이름" htmlFor="experiment-name"><input id="experiment-name" required value={name} onChange={(event) => setName(event.target.value)} /></FormField>
+        <Button variant="primary" type="submit">실험 생성</Button>
       </form>
+      </Card>
       {error && <p role="alert">{error}</p>}
-      <ul>
+      <ul className="card-list">
         {data?.experiments.map((experiment) => {
           const exported = exportsByExperiment[experiment.id];
           return (
             <li key={experiment.id}>
+              <Card className="card-stack">
+              <span className="experiment-code">{experiment.code}</span>
               <h2>{experiment.name}</h2>
-              <p>{experiment.code} · {experiment.marketCode}</p>
-              <ul>
+              <p className="muted">{experiment.marketCode}</p>
+              <div className="table-wrap"><table className="data-table"><thead><tr><th>변형코드</th><th>추적코드</th><th>문구 요약</th></tr></thead><tbody>
                 {experiment.variants.map((variant) => (
-                  <li key={variant.id}>
-                    {variant.variantCode} · {variant.trackingCode} ·{' '}
-                    {variant.creative.koreanText.slice(0, 100)}
-                  </li>
+                  <tr key={variant.id}><td>{variant.variantCode}</td><td>{variant.trackingCode}</td><td>{variant.creative.koreanText.slice(0, 100)}</td></tr>
                 ))}
-              </ul>
-              <button onClick={() => void onExport(experiment.id)}>내보내기</button>
+              </tbody></table></div>
+              <Button onClick={() => void onExport(experiment.id)}>내보내기</Button>
               {exported && (
                 <div>
                   {exported.files.map((file) => (
@@ -112,10 +110,11 @@ export function ExperimentsPage() {
                   <p><a href={exported.manifestUrl}>manifest.csv</a></p>
                 </div>
               )}
+              </Card>
             </li>
           );
         })}
       </ul>
-    </main>
+    </section>
   );
 }

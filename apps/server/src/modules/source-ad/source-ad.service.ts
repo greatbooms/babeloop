@@ -2,8 +2,9 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { GraphQLError } from 'graphql';
-import { User } from '../../../generated/prisma';
+import { Prisma, User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import {
   analyzeCreativeJobId,
   CREATIVE_ANALYSIS_QUEUE,
@@ -16,7 +17,7 @@ import {
 import { JobRecordService } from '../jobs/job-record.service';
 import { VectorSearchRepository } from '../creative-analysis/vector-search.repository';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../../providers/embedding/embedding.provider';
-import { CreateSourceAdInput } from './source-ad.inputs';
+import { CreateSourceAdInput, SourceAdFilterInput } from './source-ad.inputs';
 
 export const SOURCE_AD_INCLUDE = {
   competitor: true,
@@ -42,10 +43,24 @@ export class SourceAdService {
     @InjectQueue(MEDIA_PROCESSING_QUEUE) private readonly mediaQueue: Queue,
     private readonly vectors: VectorSearchRepository,
     @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
+    private readonly storage: StorageService,
   ) {}
 
   private mapSourceAd<T extends { analyses: unknown[] }>(ad: T) {
     return { ...ad, latestAnalysis: ad.analyses[0] ?? null };
+  }
+
+  private async mapSourceAdWithThumbnail<T extends { analyses: unknown[]; mediaAsset: { kind: string; status: string; storageKey: string } | null }>(ad: T) {
+    const mapped = this.mapSourceAd(ad);
+    if (!ad.mediaAsset) return mapped;
+    const canShowImage = ad.mediaAsset.kind === 'IMAGE' && ['READY', 'UPLOADED'].includes(ad.mediaAsset.status);
+    return {
+      ...mapped,
+      mediaAsset: {
+        ...ad.mediaAsset,
+        thumbnailUrl: canShowImage ? await this.storage.presignGet(ad.mediaAsset.storageKey) : null,
+      },
+    };
   }
 
   private async enqueueAnalysis(sourceAdId: string) {
@@ -127,6 +142,28 @@ export class SourceAdService {
       orderBy: { createdAt: 'desc' },
     });
     return ads.map((ad) => this.mapSourceAd(ad));
+  }
+
+  async findPage(input: SourceAdFilterInput) {
+    const offset = Math.max(0, input.offset ?? 0);
+    const limit = Math.min(100, Math.max(1, input.limit ?? 24));
+    const search = input.search?.trim();
+    const where: Prisma.SourceAdWhereInput = {
+      status: input.status,
+      competitorId: input.competitorId,
+      mediaAsset: input.kind ? { kind: input.kind } : undefined,
+      OR: search
+        ? [
+            { title: { contains: search, mode: 'insensitive' } },
+            { adText: { contains: search, mode: 'insensitive' } },
+          ]
+        : undefined,
+    };
+    const [items, totalCount] = await this.prisma.$transaction([
+      this.prisma.sourceAd.findMany({ where, include: SOURCE_AD_INCLUDE, orderBy: { createdAt: 'desc' }, skip: offset, take: limit }),
+      this.prisma.sourceAd.count({ where }),
+    ]);
+    return { items: await Promise.all(items.map((ad) => this.mapSourceAdWithThumbnail(ad))), totalCount };
   }
 
   async findById(id: string) {

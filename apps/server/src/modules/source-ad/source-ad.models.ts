@@ -47,6 +47,12 @@ export class SourceAdModel {
 }
 
 @ObjectType()
+export class SourceAdPage {
+  @Field(() => [SourceAdModel]) items: SourceAdModel[];
+  @Field(() => Int) totalCount: number;
+}
+
+@ObjectType()
 export class CreateSourceAdPayload {
   @Field(() => SourceAdModel) sourceAd: SourceAdModel;
   @Field(() => JobModel, { nullable: true }) job: JobModel | null;

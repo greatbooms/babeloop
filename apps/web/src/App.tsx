@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { Link, Navigate, Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useNavigate } from 'react-router';
+import { AppShell } from './components/AppShell';
 import { graphql } from './generated';
 import { LoginPage } from './pages/LoginPage';
 import { BrandsPage } from './pages/BrandsPage';
@@ -9,6 +10,7 @@ import { BriefsPage } from './pages/BriefsPage';
 import { ExperimentsPage } from './pages/ExperimentsPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { PerformancePage } from './pages/PerformancePage';
+import { HomePage } from './pages/HomePage';
 
 const MeDocument = graphql(`
   query Me { me { id email displayName role } }
@@ -34,16 +36,8 @@ export function App() {
 
   return (
     <>
-      {me && (
-        <nav>
-          <Link to="/brands">브랜드</Link> | <Link to="/media">미디어</Link> | <Link to="/ads">광고</Link> |{' '}
-          <Link to="/briefs">브리프</Link>
-          {' | '}<Link to="/review">검토</Link> | <Link to="/experiments">실험</Link> |{' '}
-          <Link to="/performance">성과</Link>{' '}
-          <button onClick={() => void onLogout()}>로그아웃</button>
-        </nav>
-      )}
-      <Routes>
+      {me ? <AppShell user={me} onLogout={() => void onLogout()}><Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={me ? <Navigate to="/brands" /> : <LoginPage onLogin={() => refetch()} />} />
         <Route path="/brands" element={me ? <BrandsPage /> : <Navigate to="/login" />} />
         <Route path="/media" element={me ? <MediaPage /> : <Navigate to="/login" />} />
@@ -53,7 +47,10 @@ export function App() {
         <Route path="/experiments" element={me ? <ExperimentsPage /> : <Navigate to="/login" />} />
         <Route path="/performance" element={me ? <PerformancePage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={me ? '/brands' : '/login'} />} />
-      </Routes>
+      </Routes></AppShell> : <Routes>
+        <Route path="/login" element={<LoginPage onLogin={() => refetch()} />} />
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>}
     </>
   );
 }

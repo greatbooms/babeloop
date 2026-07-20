@@ -1,0 +1,25 @@
+.ads-registration-layout { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: var(--sp-lg); align-items: start; }
+.ad-registration-card { display: grid; gap: var(--sp-base); }
+.file-button { display: inline-flex; align-items: center; cursor: pointer; }
+.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.filter-bar { display: grid; grid-template-columns: 1fr 1fr 2fr auto; align-items: end; gap: var(--sp-md); margin-bottom: var(--sp-lg); }
+.result-count { color: var(--muted); font-size: 14px; padding-bottom: var(--sp-md); white-space: nowrap; }
+.notice { color: var(--body); margin-bottom: var(--sp-base); }
+.error { color: var(--error-text); white-space: pre-wrap; margin-bottom: var(--sp-base); }
+.ads-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-base); }
+.ad-card { height: 100%; padding: var(--sp-base); display: flex; flex-direction: column; gap: var(--sp-md); overflow: hidden; }
+.ad-media { position: relative; aspect-ratio: 1; border-radius: var(--r-md); overflow: hidden; background: var(--surface-soft); display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.ad-media img { width: 100%; height: 100%; object-fit: cover; }
+.ad-media .status-badge { position: absolute; top: var(--sp-sm); left: var(--sp-sm); box-shadow: var(--shadow-float); }
+.ad-meta { display: grid; gap: var(--sp-xs); }
+.ad-meta strong, .ad-meta p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-meta strong { font-size: 16px; line-height: 1.25; }
+.ad-meta p { color: var(--muted); font-size: 14px; line-height: 1.43; }
+.ad-meta .ad-copy { color: var(--body); }
+.ad-meta .hook-line { color: var(--ink); }
+.ad-actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
+.similar-list { border-top: 1px solid var(--hairline-soft); padding-top: var(--sp-sm); display: grid; gap: var(--sp-xs); font-size: 14px; }
+.pagination { margin-top: var(--sp-lg); display: flex; justify-content: center; align-items: center; gap: var(--sp-base); }
+@media (min-width: 1128px) { .ads-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .ads-registration-layout { grid-template-columns: 1fr; } .ads-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 744px) { .filter-bar, .ads-grid { grid-template-columns: 1fr; } }

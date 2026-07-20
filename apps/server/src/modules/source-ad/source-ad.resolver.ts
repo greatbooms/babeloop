@@ -12,6 +12,7 @@ import {
   CreateSourceAdInput,
   ImportSensorTowerCsvInput,
   SimilarSourceAdsInput,
+  SourceAdFilterInput,
 } from './source-ad.inputs';
 import {
   CreateSourceAdPayload,
@@ -19,6 +20,7 @@ import {
   ReembedSourceAdsPayload,
   SimilarSourceAdModel,
   SourceAdModel,
+  SourceAdPage,
 } from './source-ad.models';
 import { SourceAdService } from './source-ad.service';
 
@@ -33,6 +35,11 @@ export class SourceAdResolver {
   @Query(() => [SourceAdModel])
   sourceAds() {
     return this.sourceAdService.findAll();
+  }
+
+  @Query(() => SourceAdPage)
+  sourceAdsPage(@Args('input') input: SourceAdFilterInput) {
+    return this.sourceAdService.findPage(input);
   }
 
   @Query(() => SourceAdModel)

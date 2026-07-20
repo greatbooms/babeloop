@@ -3,6 +3,11 @@ import { FormEvent, useEffect, useState } from 'react';
 import { graphql } from '../generated';
 import { CreativeType, JobStatus, LocalizationKind } from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { FormField } from '../components/FormField';
+import { PageHeader } from '../components/PageHeader';
+import { StatusBadge } from '../components/StatusBadge';
 
 const CreativeBriefsDocument = graphql(`
   query CreativeBriefs {
@@ -88,60 +93,53 @@ export function BriefsPage() {
   const working = Boolean(jobId);
 
   return (
-    <main>
-      <h1>브리프</h1>
-
-      <section>
+    <section>
+      <PageHeader title="브리프" description="경쟁 광고 패턴 + 브랜드 정보로 광고 브리프와 문구를 만듭니다. 흐름: 브리프 생성 → 변형 생성 → 검토 탭에서 승인." />
+      <Card className="page-form-card">
         <h2>브리프 생성</h2>
-        <form onSubmit={onGenerateBrief}>
-          <label>
-            제목
-            <input value={title} onChange={(event) => setTitle(event.target.value)} />
-          </label>
-          <label>
-            포커스
-            <textarea
+        <form className="page-form" onSubmit={onGenerateBrief}>
+          <FormField label="제목" htmlFor="brief-title"><input id="brief-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
+          <FormField label="포커스" htmlFor="brief-focus"><textarea id="brief-focus"
               required
               value={focusText}
               onChange={(event) => setFocusText(event.target.value)}
-            />
-          </label>
-          <button type="submit" disabled={working}>브리프 생성</button>
+            /></FormField>
+          <Button variant="primary" type="submit" disabled={working}>브리프 생성</Button>
         </form>
-      </section>
+      </Card>
 
       {error && <p role="alert">{error}</p>}
       {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && (
         <p>생성 중… ({job.status})</p>
       )}
 
-      <ul>
+      <ul className="card-list">
         {data?.creativeBriefs.map((brief) => (
           <li key={brief.id}>
+            <Card className="card-stack">
             <h2>{brief.title}</h2>
-            <p>욕구: {brief.desire}</p>
-            <p>훅: {brief.hookType}</p>
-            <p>CTA: {brief.callToAction}</p>
-            <p>근거: {brief.rationale}</p>
-            <button disabled={working} onClick={() => void onGenerateVariants(brief.id)}>
+            <div className="field-grid"><p><span className="field-label">욕구</span><br/><span className="field-value">{brief.desire}</span></p><p><span className="field-label">훅</span><br/><span className="field-value">{brief.hookType}</span></p><p><span className="field-label">CTA</span><br/><span className="field-value">{brief.callToAction}</span></p></div>
+            <p className="muted">근거: {brief.rationale}</p>
+            <Button disabled={working} onClick={() => void onGenerateVariants(brief.id)}>
               문구 변형 3개 생성
-            </button>
-            <ol>
+            </Button>
+            <ol className="card-list">
               {brief.creatives.map((creative) => {
                 const draft = creative.localizations.find(
                   (localization) => localization.kind === LocalizationKind.AiDraft,
                 );
                 return (
                   <li key={creative.id}>
-                    <p>{creative.variantIndex}. {creative.koreanText}</p>
-                    <p>{draft?.text ?? '현지화 중…'}</p>
+                    <div className="inline-actions"><StatusBadge status={creative.status} /><strong>{creative.variantIndex}. {creative.koreanText}</strong></div>
+                    <div className="localized-copy"><span className="field-label">번체중문 초안</span><p>{draft?.text ?? '현지화 중…'}</p></div>
                   </li>
                 );
               })}
             </ol>
+            </Card>
           </li>
         ))}
       </ul>
-    </main>
+    </section>
   );
 }

@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { graphql } from '../generated';
 import { MediaAssetKind } from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
+import { StatusBadge } from '../components/StatusBadge';
 
 const MediaAssetsDocument = graphql(`
   query MediaAssets {
@@ -60,28 +64,32 @@ export function MediaPage() {
   }
 
   return (
-    <main>
-      <h1>미디어</h1>
-      <div>
+    <section>
+      <PageHeader title="미디어" description="이미지·영상을 업로드하면 텍스트 추출(OCR·전사)을 거쳐 분석에 쓰입니다." />
+      <Card className="upload-card">
+      <div className="inline-actions">
         <input type="file" ref={fileRef} accept="image/*,video/*" />
-        <button onClick={onUpload}>업로드</button>
+        <Button variant="primary" onClick={onUpload}>업로드</Button>
       </div>
+      </Card>
       {error && <p role="alert">{error}</p>}
       {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>분석 중… ({job.status})</p>}
       {job?.status === 'FAILED' && <p role="alert">분석 실패: {job.error}</p>}
-      <ul>
+      <ul className="card-list">
         {data?.mediaAssets.map((a) => (
           <li key={a.id}>
-            <strong>{a.originalFilename}</strong> — {a.status}
+            <Card className="card-stack">
+            <div className="inline-actions"><strong>{a.originalFilename}</strong><StatusBadge status={a.status} /></div>
             {a.ocrResults.map((o) => (
               <p key={o.id}>{o.text}</p>
             ))}
             {a.transcriptions.map((tr) => (
               <p key={tr.id}>{tr.text}</p>
             ))}
+            </Card>
           </li>
         ))}
       </ul>
-    </main>
+    </section>
   );
 }

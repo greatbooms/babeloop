@@ -1,0 +1,39 @@
+.top-nav { min-height: 80px; padding: 0 var(--sp-lg); border-bottom: 1px solid var(--hairline); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-lg); background: var(--canvas); }
+.wordmark { color: var(--primary); font-size: 20px; font-weight: 700; text-decoration: none; }
+.nav-tabs { align-self: stretch; display: flex; justify-content: center; gap: var(--sp-sm); }
+.nav-link { color: var(--muted); font-size: 16px; font-weight: 600; line-height: 1.25; text-decoration: none; display: flex; align-items: center; padding: 0 var(--sp-sm); border-bottom: 2px solid transparent; }
+.nav-link.active { color: var(--ink); border-bottom-color: var(--ink); }
+.account-area { display: flex; align-items: center; gap: var(--sp-md); }
+.account-copy { display: flex; flex-direction: column; text-align: right; font-size: 14px; line-height: 1.43; }
+.account-copy small { color: var(--muted); font-size: 13px; }
+.app-main { width: min(100%, 1280px); margin: 0 auto; padding: var(--sp-xl) var(--sp-lg) var(--sp-section); }
+.page-header { margin-bottom: var(--sp-lg); display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-lg); }
+.page-header p { color: var(--muted); font-size: 14px; line-height: 1.43; margin-top: var(--sp-xs); }
+.page-header .page-header-hint { color: var(--body); }
+.page-header-actions { display: flex; gap: var(--sp-sm); }
+.button { border-radius: var(--r-sm); padding: 0 var(--sp-lg); height: 48px; border: 1px solid transparent; font-size: 16px; font-weight: 500; line-height: 1.25; }
+.button-primary { color: var(--on-primary); background: var(--primary); }
+.button-primary:active { background: var(--primary-active); }
+.button-primary:disabled { background: var(--primary-disabled); cursor: not-allowed; }
+.button-secondary { color: var(--ink); background: var(--canvas); border-color: var(--ink); }
+.button-text { color: var(--ink); background: transparent; padding-inline: 0; }
+.button-text:hover { text-decoration: underline; }
+.button-sm { height: 36px; padding: 0 var(--sp-md); font-size: 14px; line-height: 1.29; }
+.card { padding: var(--sp-lg); border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); transition: box-shadow 0.2s ease; }
+.card:hover { box-shadow: var(--shadow-float); }
+.status-badge { display: inline-flex; align-items: center; gap: var(--sp-xs); width: fit-content; padding: 4px 10px; border-radius: var(--r-full); font-size: 11px; font-weight: 600; line-height: 1.18; }
+.status-positive { color: var(--status-positive-fg); background: var(--status-positive-bg); }
+.status-progress { color: var(--status-progress-fg); background: var(--status-progress-bg); }
+.status-neutral { color: var(--status-neutral-fg); background: var(--status-neutral-bg); }
+.status-warn { color: var(--status-warn-fg); background: var(--status-warn-bg); }
+.badge-code { color: var(--muted); font-size: 10px; }
+.form-field { display: grid; gap: var(--sp-sm); }
+.form-field label { color: var(--muted); font-size: 14px; font-weight: 500; line-height: 1.29; }
+.form-field input, .form-field textarea, .form-field select { width: 100%; min-height: 48px; padding: var(--sp-md); color: var(--ink); background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-sm); }
+.form-field textarea { min-height: 96px; resize: vertical; }
+.form-field input:focus, .form-field textarea:focus, .form-field select:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
+.form-hint { color: var(--muted); font-size: 13px; }
+.empty-state { padding: var(--sp-xxl) var(--sp-lg); text-align: center; }
+.empty-state p { color: var(--muted); margin: var(--sp-sm) 0 var(--sp-lg); font-size: 14px; }
+@media (max-width: 1128px) { .top-nav { grid-template-columns: auto 1fr; padding-block: var(--sp-base); } .nav-tabs { grid-column: 1 / -1; grid-row: 2; overflow-x: auto; justify-content: flex-start; min-height: 48px; } }
+@media (max-width: 744px) { .account-copy { display: none; } .app-main { padding: var(--sp-lg) var(--sp-base) var(--sp-xxl); } .page-header { flex-direction: column; } }
