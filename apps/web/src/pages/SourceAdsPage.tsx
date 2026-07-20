@@ -119,7 +119,7 @@ export function SourceAdsPage() {
 
   return (
     <section>
-      <PageHeader title="광고" description="경쟁사 광고를 수집하고 분석합니다. 필터로 필요한 소재를 찾고 분석 결과를 비교하세요." actions={<label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>} />
+      <PageHeader title="광고" step="루프 1·2단계 — 수집·분석" description="경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요." actions={<label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>} />
       <div className="ads-registration-layout">
         <Card className="ad-registration-card">
           <h2>광고 수동 등록</h2>

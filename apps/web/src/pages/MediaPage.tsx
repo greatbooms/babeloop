@@ -65,7 +65,7 @@ export function MediaPage() {
 
   return (
     <section>
-      <PageHeader title="미디어" description="이미지·영상을 업로드하면 텍스트 추출(OCR·전사)을 거쳐 분석에 쓰입니다." />
+      <PageHeader title="미디어" step="보조 도구" description="광고 탭과 별개로, 파일 하나를 직접 올려 텍스트 추출(이미지 OCR·영상 전사)만 해보는 단건 도구입니다. 경쟁 광고 수집·분석은 광고 탭에서 하세요." />
       <Card className="upload-card">
       <div className="inline-actions">
         <input type="file" ref={fileRef} accept="image/*,video/*" />

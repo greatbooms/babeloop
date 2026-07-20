@@ -39,7 +39,7 @@ export function BrandsPage() {
 
   return (
     <section>
-      <PageHeader title="브랜드" description="광고 브리프 생성에 쓰이는 BabeChat 브랜드 정보입니다." />
+      <PageHeader title="브랜드" step="준비 — 브리프 재료" description="BabeChat 제품 소개와 기능 정보를 등록하는 곳입니다. 여기 등록된 내용이 브리프 생성 시 「우리 제품」 재료로 AI에게 전달됩니다. 처음 한 번 등록하고 제품이 바뀔 때 갱신하세요." />
       <Card className="page-form-card">
       <form className="page-form" onSubmit={onSubmit}>
         <FormField label="브랜드명" htmlFor="brand-name"><input id="brand-name" {...register('name')} /></FormField>

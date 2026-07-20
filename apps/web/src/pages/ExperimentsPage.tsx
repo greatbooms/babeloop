@@ -77,7 +77,7 @@ export function ExperimentsPage() {
 
   return (
     <section>
-      <PageHeader title="실험" description="승인된 문구를 실험에 배정하면 추적코드(BL-…)가 발급되고, 내보내기로 광고 집행용 파일을 받습니다." />
+      <PageHeader title="실험" step="루프 5단계 — 내보내기" description="승인된 문구를 실험 단위로 묶어 광고로 내보내는 곳입니다. 실험 생성 → 검토 탭에서 승인 문구를 실험에 추가 → 내보내기를 누르면 추적코드(BL-…)가 각인된 집행용 파일을 받습니다. 이 코드가 나중에 성과를 소재별로 연결합니다." />
       <Card className="page-form-card"><form className="page-form" onSubmit={onCreate}>
         <FormField label="실험 코드" htmlFor="experiment-code"><input id="experiment-code" required value={code} onChange={(event) => setCode(event.target.value)} /></FormField>
         <FormField label="실험 이름" htmlFor="experiment-name"><input id="experiment-name" required value={name} onChange={(event) => setName(event.target.value)} /></FormField>

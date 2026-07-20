@@ -112,7 +112,7 @@ export function ReviewPage() {
 
   return (
     <section className="review-page">
-      <PageHeader title="검토" description="생성된 문구를 정책 검사 → 검수 → 승인하는 곳입니다. 자기가 만든 문구는 자기가 승인할 수 없습니다." />
+      <PageHeader title="검토" step="루프 4단계 — 품질 게이트" description="생성된 문구가 광고로 나가기 전 통과해야 하는 관문입니다. 정책 검사(금지어·유사도·미성년 신호) → 검토 요청 → 검수자의 번체중문 검수·승인 순서이며, 자기가 만든 문구는 자기가 승인할 수 없습니다." />
       {error && <p role="alert">{error}</p>}
       <ul className="card-list">
         {data?.creatives.map((creative) => {

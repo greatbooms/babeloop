@@ -151,7 +151,7 @@ export function PerformancePage() {
 
   return (
     <section>
-      <PageHeader title="성과" description="집행 결과 CSV를 올리면 추적코드로 연결되어 소재별 퍼널이 표시됩니다." />
+      <PageHeader title="성과" step="루프 6단계 — 성과·환류" description="광고 집행 결과를 배우는 곳입니다. 성과 CSV를 올리면 추적코드로 소재와 연결되어 퍼널(클릭·설치·가입)이 표시되고, 「이 성과로 브리프 생성」을 누르면 잘된 패턴이 다음 브리프에 반영되어 루프가 다시 시작됩니다." />
       <Card className="page-form-card">
         <h2>성과 CSV 업로드</h2>
         <details className="csv-guide"><summary>CSV 형식 안내</summary><p>

@@ -94,7 +94,7 @@ export function BriefsPage() {
 
   return (
     <section>
-      <PageHeader title="브리프" description="경쟁 광고 패턴 + 브랜드 정보로 광고 브리프와 문구를 만듭니다. 흐름: 브리프 생성 → 변형 생성 → 검토 탭에서 승인." />
+      <PageHeader title="브리프" step="루프 3단계 — 생성" description="분석된 경쟁 패턴과 브랜드 정보로 AI가 광고 기획서(브리프)를 씁니다. 포커스 문장으로 브리프 생성 → 카드에서 문구 변형 3개 생성 → 번체중문 초안까지 자동으로 만들어지면, 검토 탭에서 승인 절차를 진행하세요." />
       <Card className="page-form-card">
         <h2>브리프 생성</h2>
         <form className="page-form" onSubmit={onGenerateBrief}>
