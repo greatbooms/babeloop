@@ -92,3 +92,16 @@
 .brand-section > .muted { margin-bottom: var(--sp-base); color: var(--muted); font-size: 14px; }
 .brand-editor-head { display: flex; align-items: baseline; gap: var(--sp-md); }
 .edit-hint { font-size: 12px; color: var(--muted); background: var(--surface-soft); border-radius: var(--r-full); padding: 3px 10px; }
+
+/* 브랜드 목록 카드·상세 */
+.brand-list-card { text-decoration: none; display: block; }
+.brand-list-card .card { cursor: pointer; }
+.brand-counts { color: var(--muted); font-size: 13px; }
+.brand-detail-cta { color: var(--primary-active); font-size: 14px; font-weight: 500; }
+.back-link { display: inline-block; margin-bottom: var(--sp-base); color: var(--muted); text-decoration: none; font-size: 14px; }
+.back-link:hover { color: var(--ink); }
+.brand-description { white-space: pre-wrap; line-height: 1.6; }
+.brand-dl div { padding: var(--sp-md) 0; border-bottom: 1px solid var(--hairline-soft); }
+.brand-dl div:last-child { border-bottom: none; }
+.brand-dl dt { font-weight: 600; margin-bottom: var(--sp-xs); }
+.brand-dl dd { color: var(--body); font-size: 14px; line-height: 1.5; }
