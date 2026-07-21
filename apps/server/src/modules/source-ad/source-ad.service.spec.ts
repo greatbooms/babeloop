@@ -46,3 +46,41 @@ describe('SourceAdService relationships', () => {
     expect(prisma.briefReference.findMany).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SourceAdService.analyze 텍스트 가드', () => {
+  function serviceWith(ad: unknown) {
+    const prisma = { sourceAd: { findUnique: jest.fn().mockResolvedValue(ad) } };
+    const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+    const service = new SourceAdService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    return { service, jobRecord };
+  }
+
+  it('adText도 OCR·전사도 없으면 잡을 태우지 않고 TEXT_NOT_EXTRACTED로 거절한다', async () => {
+    const { service, jobRecord } = serviceWith({
+      adText: null,
+      mediaAsset: { _count: { ocrResults: 0, transcriptions: 0 } },
+    });
+    await expect(service.analyze('ad-1')).rejects.toMatchObject({
+      extensions: { code: 'TEXT_NOT_EXTRACTED' },
+    });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('OCR 결과가 있으면 enqueueOrRetry 경로로 분석을 등록한다 (실패 잡 재시도 포함)', async () => {
+    const { service, jobRecord } = serviceWith({
+      adText: null,
+      mediaAsset: { _count: { ocrResults: 1, transcriptions: 0 } },
+    });
+    await expect(service.analyze('ad-1')).resolves.toEqual({ id: 'job-1' });
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledTimes(1);
+  });
+});

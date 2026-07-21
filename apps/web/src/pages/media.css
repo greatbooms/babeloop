@@ -1,6 +1,9 @@
 /* 미디어 탭 — 목록은 광고 탭과 같은 카드 문법(ads-grid 재사용), 여기는 미디어 전용 요소만 */
 
 .upload-zone { display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap; }
+/* 광고 필터바(4칸)와 달리 미디어는 종류·검색·건수 3칸 */
+.filter-bar.media-filter-bar { grid-template-columns: 1fr 2fr auto; }
+@media (max-width: 744px) { .filter-bar.media-filter-bar { grid-template-columns: 1fr; } }
 .upload-zone .form-hint { flex: 1; min-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 인사이트 — 요약 리드 + 항목별 태그 칩 */

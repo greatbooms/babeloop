@@ -4,6 +4,11 @@
   padding: 0;
 }
 
+html {
+  /* 스크롤바 유무로 페이지마다 콘텐츠 폭(카드 크기)이 몇 px씩 달라지지 않게 공간을 항상 예약 */
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font);
   color: var(--ink);

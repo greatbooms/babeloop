@@ -72,19 +72,15 @@ export class SourceAdService {
   }
 
   private async enqueueAnalysis(sourceAdId: string) {
+    // 실패한 분석 잡이 남아 있으면 removeOnFail:false 때문에 같은 jobId 재등록이 무시된다 — retry 경로 필수
     const jobId = analyzeCreativeJobId(sourceAdId);
-    await this.analysisQueue.add(
+    return this.jobRecord.enqueueOrRetry(
+      this.analysisQueue,
+      CREATIVE_ANALYSIS_QUEUE,
       JOB_TYPES.ANALYZE_CREATIVE,
+      jobId,
       { sourceAdId },
-      {
-        jobId,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
     );
-    return this.jobRecord.enqueue(jobId, CREATIVE_ANALYSIS_QUEUE, JOB_TYPES.ANALYZE_CREATIVE, { sourceAdId });
   }
 
   async create(_user: User, input: CreateSourceAdInput) {
@@ -123,7 +119,24 @@ export class SourceAdService {
   }
 
   async analyze(sourceAdId: string) {
-    await this.findById(sourceAdId);
+    const ad = await this.prisma.sourceAd.findUnique({
+      where: { id: sourceAdId },
+      select: {
+        adText: true,
+        mediaAsset: { select: { _count: { select: { ocrResults: true, transcriptions: true } } } },
+      },
+    });
+    if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
+    const hasText =
+      Boolean(ad.adText) ||
+      (ad.mediaAsset?._count.ocrResults ?? 0) > 0 ||
+      (ad.mediaAsset?._count.transcriptions ?? 0) > 0;
+    if (!hasText) {
+      // 재료 없이 잡을 태우면 뒤늦게 FAILED 상태만 남는다 — 미디어 인사이트와 동일하게 즉시 안내로 거절
+      throw new GraphQLError('분석할 텍스트가 없습니다 — 먼저 「미디어 텍스트 추출」을 실행해주세요', {
+        extensions: { code: 'TEXT_NOT_EXTRACTED' },
+      });
+    }
     return this.enqueueAnalysis(sourceAdId);
   }
 

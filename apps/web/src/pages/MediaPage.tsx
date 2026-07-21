@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { graphql } from '../generated';
-import { MediaAssetKind } from '../generated/graphql';
+import { FormField } from '../components/FormField';
+import { MediaAssetKind, MediaAssetOrigin } from '../generated/graphql';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Modal } from '../components/Modal';
@@ -12,11 +13,16 @@ import { Link, useNavigate } from 'react-router';
 import './source-ads.css';
 import './media.css';
 
-const MediaAssetsDocument = graphql(`
-  query MediaAssets {
-    mediaAssets(origin: MANUAL) {
-      id status kind originalFilename createdAt mediaUrl thumbnailUrl
-      insights { id }
+const PAGE_SIZE = 24;
+
+const MediaAssetsPageDocument = graphql(`
+  query MediaAssetsPage($input: MediaAssetFilterInput!) {
+    mediaAssetsPage(input: $input) {
+      totalCount
+      items {
+        id status kind originalFilename createdAt mediaUrl thumbnailUrl
+        insights { id }
+      }
     }
   }
 `);
@@ -38,8 +44,16 @@ function dateLabel(value: unknown) {
 }
 
 export function MediaPage() {
+  const [offset, setOffset] = useState(0);
+  const [kind, setKind] = useState<MediaAssetKind | ''>('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   // 광고 목록과 동일: 3초 폴링 + cache-and-network — 상세에서 돌아왔을 때 캐시의 빈 목록이 남지 않게 한다
-  const { data } = useQuery(MediaAssetsDocument, { pollInterval: 3000, fetchPolicy: 'cache-and-network' });
+  const { data } = useQuery(MediaAssetsPageDocument, {
+    variables: { input: { origin: MediaAssetOrigin.Manual, offset, limit: PAGE_SIZE, kind: kind || undefined, search: search || undefined } },
+    pollInterval: 3000,
+    fetchPolicy: 'cache-and-network',
+  });
   const [requestUpload] = useMutation(RequestUploadDocument);
   const [completeUpload] = useMutation(CompleteUploadDocument);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +61,8 @@ export function MediaPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => { const timer = window.setTimeout(() => { setOffset(0); setSearch(searchInput); }, 300); return () => window.clearTimeout(timer); }, [searchInput]);
 
   async function onUpload() {
     const file = fileRef.current?.files?.[0];
@@ -67,7 +83,11 @@ export function MediaPage() {
     }
   }
 
-  const assets = data?.mediaAssets ?? [];
+  const page = data?.mediaAssetsPage;
+  const assets = page?.items ?? [];
+  const total = page?.totalCount ?? 0;
+  const end = Math.min(offset + PAGE_SIZE, total);
+  const filtered = Boolean(kind || search);
 
   return (
     <section className="stage-prep">
@@ -84,9 +104,14 @@ export function MediaPage() {
         <Button variant="primary" disabled={!fileName} onClick={onUpload}>업로드</Button>
       </Modal>
       {error && <p className="error" role="alert">{error}</p>}
+      <div className="filter-bar media-filter-bar">
+        <FormField label="종류" htmlFor="media-kind"><select id="media-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">전체</option><option value={MediaAssetKind.Image}>이미지</option><option value={MediaAssetKind.Video}>영상</option></select></FormField>
+        <FormField label="검색" htmlFor="media-search"><input id="media-search" type="search" placeholder="파일명" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
+        <p className="result-count">{total === 0 ? '0건' : `${total}건 중 ${offset + 1}–${end}`}</p>
+      </div>
       {assets.length === 0 ? (
         <Card className="empty-state">
-          <p>아직 올린 미디어가 없습니다. 시안이나 참고 이미지·영상을 올려 인사이트를 확인해보세요.</p>
+          <p>{filtered ? '조건에 맞는 미디어가 없습니다.' : '아직 올린 미디어가 없습니다. 시안이나 참고 이미지·영상을 올려 인사이트를 확인해보세요.'}</p>
         </Card>
       ) : (
         <ul className="ads-grid">
@@ -110,6 +135,13 @@ export function MediaPage() {
             </li>
           ))}
         </ul>
+      )}
+      {total > PAGE_SIZE && (
+        <div className="pagination">
+          <Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>이전</Button>
+          <span>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span>
+          <Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>다음</Button>
+        </div>
       )}
     </section>
   );

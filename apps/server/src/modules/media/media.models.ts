@@ -60,6 +60,12 @@ export class MediaAssetModel {
 }
 
 @ObjectType()
+export class MediaAssetPageModel {
+  @Field(() => Int) totalCount: number;
+  @Field(() => [MediaAssetModel]) items: MediaAssetModel[];
+}
+
+@ObjectType()
 export class GenerateVideoThumbnailsPayload {
   @Field(() => Int) enqueued: number;
 }

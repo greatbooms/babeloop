@@ -7,11 +7,12 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { CompleteMediaUploadInput, RequestMediaUploadInput } from './media.inputs';
+import { CompleteMediaUploadInput, MediaAssetFilterInput, RequestMediaUploadInput } from './media.inputs';
 import {
   CompleteUploadModel,
   GenerateVideoThumbnailsPayload,
   MediaAssetModel,
+  MediaAssetPageModel,
   UploadRequestModel,
 } from './media.models';
 import { JobModel } from '../jobs/job.model';
@@ -25,6 +26,11 @@ export class MediaResolver {
   @Query(() => [MediaAssetModel])
   mediaAssets(@Args('origin', { type: () => MediaAssetOrigin, nullable: true }) origin?: MediaAssetOrigin) {
     return this.mediaService.findAll(origin);
+  }
+
+  @Query(() => MediaAssetPageModel)
+  mediaAssetsPage(@Args('input') input: MediaAssetFilterInput) {
+    return this.mediaService.findPage(input);
   }
 
   @Query(() => MediaAssetModel)

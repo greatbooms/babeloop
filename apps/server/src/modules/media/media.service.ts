@@ -3,7 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { createHash, randomUUID } from 'crypto';
 import { GraphQLError } from 'graphql';
-import { MediaAssetOrigin, User } from '../../../generated/prisma';
+import { MediaAssetKind, MediaAssetOrigin, User } from '../../../generated/prisma';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../../providers/embedding/embedding.provider';
 import { Inject } from '@nestjs/common';
 import { VectorSearchRepository } from '../creative-analysis/vector-search.repository';
@@ -172,6 +172,19 @@ export class MediaService {
   async findAll(origin?: MediaAssetOrigin) {
     const assets = await this.prisma.mediaAsset.findMany({ where: origin ? { origin } : undefined, include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
     return Promise.all(assets.map((asset) => this.mapMediaAsset(asset)));
+  }
+
+  async findPage(input: { origin?: MediaAssetOrigin; kind?: MediaAssetKind; search?: string; offset: number; limit: number }) {
+    const where = {
+      ...(input.origin ? { origin: input.origin } : {}),
+      ...(input.kind ? { kind: input.kind } : {}),
+      ...(input.search ? { originalFilename: { contains: input.search, mode: 'insensitive' as const } } : {}),
+    };
+    const [assets, totalCount] = await this.prisma.$transaction([
+      this.prisma.mediaAsset.findMany({ where, include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' }, skip: input.offset, take: input.limit }),
+      this.prisma.mediaAsset.count({ where }),
+    ]);
+    return { totalCount, items: await Promise.all(assets.map((asset) => this.mapMediaAsset(asset))) };
   }
 
   async findById(id: string) {
