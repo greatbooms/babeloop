@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import { JobStatus, MediaAssetKind } from '../generated/graphql';
@@ -26,6 +27,7 @@ export function MediaDetailPage() {
   const [processMedia] = useMutation(ProcessMediaDocument);
   const [analyzeMedia] = useMutation(AnalyzeMediaDocument);
   const [loadSimilar, similar] = useLazyQuery(SimilarMediaAdsDocument);
+  const [similarOpen, setSimilarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [fixedMediaUrl, setFixedMediaUrl] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function MediaDetailPage() {
   const asset = data?.mediaAsset;
   if (!asset) return <section><p className="muted">미디어를 불러오는 중…</p></section>;
 
-  async function run(action: () => Promise<string>) {
+  async function run(action: () => Promise<string | null>) {
     setError(null);
     try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }
@@ -60,8 +62,8 @@ export function MediaDetailPage() {
           <Button data-hint="2단계 — 추출된 텍스트로 자체 인사이트를 분석합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasInsight ? 'primary' : undefined} onClick={() => { if (hasInsight && !window.confirm('이미 인사이트가 있습니다. 다시 실행하면 새 인사이트가 추가되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeMedia({ variables: { mediaAssetId: asset.id } })).data!.analyzeMediaAsset.id); }}>인사이트 분석</Button>
         </span>
         <span className="action-step">
-          <span className={`action-step-num${similar.data ? ' done' : ''}`} aria-hidden="true">{similar.data ? '✓' : '3'}</span>
-          <Button data-hint="3단계 — 비슷한 경쟁 광고를 검색합니다 (무료) · 인사이트 분석 후 사용 가능" size="sm" variant={hasInsight && !similar.data ? 'primary' : undefined} onClick={() => void loadSimilar({ variables: { mediaAssetId: asset.id, limit: 5 } })}>유사 광고</Button>
+          <span className={`action-step-num${similarOpen && similar.data ? ' done' : ''}`} aria-hidden="true">{similarOpen && similar.data ? '✓' : '3'}</span>
+          <Button data-hint="3단계 — 비슷한 경쟁 광고를 검색합니다 (무료) · 인사이트 분석 후 사용 가능" size="sm" variant={hasInsight && !(similarOpen && similar.data) ? 'primary' : undefined} onClick={() => { void run(async () => { await loadSimilar({ variables: { mediaAssetId: asset.id, limit: 5 } }); setSimilarOpen(true); return null; }); }}>유사 광고</Button>
         </span>
       </div>
     </header>
@@ -98,19 +100,17 @@ export function MediaDetailPage() {
       ))}
     </Card>
     {similar.loading && <p>검색 중…</p>}
-    {similar.data && (
-      <Card className="card-stack">
-        <h2>유사 경쟁 광고</h2>
-        {similar.data.similarAdsForMediaAsset.length === 0 && <p className="muted">유사한 광고를 찾지 못했습니다.</p>}
-        <ul className="similar-list">
-          {similar.data.similarAdsForMediaAsset.map((hit) => (
-            <li className="similar-row" key={hit.sourceAd.id}>
-              <span className="sim-chip">유사도 {hit.similarity.toFixed(2)}</span>
-              <Link to={`/ads/${hit.sourceAd.id}`}>{hit.sourceAd.title ?? hit.sourceAd.id}</Link>
-            </li>
-          ))}
-        </ul>
-      </Card>
-    )}
+    <Modal title="유사 경쟁 광고" open={similarOpen && Boolean(similar.data)} onClose={() => setSimilarOpen(false)}>
+      <p className="muted">이 미디어와 메시지가 가까운 순서입니다. 항목을 누르면 해당 광고 상세로 이동합니다.</p>
+      {similar.data?.similarAdsForMediaAsset.length === 0 && <p className="muted">유사한 광고를 찾지 못했습니다. (분석된 광고가 많아질수록 결과가 풍부해집니다)</p>}
+      <ul className="similar-list">
+        {similar.data?.similarAdsForMediaAsset.map((hit) => (
+          <li className="similar-row" key={hit.sourceAd.id}>
+            <span className="sim-chip">유사도 {hit.similarity.toFixed(2)}</span>
+            <Link to={`/ads/${hit.sourceAd.id}`} onClick={() => setSimilarOpen(false)}>{hit.sourceAd.title ?? hit.sourceAd.id}</Link>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   </section>;
 }

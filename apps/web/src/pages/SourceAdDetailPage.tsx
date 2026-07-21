@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import { MediaAssetKind } from '../generated/graphql';
@@ -40,6 +41,7 @@ export function SourceAdDetailPage() {
   const [analyzeSourceAd] = useMutation(AnalyzeSourceAdDocument);
   const [redownloadMedia] = useMutation(RedownloadMediaDocument);
   const [loadSimilar, similarQuery] = useLazyQuery(SimilarDocument);
+  const [similarOpen, setSimilarOpen] = useState(false);
   const ad = data?.sourceAd;
 
   useEffect(() => {
@@ -56,8 +58,10 @@ export function SourceAdDetailPage() {
 
   async function onSimilar() {
     setError(null);
-    try { await loadSimilar({ variables: { input: { sourceAdId: id!, limit: 5 } } }); }
-    catch (cause) {
+    try {
+      await loadSimilar({ variables: { input: { sourceAdId: id!, limit: 5 } } });
+      setSimilarOpen(true);
+    } catch (cause) {
       const code = (cause as { graphQLErrors?: Array<{ extensions?: { code?: string } }> }).graphQLErrors?.[0]?.extensions?.code;
       setError(code === 'EMBEDDING_NOT_READY' ? '분석이 끝나면 검색할 수 있습니다' : cause instanceof Error ? cause.message : String(cause));
     }
@@ -83,8 +87,8 @@ export function SourceAdDetailPage() {
             <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => { if (hasAnalysis && !window.confirm('이미 분석 결과가 있습니다. 다시 실행하면 새 분석으로 갱신되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id); }}>광고 분석</Button>
           </span>
           <span className="action-step">
-            <span className={`action-step-num${similarQuery.data ? ' done' : ''}`} aria-hidden="true">{similarQuery.data ? '✓' : '3'}</span>
-            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis && !similarQuery.data ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
+            <span className={`action-step-num${similarOpen && similarQuery.data ? ' done' : ''}`} aria-hidden="true">{similarOpen && similarQuery.data ? '✓' : '3'}</span>
+            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis && !(similarOpen && similarQuery.data) ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
           </span>
           {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
         </div>
@@ -101,7 +105,18 @@ export function SourceAdDetailPage() {
       <Card className="card-stack"><h2>최신 분석 결과</h2>{ad.latestAnalysis ? <dl className="brand-dl"><div><dt>요약</dt><dd>{ad.latestAnalysis.summary}</dd></div><div><dt>훅</dt><dd>{ad.latestAnalysis.hookType}</dd></div><div><dt>타깃</dt><dd>{ad.latestAnalysis.targetAudience.join(', ')}</dd></div><div><dt>감정</dt><dd>{ad.latestAnalysis.emotionalTriggers.join(', ')}</dd></div><div><dt>장르</dt><dd>{ad.latestAnalysis.genres.join(', ')}</dd></div></dl> : <p className="muted">분석 결과가 없습니다.</p>}</Card>
       <Card className="card-stack"><h2>이 광고를 참조한 브리프</h2>{ad.referencingBriefs.length ? <ul className="compact-list">{ad.referencingBriefs.map((brief) => <li key={brief.id}><Link to={`/briefs/${brief.id}`}>{brief.title}</Link></li>)}</ul> : <p className="muted">참조한 브리프가 없습니다.</p>}</Card>
       {similarQuery.loading && <p>검색 중…</p>}
-      {similarQuery.data && <Card className="card-stack"><h2>유사 광고</h2><ul className="similar-list">{similarQuery.data.similarSourceAds.map((similar) => <li key={similar.sourceAd.id}><Link to={`/ads/${similar.sourceAd.id}`}>{similar.similarity.toFixed(2)} — {similar.sourceAd.title ?? similar.sourceAd.adText ?? similar.sourceAd.id}</Link></li>)}</ul></Card>}
+      <Modal title="유사 광고" open={similarOpen && Boolean(similarQuery.data)} onClose={() => setSimilarOpen(false)}>
+        <p className="muted">이 광고와 메시지가 가까운 순서입니다. 항목을 누르면 해당 광고 상세로 이동합니다.</p>
+        {similarQuery.data?.similarSourceAds.length === 0 && <p className="muted">유사한 광고를 찾지 못했습니다. (분석된 광고가 많아질수록 결과가 풍부해집니다)</p>}
+        <ul className="similar-list">
+          {similarQuery.data?.similarSourceAds.map((similar) => (
+            <li className="similar-row" key={similar.sourceAd.id}>
+              <span className="sim-chip">유사도 {similar.similarity.toFixed(2)}</span>
+              <Link to={`/ads/${similar.sourceAd.id}`} onClick={() => setSimilarOpen(false)}>{similar.sourceAd.title ?? similar.sourceAd.adText ?? similar.sourceAd.id}</Link>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </section>
   );
 }
