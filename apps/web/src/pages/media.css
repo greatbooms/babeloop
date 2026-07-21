@@ -1,0 +1,20 @@
+/* 미디어 탭 — 목록은 광고 탭과 같은 카드 문법(ads-grid 재사용), 여기는 미디어 전용 요소만 */
+
+.upload-zone { display: flex; align-items: center; gap: var(--sp-md); flex-wrap: wrap; }
+.upload-zone .form-hint { flex: 1; min-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 인사이트 — 요약 리드 + 항목별 태그 칩 */
+.insight-block { display: grid; gap: var(--sp-base); padding: var(--sp-base) 0; border-bottom: 1px solid var(--hairline-soft); }
+.insight-block:last-child { border-bottom: none; }
+.insight-summary { font-size: 16px; line-height: 1.6; color: var(--ink); }
+.insight-facet { display: grid; grid-template-columns: 48px 1fr; gap: var(--sp-md); align-items: baseline; }
+.facet-label { color: var(--muted); font-size: 13px; font-weight: 600; }
+.tag-row { display: flex; flex-wrap: wrap; gap: var(--sp-sm); }
+.tag { font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--body); background: var(--surface-soft); border: 1px solid var(--hairline-soft); border-radius: var(--r-full); padding: 4px 12px; }
+.tag-accent { color: var(--stage-fg, var(--primary-active)); background: var(--stage-bg, #fff0f3); border-color: transparent; font-weight: 600; }
+.ai-meta { color: var(--muted-soft); font-size: 12px; }
+
+/* 유사 경쟁 광고 — 유사도 칩 + 제목 링크 행 */
+.similar-row { display: flex; align-items: center; gap: var(--sp-md); }
+.sim-chip { flex-shrink: 0; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--stage-fg, var(--primary-active)); background: var(--stage-bg, #fff0f3); border-radius: var(--r-full); padding: 3px 10px; }
+.similar-row a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
