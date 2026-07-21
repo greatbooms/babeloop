@@ -115,3 +115,9 @@
 .modal-close { width: 32px; height: 32px; display: grid; place-items: center; border: none; background: transparent; border-radius: var(--r-full); font-size: 14px; color: var(--ink); cursor: pointer; }
 .modal-close:hover { background: var(--surface-soft); }
 .modal-body { display: grid; gap: var(--sp-base); }
+
+/* 상세 페이지 액션 버튼의 진행 순서 칩 — 1→2→3 순서와 완료(✓) 상태를 보여준다 */
+.action-step { display: inline-flex; align-items: center; gap: var(--sp-xs); }
+.action-step-num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); background: var(--surface-strong); }
+.action-step-num.done { color: var(--status-positive-fg); background: var(--status-positive-bg); }
+.action-flow-hint { color: var(--muted); font-size: 13px; margin-bottom: var(--sp-base); }

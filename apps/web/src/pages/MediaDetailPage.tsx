@@ -41,6 +41,8 @@ export function MediaDetailPage() {
   }
 
   const kindLabel = asset.kind === MediaAssetKind.Video ? '영상' : '이미지';
+  const hasText = asset.ocrResults.length > 0 || asset.transcriptions.length > 0;
+  const hasInsight = asset.insights.length > 0;
   return <section className="stage-prep ad-detail">
     <Link className="back-link" to="/media">← 미디어 목록</Link>
     <header className="page-header">
@@ -49,11 +51,21 @@ export function MediaDetailPage() {
         <p>{kindLabel} · {dateLabel(asset.createdAt)} 업로드 · 인사이트 {asset.insights.length}개</p>
       </div>
       <div className="page-header-actions">
-        <Button data-hint="이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" onClick={() => void run(async () => (await processMedia({ variables: { mediaAssetId: asset.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button>
-        <Button data-hint="추출된 텍스트로 자체 인사이트를 분석합니다 (AI, 약 1센트)" size="sm" onClick={() => void run(async () => (await analyzeMedia({ variables: { mediaAssetId: asset.id } })).data!.analyzeMediaAsset.id)}>인사이트 분석</Button>
-        <Button data-hint="비슷한 경쟁 광고를 검색합니다 (무료)" size="sm" onClick={() => void loadSimilar({ variables: { mediaAssetId: asset.id, limit: 5 } })}>유사 광고</Button>
+        <span className="action-step">
+          <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
+          <Button data-hint="1단계 — 이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" variant={!hasText ? 'primary' : undefined} onClick={() => void run(async () => (await processMedia({ variables: { mediaAssetId: asset.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button>
+        </span>
+        <span className="action-step">
+          <span className={`action-step-num${hasInsight ? ' done' : ''}`} aria-hidden="true">{hasInsight ? '✓' : '2'}</span>
+          <Button data-hint="2단계 — 추출된 텍스트로 자체 인사이트를 분석합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasInsight ? 'primary' : undefined} onClick={() => void run(async () => (await analyzeMedia({ variables: { mediaAssetId: asset.id } })).data!.analyzeMediaAsset.id)}>인사이트 분석</Button>
+        </span>
+        <span className="action-step">
+          <span className="action-step-num" aria-hidden="true">3</span>
+          <Button data-hint="3단계 — 비슷한 경쟁 광고를 검색합니다 (무료) · 인사이트 분석 후 사용 가능" size="sm" variant={hasInsight ? 'primary' : undefined} onClick={() => void loadSimilar({ variables: { mediaAssetId: asset.id, limit: 5 } })}>유사 광고</Button>
+        </span>
       </div>
     </header>
+    <p className="action-flow-hint">진행 순서: ① 미디어 텍스트 추출 → ② 인사이트 분석 → ③ 유사 광고 검색. 완료된 단계는 ✓, 다음에 누를 버튼은 붉게 표시됩니다.</p>
     {error && <p className="error" role="alert">{error}</p>}
     {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && <p>처리 중… ({job.status})</p>}
     {fixedMediaUrl && (

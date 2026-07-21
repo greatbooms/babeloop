@@ -64,17 +64,32 @@ export function SourceAdDetailPage() {
   }
 
   if (!ad) return <section><p className="muted">광고를 불러오는 중…</p></section>;
+  const hasText = Boolean(ad.adText) || (ad.mediaAsset?.ocrResults.length ?? 0) > 0 || (ad.mediaAsset?.transcriptions.length ?? 0) > 0;
+  const hasAnalysis = Boolean(ad.latestAnalysis);
   return (
     <section className="stage-collect ad-detail">
       <Link className="back-link" to="/ads">← 광고 목록</Link>
       <header className="page-header">
         <div><div className="page-header-title-row"><h1>{ad.title ?? ad.adText ?? ad.id}</h1><StatusBadge status={ad.status} /></div><p>{ad.competitor?.name ?? '광고주 정보 없음'}</p></div>
         <div className="page-header-actions ad-actions">
-          {ad.mediaAsset && <><Button data-hint="이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" onClick={() => void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button><Button data-hint="추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트)" size="sm" onClick={() => void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id)}>광고 분석</Button></>}
-          {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
-          <Button data-hint="비슷한 메시지의 광고를 검색합니다 (무료)" size="sm" onClick={() => void onSimilar()}>유사 광고</Button>
+          {ad.mediaAsset && (
+            <span className="action-step">
+              <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
+              <Button data-hint="1단계 — 이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" variant={!hasText ? 'primary' : undefined} onClick={() => void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button>
+            </span>
+          )}
+          <span className="action-step">
+            <span className={`action-step-num${hasAnalysis ? ' done' : ''}`} aria-hidden="true">{hasAnalysis ? '✓' : '2'}</span>
+            <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id)}>광고 분석</Button>
+          </span>
+          <span className="action-step">
+            <span className="action-step-num" aria-hidden="true">3</span>
+            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
+          </span>
+          {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
         </div>
       </header>
+      <p className="action-flow-hint">진행 순서: ① 미디어 텍스트 추출 → ② 광고 분석 → ③ 유사 광고 검색. 완료된 단계는 ✓, 다음에 누를 버튼은 붉게 표시됩니다. 재다운로드는 순서와 무관하게 언제든 가능합니다.</p>
       {error && <p className="error" role="alert">{error}</p>}
       {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>분석 중… ({job.status})</p>}
       <Card className="card-stack">
