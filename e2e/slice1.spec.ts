@@ -10,8 +10,9 @@ test('이미지 업로드 → 상세 → OCR → 미디어 인사이트 표시',
   await page.getByRole('link', { name: '미디어' }).click();
   await expect(page.getByRole('heading', { name: '미디어' })).toBeVisible();
 
+  await page.getByRole('button', { name: '미디어 업로드' }).click();
   await page.setInputFiles('input[type=file]', path.join(__dirname, 'fixtures/sample.png'));
-  await page.getByRole('button', { name: '업로드' }).click();
+  await page.getByRole('button', { name: '업로드', exact: true }).click();
 
   await page.getByRole('link', { name: '← 미디어 목록' }).click();
   const card = page.locator('li', { hasText: 'sample.png' }).first();

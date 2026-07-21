@@ -13,9 +13,10 @@ test('광고 2개 등록 → 분석 → 유사 광고 검색', async ({ page }) 
   await expect(page.getByRole('heading', { name: '광고', exact: true })).toBeVisible();
 
   for (const title of [`A-${stamp}`, `B-${stamp}`]) {
+    await page.getByRole('button', { name: '새 광고 등록' }).click();
     await page.getByLabel('제목').fill(title);
     await page.getByLabel('광고 문구').fill(sharedText);
-    await page.getByRole('button', { name: '광고 등록' }).click();
+    await page.getByRole('button', { name: '광고 등록', exact: true }).click();
     await expect(page.getByText(title)).toBeVisible();
   }
 

@@ -13,9 +13,10 @@ test('브리프 생성 → 변형 3개 → zh-TW 초안 표시', async ({ page }
 
   // RAG 소스: 광고 1개 등록하고 분석 완료까지 대기
   await page.getByRole('link', { name: '광고' }).click();
+  await page.getByRole('button', { name: '새 광고 등록' }).click();
   await page.getByLabel('제목').fill(`RAG-${stamp}`);
   await page.getByLabel('광고 문구').fill(`이야기의 주인공이 되는 경험 ${stamp}`);
-  await page.getByRole('button', { name: '광고 등록' }).click();
+  await page.getByRole('button', { name: '광고 등록', exact: true }).click();
   const ragRow = page.locator('li', { hasText: `RAG-${stamp}` });
   await expect(ragRow.getByText('ANALYZED')).toBeVisible({ timeout: 30_000 });
 

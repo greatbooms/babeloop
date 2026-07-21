@@ -2,9 +2,10 @@ import { useMutation, useQuery } from '@apollo/client';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { FormField } from '../components/FormField';
+import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
+import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
 import { HelpPanel } from '../components/HelpPanel';
 import { graphql } from '../generated';
@@ -60,6 +61,7 @@ export function SourceAdsPage() {
   const [title, setTitle] = useState('');
   const [adText, setAdText] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function SourceAdsPage() {
     setMessage(null);
     await run(async () => {
       const result = await createSourceAd({ variables: { input: { title: title || undefined, adText: adText || undefined, sourceUrl: sourceUrl || undefined } } });
-      setTitle(''); setAdText(''); setSourceUrl(''); setOffset(0); await refetch();
+      setTitle(''); setAdText(''); setSourceUrl(''); setOffset(0); setRegisterOpen(false); await refetch();
       return result.data!.createSourceAd.job?.id ?? null;
     });
   }
@@ -102,17 +104,18 @@ export function SourceAdsPage() {
 
   return (
     <section className="stage-collect">
-      <PageHeader title="광고" step="루프 1·2단계 — 수집·분석" description="경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요." actions={<label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>} />
+      <PageHeader title="광고" step="루프 1·2단계 — 수집·분석" description="경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요." actions={<>
+        <label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>
+        <Button variant="primary" size="sm" onClick={() => setRegisterOpen(true)}>새 광고 등록</Button>
+      </>} />
       <HelpPanel page="ads" />
-      <div className="ads-registration-layout">
-        <Card className="ad-registration-card">
-          <h2>광고 수동 등록</h2>
-          <FormField label="제목" htmlFor="source-ad-title"><input id="source-ad-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
-          <FormField label="광고 문구" htmlFor="source-ad-text"><textarea id="source-ad-text" value={adText} onChange={(event) => setAdText(event.target.value)} /></FormField>
-          <FormField label="소스 URL" htmlFor="source-ad-url"><input id="source-ad-url" type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></FormField>
-          <Button variant="primary" onClick={() => void onCreate()}>광고 등록</Button>
-        </Card>
-        <div className="ads-content">
+      <Modal title="광고 수동 등록" open={registerOpen} onClose={() => setRegisterOpen(false)}>
+        <FormField label="제목" htmlFor="source-ad-title"><input id="source-ad-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
+        <FormField label="광고 문구" htmlFor="source-ad-text"><textarea id="source-ad-text" value={adText} onChange={(event) => setAdText(event.target.value)} /></FormField>
+        <FormField label="소스 URL" htmlFor="source-ad-url"><input id="source-ad-url" type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></FormField>
+        <Button variant="primary" onClick={() => void onCreate()}>광고 등록</Button>
+      </Modal>
+      <div className="ads-content">
           <div className="filter-bar">
             <FormField label="상태" htmlFor="ad-status"><select id="ad-status" value={status} onChange={(event) => { setOffset(0); setStatus(event.target.value as SourceAdStatus | ''); }}><option value="">전체</option>{Object.values(SourceAdStatus).map((value) => <option key={value} value={value}>{STATUS_LABELS[value]?.ko ?? value}</option>)}</select></FormField>
             <FormField label="종류" htmlFor="ad-kind"><select id="ad-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">전체</option><option value={MediaAssetKind.Image}>이미지</option><option value={MediaAssetKind.Video}>영상</option></select></FormField>
@@ -142,7 +145,6 @@ export function SourceAdsPage() {
             ))}
           </ul>
           <div className="pagination"><Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>이전</Button><span>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span><Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>다음</Button></div>
-        </div>
       </div>
     </section>
   );

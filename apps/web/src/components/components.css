@@ -11,7 +11,7 @@
 .page-header p { color: var(--muted); font-size: 14px; line-height: 1.43; margin-top: var(--sp-xs); }
 .page-header .page-header-hint { color: var(--body); }
 .page-header-actions { display: flex; gap: var(--sp-sm); }
-.button { border-radius: var(--r-sm); padding: 0 var(--sp-lg); height: 48px; border: 1px solid transparent; font-size: 16px; font-weight: 500; line-height: 1.25; }
+.button { border-radius: var(--r-sm); padding: 0 var(--sp-lg); height: 48px; border: 1px solid transparent; font-size: 16px; font-weight: 500; line-height: 1.25; white-space: nowrap; }
 .button-primary { color: var(--on-primary); background: var(--primary); }
 .button-primary:active { background: var(--primary-active); }
 .button-primary:disabled { background: var(--primary-disabled); cursor: not-allowed; }
@@ -105,3 +105,13 @@
 .brand-dl div:last-child { border-bottom: none; }
 .brand-dl dt { font-weight: 600; margin-bottom: var(--sp-xs); }
 .brand-dl dd { color: var(--body); font-size: 14px; line-height: 1.5; }
+
+/* 모달 — 등록 폼은 버튼으로 여는 센터 시트에 담는다 (목록을 전폭으로 쓰기 위함) */
+.modal-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: var(--sp-lg); background: rgba(34, 34, 34, 0.5); }
+.modal-sheet { width: min(560px, 100%); max-height: min(85vh, 760px); overflow-y: auto; background: var(--canvas); border-radius: var(--r-lg); box-shadow: var(--shadow-float); padding: var(--sp-lg); animation: modal-in 0.18s ease; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-base); padding-bottom: var(--sp-md); border-bottom: 1px solid var(--hairline-soft); }
+.modal-head h2 { font-size: 18px; }
+.modal-close { width: 32px; height: 32px; display: grid; place-items: center; border: none; background: transparent; border-radius: var(--r-full); font-size: 14px; color: var(--ink); cursor: pointer; }
+.modal-close:hover { background: var(--surface-soft); }
+.modal-body { display: grid; gap: var(--sp-base); }

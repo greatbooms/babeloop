@@ -4,6 +4,7 @@ import { graphql } from '../generated';
 import { MediaAssetKind } from '../generated/graphql';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
 import { HelpPanel } from '../components/HelpPanel';
 import { StatusBadge } from '../components/StatusBadge';
@@ -43,6 +44,7 @@ export function MediaPage() {
   const [completeUpload] = useMutation(CompleteUploadDocument);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -69,18 +71,18 @@ export function MediaPage() {
 
   return (
     <section className="stage-prep">
-      <PageHeader title="미디어" step="보조 도구" description="내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙" />
+      <PageHeader title="미디어" step="보조 도구" description="내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙" actions={<Button variant="primary" size="sm" onClick={() => setUploadOpen(true)}>미디어 업로드</Button>} />
       <HelpPanel page="media" />
-      <Card className="upload-card">
+      <Modal title="미디어 업로드" open={uploadOpen} onClose={() => setUploadOpen(false)}>
         <div className="upload-zone">
           <label className="button button-secondary button-sm file-button">
             파일 선택
             <input type="file" ref={fileRef} accept="image/*,video/*" onChange={(event) => setFileName(event.target.files?.[0]?.name ?? null)} />
           </label>
           <span className="form-hint">{fileName ?? '이미지 또는 영상 파일을 선택하세요'}</span>
-          <Button variant="primary" disabled={!fileName} onClick={onUpload}>업로드</Button>
         </div>
-      </Card>
+        <Button variant="primary" disabled={!fileName} onClick={onUpload}>업로드</Button>
+      </Modal>
       {error && <p className="error" role="alert">{error}</p>}
       {assets.length === 0 ? (
         <Card className="empty-state">

@@ -1,5 +1,3 @@
-.ads-registration-layout { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: var(--sp-lg); align-items: start; }
-.ad-registration-card { display: grid; gap: var(--sp-base); }
 .file-button { display: inline-flex; align-items: center; cursor: pointer; }
 .file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .filter-bar { display: grid; grid-template-columns: 1fr 1fr 2fr auto; align-items: end; gap: var(--sp-md); margin-bottom: var(--sp-lg); }
@@ -29,5 +27,5 @@
 .detail-media img, .detail-media video { width: 100%; max-height: 680px; border-radius: var(--r-md); background: var(--ink); object-fit: contain; }
 .long-copy { white-space: pre-wrap; color: var(--body); }
 @media (min-width: 1128px) { .ads-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .ads-registration-layout { grid-template-columns: 1fr; } .ads-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .ads-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 744px) { .filter-bar, .ads-grid { grid-template-columns: 1fr; } }

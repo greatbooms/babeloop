@@ -16,9 +16,10 @@ test('정책검사 → 검토 → 검수·승인(계정 전환) → 실험 → �
   await login(page, 'admin@babeloop.local', 'changeme-admin');
   await page.getByRole('link', { name: '광고' }).click();
   await expect(page.getByRole('heading', { name: '광고', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '새 광고 등록' }).click();
   await page.getByLabel('제목', { exact: true }).fill(`ad-${tag}`);
   await page.getByLabel('광고 문구').fill(`주인공 경험 ${tag}`);
-  await page.getByRole('button', { name: '광고 등록' }).click();
+  await page.getByRole('button', { name: '광고 등록', exact: true }).click();
   await expect(
     page.locator('li', { hasText: `ad-${tag}` }).getByText('ANALYZED'),
   ).toBeVisible({ timeout: 30_000 });
