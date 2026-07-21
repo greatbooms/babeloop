@@ -19,6 +19,8 @@ import {
 } from './brief.inputs';
 
 export const BRIEF_INCLUDE = {
+  brand: true,
+  references: { orderBy: { rank: 'asc' as const }, include: { sourceAd: { select: { id: true, title: true } } } },
   creatives: {
     orderBy: { variantIndex: 'asc' as const },
     include: { localizations: { orderBy: { createdAt: 'desc' as const } } },
@@ -140,39 +142,20 @@ export class BriefService {
       include: BRIEF_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    const adIds = [...new Set(briefs.flatMap((brief) => brief.sourceAdIds))];
-    const ads = adIds.length
-      ? await this.prisma.sourceAd.findMany({
-          where: { id: { in: adIds } },
-          select: { id: true, title: true },
-        })
-      : [];
-    const adsById = new Map(ads.map((ad) => [ad.id, ad]));
-    return briefs.map((brief) => this.mapBrief(brief, adsById));
+    return briefs.map((brief) => this.mapBrief(brief));
   }
 
   async findById(id: string) {
     const brief = await this.prisma.creativeBrief.findUnique({ where: { id }, include: BRIEF_INCLUDE });
     if (!brief) throw new NotFoundException('브리프를 찾을 수 없습니다');
-    const ads = brief.sourceAdIds.length
-      ? await this.prisma.sourceAd.findMany({
-          where: { id: { in: brief.sourceAdIds } },
-          select: { id: true, title: true },
-        })
-      : [];
-    return this.mapBrief(brief, new Map(ads.map((ad) => [ad.id, ad])));
+    return this.mapBrief(brief);
   }
 
-  private mapBrief<T extends { sourceAdIds: string[]; creatives: Array<{ scenes: unknown }> }>(
-    brief: T,
-    adsById: Map<string, { id: string; title: string | null }>,
-  ) {
+  private mapBrief<T extends { raw: unknown; references: Array<{ sourceAdId: string | null; titleSnapshot: string | null; method: string; similarity: number | null; sourceAd: { id: string; title: string | null } | null }>; creatives: Array<{ scenes: unknown }> }>(brief: T) {
     return {
       ...brief,
-      referencedAds: brief.sourceAdIds.flatMap((id) => {
-        const ad = adsById.get(id);
-        return ad ? [ad] : [];
-      }),
+      references: brief.references.map((reference) => ({ sourceAdId: reference.sourceAdId, title: reference.sourceAd?.title ?? reference.titleSnapshot, method: reference.method, similarity: reference.similarity, deleted: reference.sourceAd === null })),
+      rawJson: JSON.stringify(brief.raw),
       creatives: brief.creatives.map((creative) => ({
         ...creative,
         scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,

@@ -376,3 +376,9 @@ MVP 완료 조건(스펙 26장) 14단계의 시스템 관점:
 2. **zh-TW 검수자의 실제 투입 가능 시간** — 검토 큐 적체 시 병목 지점.
 3. **Meta/TikTok 광고 계정 상태** — 성인향 앱 이력으로 제한받는 계정인지.
 4. **실제 AI Provider 선택** (텍스트/임베딩/OCR/STT) — MVP는 전부 Mock으로 돌므로 결정을 미룰 수 있음. 단 임베딩 차원(1536)은 스키마에 박히므로, 실제 임베딩 모델 선택 시 차원 확인 필요.
+
+## 2026-07-21 추가 결정: 미디어 독립 트랙 + 브리프 출처
+
+- **미디어 2트랙 분리 (사용자 요구)**: `MediaAsset.origin = MANUAL | AD_IMPORT`. 미디어 탭은 MANUAL 전용(내 시안·참고 미디어 인사이트 트랙), 광고 미디어는 광고 상세에서만. 수동 미디어는 텍스트 추출 → MediaInsight(광고 분석과 동일 분류 체계, 별도 테이블) → 임베딩 → 유사 경쟁 광고 검색. 브리프 RAG에는 흘러들지 않음(분리 유지, 필요 시 추후 연결).
+- **브리프 출처 명시 (사용자 요구)**: BriefReference 조인 테이블(method MANUAL/SIMILARITY/UNKNOWN, similarity, rank, titleSnapshot — 광고 삭제 시 SetNull + 스냅샷 표시). 상세 화면에 입력 포커스·브랜드·참조 광고(선택 방식+유사도)·성과 환류·AI 메타 표시. 기존 발견: sourceAdIds는 저장되고 있었으나 유사도·방식 미저장, 삭제 참조는 UI에서 조용히 소실.
+- 계획서: docs/superpowers/plans/2026-07-21-media-track-brief-provenance.md

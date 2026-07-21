@@ -171,18 +171,14 @@ export class SourceAdService {
       this.prisma.sourceAd.findMany({ where, include: SOURCE_AD_INCLUDE, orderBy: { createdAt: 'desc' }, skip: offset, take: limit }),
       this.prisma.sourceAd.count({ where }),
     ]);
-    const briefs = await this.prisma.creativeBrief.findMany({
-      select: { id: true, title: true, sourceAdIds: true },
-    });
     const itemIds = new Set(items.map((item) => item.id));
+    const references = await this.prisma.briefReference.findMany({ where: { sourceAdId: { in: [...itemIds] } }, include: { brief: { select: { id: true, title: true } } } });
     const briefsByAdId = new Map<string, Array<{ id: string; title: string }>>();
-    for (const brief of briefs) {
-      for (const sourceAdId of brief.sourceAdIds) {
-        if (!itemIds.has(sourceAdId)) continue;
-        const refs = briefsByAdId.get(sourceAdId) ?? [];
-        refs.push({ id: brief.id, title: brief.title });
-        briefsByAdId.set(sourceAdId, refs);
-      }
+    for (const reference of references) {
+      if (!reference.sourceAdId) continue;
+      const refs = briefsByAdId.get(reference.sourceAdId) ?? [];
+      refs.push(reference.brief);
+      briefsByAdId.set(reference.sourceAdId, refs);
     }
     return {
       items: await Promise.all(items.map((ad) => this.mapSourceAdWithThumbnail(ad, briefsByAdId))),
@@ -193,10 +189,8 @@ export class SourceAdService {
   async findById(id: string) {
     const ad = await this.prisma.sourceAd.findUnique({ where: { id }, include: SOURCE_AD_INCLUDE });
     if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
-    const briefs = await this.prisma.creativeBrief.findMany({
-      where: { sourceAdIds: { has: id } },
-      select: { id: true, title: true },
-    });
+    const references = await this.prisma.briefReference.findMany({ where: { sourceAdId: id }, include: { brief: { select: { id: true, title: true } } } });
+    const briefs = references.map((reference) => reference.brief);
     return this.mapSourceAdWithThumbnail(ad, new Map([[id, briefs]]));
   }
 

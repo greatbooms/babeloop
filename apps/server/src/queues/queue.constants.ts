@@ -9,6 +9,7 @@ export const JOB_TYPES = {
   PROCESS_MEDIA: 'process-media',
   GENERATE_THUMBNAIL: 'generate-thumbnail',
   ANALYZE_CREATIVE: 'analyze-creative',
+  ANALYZE_MEDIA: 'analyze-media',
   GENERATE_EMBEDDING: 'generate-embedding',
   DOWNLOAD_EXTERNAL_MEDIA: 'download-external-media',
   GENERATE_BRIEF: 'generate-brief',
@@ -28,6 +29,10 @@ export function generateThumbnailJobId(mediaAssetId: string): string {
 
 export function analyzeCreativeJobId(sourceAdId: string): string {
   return `${JOB_TYPES.ANALYZE_CREATIVE}--${sourceAdId}`;
+}
+
+export function analyzeMediaJobId(mediaAssetId: string): string {
+  return `${JOB_TYPES.ANALYZE_MEDIA}--${mediaAssetId}`;
 }
 
 export function generateEmbeddingJobId(sourceAdId: string): string {

@@ -17,7 +17,7 @@ describe('MediaService.processMediaAsset', () => {
         .fn()
         .mockResolvedValue({ id: asset ? processMediaJobId(asset.id) : 'none', status: 'QUEUED' }),
     };
-    const service = new MediaService(prisma as never, {} as never, jobRecord as never, queue as never);
+    const service = new MediaService(prisma as never, {} as never, jobRecord as never, queue as never, {} as never, {} as never, {} as never);
     return { service, queue, jobRecord };
   }
 
@@ -52,7 +52,7 @@ describe('MediaService.generateVideoThumbnails', () => {
     const prisma = { mediaAsset: { findMany: jest.fn().mockResolvedValue(assets) } };
     const queue = { name: MEDIA_PROCESSING_QUEUE };
     const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ status: 'QUEUED' }) };
-    const service = new MediaService(prisma as never, {} as never, jobRecord as never, queue as never);
+    const service = new MediaService(prisma as never, {} as never, jobRecord as never, queue as never, {} as never, {} as never, {} as never);
 
     await expect(service.generateVideoThumbnails()).resolves.toEqual({ enqueued: 2 });
     expect(prisma.mediaAsset.findMany).toHaveBeenCalledWith({
@@ -84,7 +84,7 @@ describe('MediaService relationships', () => {
     };
     const prisma = { mediaAsset: { findMany: jest.fn().mockResolvedValue([asset]) } };
     const storage = { presignGet: jest.fn(async (key: string) => `signed:${key}`) };
-    const service = new MediaService(prisma as never, storage as never, {} as never, {} as never);
+    const service = new MediaService(prisma as never, storage as never, {} as never, {} as never, {} as never, {} as never, {} as never);
 
     await expect(service.findAll()).resolves.toEqual([
       expect.objectContaining({
@@ -93,5 +93,18 @@ describe('MediaService relationships', () => {
         thumbnailUrl: 'signed:thumbnail',
       }),
     ]);
+  });
+});
+
+describe('MediaService.analyzeMediaAsset', () => {
+  function serviceFor(asset: unknown) {
+    const prisma = { mediaAsset: { findUnique: jest.fn().mockResolvedValue(asset) } };
+    return new MediaService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+  }
+  it('텍스트가 없으면 TEXT_NOT_EXTRACTED로 거부한다', async () => {
+    await expect(serviceFor({ id: 'm1', origin: 'MANUAL', ocrResults: [], transcriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({ extensions: { code: 'TEXT_NOT_EXTRACTED' } });
+  });
+  it('AD_IMPORT 자산은 MEDIA_NOT_MANUAL로 거부한다', async () => {
+    await expect(serviceFor({ id: 'm1', origin: 'AD_IMPORT', ocrResults: [{ text: 'x' }], transcriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({ extensions: { code: 'MEDIA_NOT_MANUAL' } });
   });
 });

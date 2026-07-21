@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { BrandDetailPage } from './pages/BrandDetailPage';
 import { MediaPage } from './pages/MediaPage';
+import { MediaDetailPage } from './pages/MediaDetailPage';
 import { SourceAdsPage } from './pages/SourceAdsPage';
 import { SourceAdDetailPage } from './pages/SourceAdDetailPage';
 import { BriefsPage } from './pages/BriefsPage';
@@ -47,6 +48,7 @@ export function App() {
         <Route path="/brands" element={me ? <BrandsPage /> : <Navigate to="/login" />} />
         <Route path="/brands/:id" element={me ? <BrandDetailPage /> : <Navigate to="/login" />} />
         <Route path="/media" element={me ? <MediaPage /> : <Navigate to="/login" />} />
+        <Route path="/media/:id" element={me ? <MediaDetailPage /> : <Navigate to="/login" />} />
         <Route path="/ads" element={me ? <SourceAdsPage /> : <Navigate to="/login" />} />
         <Route path="/ads/:id" element={me ? <SourceAdDetailPage /> : <Navigate to="/login" />} />
         <Route path="/briefs" element={me ? <BriefsPage /> : <Navigate to="/login" />} />

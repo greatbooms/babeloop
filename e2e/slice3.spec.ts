@@ -19,16 +19,20 @@ test('브리프 생성 → 변형 3개 → zh-TW 초안 표시', async ({ page }
   const ragRow = page.locator('li', { hasText: `RAG-${stamp}` });
   await expect(ragRow.getByText('ANALYZED')).toBeVisible({ timeout: 30_000 });
 
-  // 브리프 생성 — dev DB에 이전 실행의 브리프가 남아 있으므로 반드시 이번 실행의 스탬프로 카드를 특정한다
+  // 브리프 생성 — dev DB에 이전 실행의 브리프가 남아 있으므로 반드시 이번 실행의 스탬프로 카드를 특정한다.
+  // 포커스는 위 광고 문구와 동일 문자열: mock 임베딩은 같은 텍스트 → 같은 벡터라 유사도 1.0으로 RAG-{stamp}가 반드시 top-3에 든다
   await page.getByRole('link', { name: '브리프' }).click();
   await expect(page.getByRole('heading', { name: '브리프', exact: true })).toBeVisible();
-  await page.getByLabel('포커스').fill(`주인공이 되는 로맨스 ${stamp}`);
+  await page.getByLabel('포커스').fill(`이야기의 주인공이 되는 경험 ${stamp}`);
   await page.getByRole('button', { name: '브리프 생성' }).click();
-  const briefCard = page.locator('li', { hasText: `주인공이 되는 로맨스 ${stamp}` }).first();
+  const briefCard = page.locator('li', { hasText: `이야기의 주인공이 되는 경험 ${stamp}` }).first();
   await expect(briefCard).toBeVisible({ timeout: 30_000 });
 
   // 변형 3개 + zh-TW 초안
   await briefCard.getByRole('link', { name: '상세 보기 →' }).click();
+  const provenance = page.getByRole('heading', { name: '이 브리프가 참고한 것' }).locator('..');
+  await expect(provenance.getByText(`RAG-${stamp}`)).toBeVisible();
+  await expect(provenance.getByText(/자동 검색/).first()).toBeVisible();
   await page.getByRole('button', { name: '문구 변형 3개 생성' }).click();
   await expect(page.getByText('[MOCK 문구 1]')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('[MOCK 문구 3]')).toBeVisible({ timeout: 30_000 });

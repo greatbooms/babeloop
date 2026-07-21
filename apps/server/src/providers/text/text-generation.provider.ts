@@ -1,5 +1,6 @@
 export type ResponseHint =
   | 'creative-analysis'
+  | 'media-insight'
   | 'creative-brief'
   | 'copy-variants'
   | 'video-script'

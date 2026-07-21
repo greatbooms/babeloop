@@ -80,7 +80,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const sourceAdIds = await this.resolveSourceAdIds(job.data);
+      const references = await this.resolveSourceAdIds(job.data);
+      const sourceAdIds = references.map((reference) => reference.sourceAdId);
       const analyses = await this.prisma.creativeAnalysis.findMany({
         where: { sourceAdId: { in: sourceAdIds } },
         orderBy: { createdAt: 'desc' },
@@ -134,6 +135,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
           Object.assign(meta, usage);
           return data;
       });
+      const referenceAds = await this.prisma.sourceAd.findMany({ where: { id: { in: sourceAdIds } }, select: { id: true, title: true } });
+      const titles = new Map(referenceAds.map((ad) => [ad.id, ad.title]));
       const brief = await this.prisma.creativeBrief.create({
         data: {
           title: job.data.title ?? result.title,
@@ -154,6 +157,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           model: this.textAi.model,
           promptVersion: GENERATION_PROMPT_VERSIONS.brief,
           createdById: job.data.createdById,
+          references: { create: references.map((reference, rank) => ({ ...reference, rank, titleSnapshot: titles.get(reference.sourceAdId) ?? null })) },
         },
       });
       await this.jobRecord.markSucceeded(jobId, { briefId: brief.id });
@@ -271,8 +275,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
     }
   }
 
-  private async resolveSourceAdIds(data: GenerateBriefJobData): Promise<string[]> {
-    if (data.sourceAdIds.length > 0) return [...new Set(data.sourceAdIds)];
+  private async resolveSourceAdIds(data: GenerateBriefJobData): Promise<Array<{ sourceAdId: string; method: 'MANUAL' | 'SIMILARITY'; similarity: number | null }>> {
+    if (data.sourceAdIds.length > 0) return [...new Set(data.sourceAdIds)].map((sourceAdId) => ({ sourceAdId, method: 'MANUAL', similarity: null }));
     if (!data.focusText) return [];
     const vector = await this.aiLog.record(
       {
@@ -287,7 +291,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
       model: this.embedder.model,
       limit: 3,
     });
-    return hits.map((hit) => hit.sourceAdId);
+    return hits.map((hit) => ({ sourceAdId: hit.sourceAdId, method: 'SIMILARITY', similarity: hit.similarity }));
   }
 
   private async buildBrandContext(brandId: string | null): Promise<string> {

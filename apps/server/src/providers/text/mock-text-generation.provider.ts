@@ -21,6 +21,12 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
     const count = countMatch ? Number(countMatch[1]) : 3;
 
     switch (input.responseHint) {
+      case 'media-insight':
+        return { text: JSON.stringify({
+          summary: `[MOCK 미디어 인사이트] ${input.prompt.slice(0, 40)}`,
+          hookType: pick(HOOK_TYPES, 0), targetAudience: [pick(AUDIENCES, 2)],
+          emotionalTriggers: [pick(TRIGGERS, 3)], genres: [pick(GENRES, 5)],
+        }) };
       case 'creative-brief':
         return { text: JSON.stringify({
           title: `[MOCK 브리프] ${input.prompt.slice(0, 60)}`,

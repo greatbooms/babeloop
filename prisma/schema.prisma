@@ -118,10 +118,16 @@ enum MediaAssetStatus {
   FAILED
 }
 
+enum MediaAssetOrigin {
+  MANUAL
+  AD_IMPORT
+}
+
 model MediaAsset {
   id               String           @id @default(cuid())
   kind             MediaAssetKind
   status           MediaAssetStatus @default(PENDING)
+  origin           MediaAssetOrigin @default(MANUAL)
   originalFilename String
   contentType      String
   sizeBytes        Int?
@@ -136,10 +142,45 @@ model MediaAsset {
   ocrResults       OcrResult[]
   transcriptions   Transcription[]
   sourceAds        SourceAd[]
+  insights         MediaInsight[]
+  embeddings       MediaAssetEmbedding[]
 
   @@index([status])
+  @@index([origin])
   @@index([contentHash])
   @@map("media_assets")
+}
+
+model MediaInsight {
+  id                String     @id @default(cuid())
+  mediaAssetId      String
+  mediaAsset        MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  summary           String
+  hookType          String
+  targetAudience    String[]
+  emotionalTriggers String[]
+  genres            String[]
+  raw               Json
+  provider          String
+  model             String
+  promptVersion     String
+  createdAt         DateTime   @default(now())
+
+  @@index([mediaAssetId])
+  @@map("media_insights")
+}
+
+model MediaAssetEmbedding {
+  id           String                       @id @default(cuid())
+  mediaAssetId String
+  mediaAsset   MediaAsset                   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  model        String
+  dimension    Int
+  embedding    Unsupported("vector(1536)")
+  createdAt    DateTime                     @default(now())
+
+  @@unique([mediaAssetId, model])
+  @@map("media_asset_embeddings")
 }
 
 model OcrResult {
@@ -257,6 +298,7 @@ model SourceAd {
   updatedAt       DateTime            @updatedAt
   analyses        CreativeAnalysis[]
   embeddings      CreativeEmbedding[]
+  briefReferences BriefReference[]
 
   @@index([status])
   @@index([competitorId])
@@ -323,8 +365,32 @@ model CreativeBrief {
   createdBy          User?               @relation(fields: [createdById], references: [id])
   createdAt          DateTime            @default(now())
   creatives          GeneratedCreative[]
+  references         BriefReference[]
 
   @@map("creative_briefs")
+}
+
+enum BriefReferenceMethod {
+  MANUAL
+  SIMILARITY
+  UNKNOWN
+}
+
+model BriefReference {
+  id            String               @id @default(cuid())
+  briefId       String
+  brief         CreativeBrief        @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  sourceAdId    String?
+  sourceAd      SourceAd?            @relation(fields: [sourceAdId], references: [id], onDelete: SetNull)
+  titleSnapshot String?
+  method        BriefReferenceMethod
+  similarity    Float?
+  rank          Int
+  createdAt     DateTime             @default(now())
+
+  @@unique([briefId, rank])
+  @@index([sourceAdId])
+  @@map("brief_references")
 }
 
 enum CreativeType {

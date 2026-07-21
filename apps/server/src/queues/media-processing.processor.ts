@@ -131,6 +131,7 @@ export class MediaProcessingProcessor extends WorkerHost {
         asset = await this.prisma.mediaAsset.create({
           data: {
             kind,
+            origin: 'AD_IMPORT',
             status: 'UPLOADED',
             originalFilename: `external-${job.data.sourceAdId}`,
             contentType,

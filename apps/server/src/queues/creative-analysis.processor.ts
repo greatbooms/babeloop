@@ -8,6 +8,9 @@ import { creativeAnalysisSchema, PROMPT_VERSION } from '../modules/creative-anal
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { generateJsonWithRepair } from '../providers/text/generate-json-with-repair';
 import { TEXT_GENERATION_PROVIDER, TextGenerationProvider } from '../providers/text/text-generation.provider';
+import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../providers/embedding/embedding.provider';
+import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
+import { MEDIA_INSIGHT_PROMPT_VERSION, MEDIA_INSIGHT_SYSTEM, mediaInsightSchema } from '../modules/media/media-analysis.schema';
 import {
   CREATIVE_ANALYSIS_QUEUE,
   EMBEDDING_QUEUE,
@@ -28,14 +31,17 @@ export class CreativeAnalysisProcessor extends WorkerHost {
     private readonly analysis: AnalysisService,
     private readonly jobRecord: JobRecordService,
     @Inject(TEXT_GENERATION_PROVIDER) private readonly textAi: TextGenerationProvider,
+    @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
+    private readonly vectors: VectorSearchRepository,
     @InjectQueue(EMBEDDING_QUEUE) private readonly embeddingQueue: Queue,
   ) {
     super();
   }
 
-  async process(job: BullJob<{ sourceAdId: string }>): Promise<void> {
+  async process(job: BullJob<{ sourceAdId?: string; mediaAssetId?: string }>): Promise<void> {
+    if (job.name === JOB_TYPES.ANALYZE_MEDIA) return this.analyzeMedia(job as BullJob<{ mediaAssetId: string }>);
     const jobId = job.id!;
-    const { sourceAdId } = job.data;
+    const sourceAdId = job.data.sourceAdId!;
     await this.jobRecord.markRunning(jobId);
     try {
       await this.prisma.sourceAd.update({ where: { id: sourceAdId }, data: { status: 'ANALYZING' } });
@@ -97,6 +103,28 @@ export class CreativeAnalysisProcessor extends WorkerHost {
         await this.prisma.sourceAd.update({ where: { id: sourceAdId }, data: { status: 'FAILED' } });
         await this.jobRecord.markFailed(jobId, message);
       }
+      throw error;
+    }
+  }
+
+  private async analyzeMedia(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const asset = await this.prisma.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId }, include: { ocrResults: true, transcriptions: true } });
+      const inputText = [...asset.ocrResults, ...asset.transcriptions].map((item) => item.text.trim()).filter(Boolean).join('\n');
+      const meta: AiExecutionMeta = { provider: this.textAi.name, model: this.textAi.model, promptVersion: MEDIA_INSIGHT_PROMPT_VERSION, inputRef: `mediaAsset:${asset.id}` };
+      const result = await this.aiLog.record(meta, async () => {
+        const generated = await generateJsonWithRepair(this.textAi, { system: MEDIA_INSIGHT_SYSTEM, prompt: inputText, responseHint: 'media-insight' }, mediaInsightSchema);
+        Object.assign(meta, generated.usage);
+        return generated.data;
+      });
+      await this.prisma.mediaInsight.create({ data: { mediaAssetId: asset.id, ...result, raw: result, provider: this.textAi.name, model: this.textAi.model, promptVersion: MEDIA_INSIGHT_PROMPT_VERSION } });
+      const embedding = await this.aiLog.record({ provider: this.embedder.name, model: this.embedder.model, inputRef: `mediaAsset:${asset.id}` }, () => this.embedder.embed(inputText));
+      await this.vectors.upsertMediaEmbedding({ mediaAssetId: asset.id, model: this.embedder.model, dimension: this.embedder.dimension, vector: embedding });
+      await this.jobRecord.markSucceeded(jobId, { mediaAssetId: asset.id, targetAudience: { length: result.targetAudience.length }, emotionalTriggers: { length: result.emotionalTriggers.length }, genres: { length: result.genres.length } });
+    } catch (error) {
+      if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1)) await this.jobRecord.markFailed(jobId, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

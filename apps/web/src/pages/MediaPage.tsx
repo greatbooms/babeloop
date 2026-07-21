@@ -1,22 +1,19 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { graphql } from '../generated';
 import { MediaAssetKind } from '../generated/graphql';
-import { useJobPolling } from '../hooks/useJobPolling';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import { HelpPanel } from '../components/HelpPanel';
 import { StatusBadge } from '../components/StatusBadge';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 const MediaAssetsDocument = graphql(`
   query MediaAssets {
-    mediaAssets {
+    mediaAssets(origin: MANUAL) {
       id status kind originalFilename createdAt mediaUrl thumbnailUrl
-      linkedSourceAds { id title }
-      ocrResults { id text }
-      transcriptions { id text }
+      insights { id }
     }
   }
 `);
@@ -37,14 +34,9 @@ export function MediaPage() {
   const { data, refetch } = useQuery(MediaAssetsDocument);
   const [requestUpload] = useMutation(RequestUploadDocument);
   const [completeUpload] = useMutation(CompleteUploadDocument);
-  const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const job = useJobPolling(jobId);
-  useEffect(() => {
-    if (job?.status === 'SUCCEEDED' || job?.status === 'FAILED') void refetch();
-  }, [job?.status, refetch]);
+  const navigate = useNavigate();
 
   async function onUpload() {
     const file = fileRef.current?.files?.[0];
@@ -59,8 +51,7 @@ export function MediaPage() {
       const put = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
       if (!put.ok) throw new Error(`업로드 실패: HTTP ${put.status}`);
       const done = await completeUpload({ variables: { input: { mediaAssetId: mediaAsset.id } } });
-      setJobId(done.data!.completeMediaUpload.job.id);
-      await refetch();
+      navigate(`/media/${done.data!.completeMediaUpload.mediaAsset.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -68,7 +59,7 @@ export function MediaPage() {
 
   return (
     <section className="stage-prep">
-      <PageHeader title="미디어" step="보조 도구" description="광고 탭과 별개로, 파일 하나를 직접 올려 텍스트 추출(이미지 OCR·영상 전사)만 해보는 단건 도구입니다. 경쟁 광고 수집·분석은 광고 탭에서 하세요." />
+      <PageHeader title="미디어" step="보조 도구" description="내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙" />
       <HelpPanel page="media" />
       <Card className="upload-card">
       <div className="inline-actions">
@@ -77,21 +68,14 @@ export function MediaPage() {
       </div>
       </Card>
       {error && <p role="alert">{error}</p>}
-      {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>분석 중… ({job.status})</p>}
-      {job?.status === 'FAILED' && <p role="alert">분석 실패: {job.error}</p>}
       <ul className="card-list">
         {data?.mediaAssets.map((a) => (
           <li key={a.id}>
             <Card className="card-stack">
             <div className="media-preview">{a.kind === MediaAssetKind.Video ? (a.thumbnailUrl ? <img src={a.thumbnailUrl} alt="" /> : <video controls src={a.mediaUrl} />) : <img src={a.mediaUrl} alt={a.originalFilename} />}</div>
             <div className="inline-actions"><strong>{a.originalFilename}</strong><StatusBadge status={a.status} /></div>
-            {a.linkedSourceAds.map((ad) => <p key={ad.id} className="muted">광고 <Link to={`/ads?search=${encodeURIComponent(ad.title ?? ad.id)}`}>「{ad.title ?? ad.id}」</Link>에 연결됨</p>)}
-            {a.ocrResults.map((o) => (
-              <p key={o.id}>{o.text}</p>
-            ))}
-            {a.transcriptions.map((tr) => (
-              <p key={tr.id}>{tr.text}</p>
-            ))}
+            <p className="muted">인사이트 {a.insights.length}개</p>
+            <Link className="brand-detail-cta" to={`/media/${a.id}`}>상세 보기 →</Link>
             </Card>
           </li>
         ))}

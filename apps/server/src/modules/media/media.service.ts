@@ -3,7 +3,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { createHash, randomUUID } from 'crypto';
 import { GraphQLError } from 'graphql';
-import { User } from '../../../generated/prisma';
+import { MediaAssetOrigin, User } from '../../../generated/prisma';
+import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../../providers/embedding/embedding.provider';
+import { Inject } from '@nestjs/common';
+import { VectorSearchRepository } from '../creative-analysis/vector-search.repository';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { JobRecordService } from '../jobs/job-record.service';
@@ -19,6 +22,7 @@ const MEDIA_INCLUDE = {
   ocrResults: true,
   transcriptions: true,
   sourceAds: { select: { id: true, title: true } },
+  insights: { orderBy: { createdAt: 'desc' as const } },
 } as const;
 
 @Injectable()
@@ -28,6 +32,9 @@ export class MediaService {
     private readonly storage: StorageService,
     private readonly jobRecord: JobRecordService,
     @InjectQueue(MEDIA_PROCESSING_QUEUE) private readonly queue: Queue,
+    @InjectQueue('creative-analysis') private readonly analysisQueue: Queue,
+    @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
+    private readonly vectors: VectorSearchRepository,
   ) {}
 
   async requestUpload(user: User, input: RequestMediaUploadInput) {
@@ -115,6 +122,25 @@ export class MediaService {
     return this.jobRecord.enqueueOrRetry(this.queue, MEDIA_PROCESSING_QUEUE, JOB_TYPES.PROCESS_MEDIA, jobId, payload);
   }
 
+  async analyzeMediaAsset(mediaAssetId: string) {
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId }, include: { ocrResults: true, transcriptions: true } });
+    if (!asset) throw new NotFoundException('미디어 자산을 찾을 수 없습니다');
+    if (asset.origin !== 'MANUAL') throw new GraphQLError('광고 미디어는 광고 탭의 분석을 사용하세요', { extensions: { code: 'MEDIA_NOT_MANUAL' } });
+    if (![...asset.ocrResults, ...asset.transcriptions].some((item) => item.text.trim())) throw new GraphQLError('먼저 미디어 텍스트 추출을 실행해주세요', { extensions: { code: 'TEXT_NOT_EXTRACTED' } });
+    const payload = { mediaAssetId };
+    const jobId = `analyze-media--${mediaAssetId}`;
+    return this.jobRecord.enqueueOrRetry(this.analysisQueue, 'creative-analysis', JOB_TYPES.ANALYZE_MEDIA, jobId, payload);
+  }
+
+  async findSimilarAds(mediaAssetId: string, limit: number) {
+    const vector = await this.vectors.getMediaEmbeddingVector(mediaAssetId, this.embedder.model);
+    if (!vector) throw new GraphQLError('인사이트 분석이 끝나면 검색할 수 있습니다', { extensions: { code: 'MEDIA_EMBEDDING_NOT_READY' } });
+    const hits = await this.vectors.searchSimilar({ vector, model: this.embedder.model, limit });
+    const ads = await this.prisma.sourceAd.findMany({ where: { id: { in: hits.map((hit) => hit.sourceAdId) } } });
+    const byId = new Map(ads.map((ad) => [ad.id, ad]));
+    return hits.filter((hit) => byId.has(hit.sourceAdId)).map((hit) => ({ similarity: hit.similarity, sourceAd: byId.get(hit.sourceAdId)! }));
+  }
+
   async generateVideoThumbnails(): Promise<{ enqueued: number }> {
     const assets = await this.prisma.mediaAsset.findMany({
       where: { kind: 'VIDEO', thumbnailKey: null },
@@ -143,8 +169,8 @@ export class MediaService {
     };
   }
 
-  async findAll() {
-    const assets = await this.prisma.mediaAsset.findMany({ include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
+  async findAll(origin?: MediaAssetOrigin) {
+    const assets = await this.prisma.mediaAsset.findMany({ where: origin ? { origin } : undefined, include: MEDIA_INCLUDE, orderBy: { createdAt: 'desc' } });
     return Promise.all(assets.map((asset) => this.mapMediaAsset(asset)));
   }
 

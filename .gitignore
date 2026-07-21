@@ -12,3 +12,4 @@ e2e/playwright-report/
 .serena/
 test-results/
 .idea/
+.playwright-mcp/

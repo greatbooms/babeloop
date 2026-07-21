@@ -1,10 +1,21 @@
-import { Field, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
-import { CreativeStatus, CreativeType, LocalizationKind } from '../../../generated/prisma';
+import { Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { BrandModel } from '../brand/brand.models';
+import { BriefReferenceMethod, CreativeStatus, CreativeType, LocalizationKind } from '../../../generated/prisma';
 import { JobModel } from '../jobs/job.model';
 
 registerEnumType(CreativeType, { name: 'CreativeType' });
 registerEnumType(CreativeStatus, { name: 'CreativeStatus' });
 registerEnumType(LocalizationKind, { name: 'LocalizationKind' });
+registerEnumType(BriefReferenceMethod, { name: 'BriefReferenceMethod' });
+
+@ObjectType()
+export class BriefReferenceModel {
+  @Field(() => ID, { nullable: true }) sourceAdId: string | null;
+  @Field(() => String, { nullable: true }) title: string | null;
+  @Field(() => BriefReferenceMethod) method: BriefReferenceMethod;
+  @Field(() => Float, { nullable: true }) similarity: number | null;
+  @Field() deleted: boolean;
+}
 
 @ObjectType()
 export class AdRefModel {
@@ -55,11 +66,13 @@ export class CreativeBriefModel {
   @Field() rationale: string;
   @Field(() => String, { nullable: true }) focusText: string | null;
   @Field(() => [ID]) sourceAdIds: string[];
-  @Field(() => [AdRefModel]) referencedAds: AdRefModel[];
+  @Field(() => [BriefReferenceModel]) references: BriefReferenceModel[];
   @Field(() => ID, { nullable: true }) brandId: string | null;
+  @Field(() => BrandModel, { nullable: true }) brand: BrandModel | null;
   @Field() provider: string;
   @Field() model: string;
   @Field() promptVersion: string;
+  @Field() rawJson: string;
   @Field(() => ID, { nullable: true }) createdById: string | null;
   @Field() createdAt: Date;
   @Field(() => [GeneratedCreativeModel]) creatives: GeneratedCreativeModel[];

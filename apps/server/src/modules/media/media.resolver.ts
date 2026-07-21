@@ -1,6 +1,8 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { User } from '../../../generated/prisma';
+import { MediaAssetOrigin, User } from '../../../generated/prisma';
+import { Int } from '@nestjs/graphql';
+import { SimilarSourceAdModel } from '../source-ad/source-ad.models';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -21,8 +23,8 @@ export class MediaResolver {
   constructor(private readonly mediaService: MediaService) {}
 
   @Query(() => [MediaAssetModel])
-  mediaAssets() {
-    return this.mediaService.findAll();
+  mediaAssets(@Args('origin', { type: () => MediaAssetOrigin, nullable: true }) origin?: MediaAssetOrigin) {
+    return this.mediaService.findAll(origin);
   }
 
   @Query(() => MediaAssetModel)
@@ -47,6 +49,13 @@ export class MediaResolver {
   processMediaAsset(@Args('mediaAssetId', { type: () => ID }) mediaAssetId: string) {
     return this.mediaService.processMediaAsset(mediaAssetId);
   }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  analyzeMediaAsset(@Args('mediaAssetId', { type: () => ID }) mediaAssetId: string) { return this.mediaService.analyzeMediaAsset(mediaAssetId); }
+
+  @Query(() => [SimilarSourceAdModel])
+  similarAdsForMediaAsset(@Args('mediaAssetId', { type: () => ID }) mediaAssetId: string, @Args('limit', { type: () => Int, defaultValue: 5 }) limit: number) { return this.mediaService.findSimilarAds(mediaAssetId, limit); }
 
   @Mutation(() => GenerateVideoThumbnailsPayload)
   @Roles('ADMIN')

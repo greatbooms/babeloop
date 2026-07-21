@@ -10,6 +10,13 @@ export interface UpsertEmbeddingInput {
   vector: number[];
 }
 
+export interface UpsertMediaEmbeddingInput {
+  mediaAssetId: string;
+  model: string;
+  dimension: number;
+  vector: number[];
+}
+
 export interface SimilarResult {
   sourceAdId: string;
   similarity: number;
@@ -32,6 +39,16 @@ export class VectorSearchRepository {
       INSERT INTO creative_embeddings (id, "sourceAdId", model, dimension, embedding, "createdAt")
       VALUES (${randomUUID()}, ${input.sourceAdId}, ${input.model}, ${input.dimension}, ${vec}::vector, now())
       ON CONFLICT ("sourceAdId", model)
+      DO UPDATE SET embedding = EXCLUDED.embedding, dimension = EXCLUDED.dimension`;
+  }
+
+  async upsertMediaEmbedding(input: UpsertMediaEmbeddingInput): Promise<void> {
+    if (input.vector.length !== input.dimension) throw new Error(`임베딩 차원 불일치: expected ${input.dimension}, got ${input.vector.length}`);
+    const vec = this.toVectorLiteral(input.vector);
+    await this.prisma.$executeRaw`
+      INSERT INTO media_asset_embeddings (id, "mediaAssetId", model, dimension, embedding, "createdAt")
+      VALUES (${randomUUID()}, ${input.mediaAssetId}, ${input.model}, ${input.dimension}, ${vec}::vector, now())
+      ON CONFLICT ("mediaAssetId", model)
       DO UPDATE SET embedding = EXCLUDED.embedding, dimension = EXCLUDED.dimension`;
   }
 
@@ -58,5 +75,12 @@ export class VectorSearchRepository {
       WHERE "sourceAdId" = ${sourceAdId} AND model = ${model} LIMIT 1`;
     if (rows.length === 0) return null;
     return JSON.parse(rows[0].v) as number[];
+  }
+
+  async getMediaEmbeddingVector(mediaAssetId: string, model: string): Promise<number[] | null> {
+    const rows = await this.prisma.$queryRaw<{ v: string }[]>`
+      SELECT embedding::text AS v FROM media_asset_embeddings
+      WHERE "mediaAssetId" = ${mediaAssetId} AND model = ${model} LIMIT 1`;
+    return rows.length ? JSON.parse(rows[0].v) as number[] : null;
   }
 }

@@ -15,9 +15,9 @@ describe('SourceAdService relationships', () => {
     };
     const prisma = {
       sourceAd: { findMany: jest.fn(), count: jest.fn() },
-      creativeBrief: {
+      briefReference: {
         findMany: jest.fn().mockResolvedValue([
-          { id: 'brief-1', title: '브리프 하나', sourceAdIds: ['ad-1'] },
+          { sourceAdId: 'ad-1', brief: { id: 'brief-1', title: '브리프 하나' } },
         ]),
       },
       $transaction: jest.fn().mockResolvedValue([[ad], 1]),
@@ -43,6 +43,6 @@ describe('SourceAdService relationships', () => {
         mediaUrl: 'signed:original',
       }),
     }));
-    expect(prisma.creativeBrief.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.briefReference.findMany).toHaveBeenCalledTimes(1);
   });
 });
