@@ -75,12 +75,12 @@ export function SourceAdDetailPage() {
           {ad.mediaAsset && (
             <span className="action-step">
               <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
-              <Button data-hint="1단계 — 이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" variant={!hasText ? 'primary' : undefined} onClick={() => void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id)}>미디어 텍스트 추출</Button>
+              <Button data-hint="1단계 — 이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" variant={!hasText ? 'primary' : undefined} onClick={() => { if (hasText && !window.confirm('이미 추출된 텍스트가 있습니다. 다시 실행하면 기존 결과를 새 결과로 교체하며 약 1~2센트가 발생합니다. 계속할까요?')) return; void run(async () => (await processMediaAsset({ variables: { mediaAssetId: ad.mediaAsset!.id } })).data!.processMediaAsset.id); }}>미디어 텍스트 추출</Button>
             </span>
           )}
           <span className="action-step">
             <span className={`action-step-num${hasAnalysis ? ' done' : ''}`} aria-hidden="true">{hasAnalysis ? '✓' : '2'}</span>
-            <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id)}>광고 분석</Button>
+            <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => { if (hasAnalysis && !window.confirm('이미 분석 결과가 있습니다. 다시 실행하면 새 분석으로 갱신되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id); }}>광고 분석</Button>
           </span>
           <span className="action-step">
             <span className="action-step-num" aria-hidden="true">3</span>

@@ -81,17 +81,24 @@ export class MediaProcessingProcessor extends WorkerHost {
             return result;
           },
         );
-        await this.prisma.ocrResult.create({
-          data: { mediaAssetId: asset.id, text: out.text, provider: this.ocr.name, model: this.ocr.model },
-        });
+        // 재추출은 교체다 — 파생 데이터를 쌓으면 화면에 같은 내용이 중복된다 (호출 이력은 AI 실행 로그가 보관)
+        await this.prisma.$transaction([
+          this.prisma.ocrResult.deleteMany({ where: { mediaAssetId: asset.id } }),
+          this.prisma.ocrResult.create({
+            data: { mediaAssetId: asset.id, text: out.text, provider: this.ocr.name, model: this.ocr.model },
+          }),
+        ]);
       } else {
         const out = await this.aiLog.record(
           { provider: this.stt.name, model: this.stt.model, inputRef },
           () => this.stt.transcribe({ buffer, contentType: asset.contentType, filename: asset.originalFilename }),
         );
-        await this.prisma.transcription.create({
-          data: { mediaAssetId: asset.id, text: out.text, language: out.language, provider: this.stt.name, model: this.stt.model },
-        });
+        await this.prisma.$transaction([
+          this.prisma.transcription.deleteMany({ where: { mediaAssetId: asset.id } }),
+          this.prisma.transcription.create({
+            data: { mediaAssetId: asset.id, text: out.text, language: out.language, provider: this.stt.name, model: this.stt.model },
+          }),
+        ]);
         if (!asset.thumbnailKey) {
           try {
             await this.createAndStoreThumbnail(asset);

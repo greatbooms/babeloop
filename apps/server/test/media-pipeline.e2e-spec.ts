@@ -106,7 +106,7 @@ describe('media pipeline', () => {
     expect(second.mediaAsset.duplicateOfId).toBe(first.mediaAsset.id);
   });
 
-  it('READY 자산을 수동으로 재처리하면 기존 결과에 OCR 결과가 추가된다', async () => {
+  it('READY 자산을 수동으로 재처리하면 기존 OCR 결과가 새 결과로 교체된다', async () => {
     const agent = await login(t);
     const { mediaAsset } = await uploadImage(agent, 'reprocess-bytes', 'reprocess.png');
     const { PrismaService } = await import('../src/common/prisma/prisma.service');
@@ -116,16 +116,19 @@ describe('media pipeline', () => {
       if ((await prisma.mediaAsset.findUniqueOrThrow({ where: { id: mediaAsset.id } })).status === 'READY') break;
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    expect(await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } })).toBe(1);
+    const firstResult = await prisma.ocrResult.findFirstOrThrow({ where: { mediaAssetId: mediaAsset.id } });
 
     const process = await agent.post('/graphql').send({ query: PROCESS_MEDIA, variables: { mediaAssetId: mediaAsset.id } });
     expect(process.body.errors).toBeUndefined();
     const secondDeadline = Date.now() + 15_000;
     while (Date.now() < secondDeadline) {
-      if (await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } }) >= 2) break;
+      const rows = await prisma.ocrResult.findMany({ where: { mediaAssetId: mediaAsset.id } });
+      if (rows.length === 1 && rows[0].id !== firstResult.id) break;
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    expect(await prisma.ocrResult.count({ where: { mediaAssetId: mediaAsset.id } })).toBe(2);
+    const rows = await prisma.ocrResult.findMany({ where: { mediaAssetId: mediaAsset.id } });
+    expect(rows).toHaveLength(1); // 추가가 아니라 교체
+    expect(rows[0].id).not.toBe(firstResult.id);
   });
 
   it('업로드 없이 완료를 호출하면 오류', async () => {

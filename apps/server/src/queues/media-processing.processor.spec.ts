@@ -53,3 +53,51 @@ describe('MediaProcessingProcessor GENERATE_THUMBNAIL', () => {
     expect(stt.transcribe).not.toHaveBeenCalled();
   });
 });
+
+describe('MediaProcessingProcessor PROCESS_MEDIA 재추출', () => {
+  it('이미지 재추출 시 기존 OCR 결과를 지우고 새 결과로 교체한다', async () => {
+    const prisma = {
+      mediaAsset: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: 'image-1',
+          kind: 'IMAGE',
+          storageKey: 'media/image-1',
+          contentType: 'image/png',
+          originalFilename: 'image-1.png',
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      ocrResult: {
+        deleteMany: jest.fn().mockReturnValue('del'),
+        create: jest.fn().mockReturnValue('crt'),
+      },
+      $transaction: jest.fn().mockResolvedValue([]),
+    };
+    const storage = { getBuffer: jest.fn().mockResolvedValue(Buffer.from('png')) };
+    const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
+    const aiLog = { record: jest.fn(async (_meta: unknown, fn: () => Promise<unknown>) => fn()) };
+    const ocr = { extractText: jest.fn().mockResolvedValue({ text: '새 텍스트' }), name: 'ocr', model: 'ocr-1' };
+    const processor = new MediaProcessingProcessor(
+      prisma as never,
+      storage as never,
+      aiLog as never,
+      jobRecord as never,
+      ocr as never,
+      {} as never,
+    );
+
+    await processor.process({
+      id: 'process-media--image-1',
+      name: JOB_TYPES.PROCESS_MEDIA,
+      data: { mediaAssetId: 'image-1' },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    } as never);
+
+    expect(prisma.ocrResult.deleteMany).toHaveBeenCalledWith({ where: { mediaAssetId: 'image-1' } });
+    expect(prisma.ocrResult.create).toHaveBeenCalledWith({
+      data: { mediaAssetId: 'image-1', text: '새 텍스트', provider: 'ocr', model: 'ocr-1' },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(['del', 'crt']);
+  });
+});
