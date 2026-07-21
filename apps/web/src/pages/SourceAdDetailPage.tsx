@@ -83,8 +83,8 @@ export function SourceAdDetailPage() {
             <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => { if (hasAnalysis && !window.confirm('이미 분석 결과가 있습니다. 다시 실행하면 새 분석으로 갱신되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id); }}>광고 분석</Button>
           </span>
           <span className="action-step">
-            <span className="action-step-num" aria-hidden="true">3</span>
-            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
+            <span className={`action-step-num${similarQuery.data ? ' done' : ''}`} aria-hidden="true">{similarQuery.data ? '✓' : '3'}</span>
+            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis && !similarQuery.data ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
           </span>
           {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
         </div>
