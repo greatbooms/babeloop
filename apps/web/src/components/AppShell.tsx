@@ -1,33 +1,37 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
+import { useT } from '../i18n/lang-context';
 import { Button } from './Button';
 
 const navigation = [
-  ['/', '홈', '전체 워크플로 안내'],
-  ['/brands', '브랜드', 'BabeChat 제품 정보 등록 — 브리프 생성의 재료'],
-  ['/media', '미디어', '파일 업로드 후 텍스트 추출 (단건 도구)'],
-  ['/ads', '광고', '경쟁사 광고 수집·분석 — 루프의 시작'],
-  ['/briefs', '브리프', '패턴 기반 브리프·문구·zh-TW 초안 생성'],
-  ['/review', '검토', '정책 검사 → 검수 → 승인 게이트'],
-  ['/experiments', '실험', '승인 문구 배정·추적코드 발급·내보내기'],
-  ['/performance', '성과', '성과 CSV 업로드 → 소재별 퍼널 → 브리프 환류'],
+  ['/', 'home'],
+  ['/brands', 'brands'],
+  ['/media', 'media'],
+  ['/ads', 'ads'],
+  ['/briefs', 'briefs'],
+  ['/review', 'review'],
+  ['/experiments', 'experiments'],
+  ['/performance', 'performance'],
 ] as const;
 
-const roleLabels: Record<string, string> = { ADMIN: '관리자', REVIEWER: '검수자', OPERATOR: '운영자' };
-
 export function AppShell({ user, onLogout, children }: { user: { displayName?: string | null; email: string; role: string }; onLogout: () => void; children: ReactNode }) {
+  const { lang, setLang, t } = useT();
   return (
     <div className="app-shell">
       <header className="top-nav">
         <NavLink className="wordmark" to="/">BabeLoop</NavLink>
-        <nav className="nav-tabs" aria-label="주요 메뉴">
-          {navigation.map(([to, label, hint]) => (
-            <NavLink key={to} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} end={to === '/'} to={to} title={hint} data-hint={hint}>{label}</NavLink>
+        <nav className="nav-tabs" aria-label={t('nav.ariaLabel')}>
+          {navigation.map(([to, key]) => (
+            <NavLink key={to} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} end={to === '/'} to={to} title={t(`nav.${key}.hint`)} data-hint={t(`nav.${key}.hint`)}>{t(`nav.${key}.label`)}</NavLink>
           ))}
         </nav>
         <div className="account-area">
-          <span className="account-copy"><strong>{user.displayName || user.email}</strong><small>{roleLabels[user.role] ?? user.role}</small></span>
-          <Button size="sm" onClick={onLogout}>로그아웃</Button>
+          <div className="lang-toggle" role="group" aria-label={t('common.languageSelector')}>
+            <button type="button" className={lang === 'ko' ? 'active' : ''} onClick={() => setLang('ko')}>{t('common.korean')}</button>
+            <button type="button" className={lang === 'zhTw' ? 'active' : ''} onClick={() => setLang('zhTw')}>{t('common.traditionalChinese')}</button>
+          </div>
+          <span className="account-copy"><strong>{user.displayName || user.email}</strong><small>{t(`common.role.${user.role}`) === `common.role.${user.role}` ? user.role : t(`common.role.${user.role}`)}</small></span>
+          <Button size="sm" onClick={onLogout}>{t('common.logout')}</Button>
         </div>
       </header>
       <main className="app-main">{children}</main>

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App';
 import { apolloClient } from './apollo';
+import { LangProvider } from './i18n/lang-context';
 import 'pretendard/dist/web/variable/pretendardvariable.css';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -13,9 +14,11 @@ import './pages/pages.css';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ApolloProvider client={apolloClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <LangProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </LangProvider>
     </ApolloProvider>
   </StrictMode>,
 );

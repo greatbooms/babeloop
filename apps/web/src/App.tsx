@@ -17,6 +17,7 @@ import { ReviewPage } from './pages/ReviewPage';
 import { ReviewDetailPage } from './pages/ReviewDetailPage';
 import { PerformancePage } from './pages/PerformancePage';
 import { HomePage } from './pages/HomePage';
+import { useT } from './i18n/lang-context';
 
 const MeDocument = graphql(`
   query Me { me { id email displayName role } }
@@ -27,6 +28,7 @@ const LogoutDocument = graphql(`
 `);
 
 export function App() {
+  const { t } = useT();
   const { data, loading, refetch } = useQuery(MeDocument, { errorPolicy: 'ignore' });
   const [logout] = useMutation(LogoutDocument);
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ export function App() {
     navigate('/login');
   }
 
-  if (loading) return <p>로딩 중…</p>;
+  if (loading) return <p>{t('common.loading')}</p>;
   const me = data?.me ?? null;
 
   return (

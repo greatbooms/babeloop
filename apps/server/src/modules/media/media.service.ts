@@ -161,8 +161,14 @@ export class MediaService {
 
   private async mapMediaAsset<T extends { kind: string; storageKey: string; thumbnailKey: string | null; sourceAds: Array<{ id: string; title: string | null }> }>(asset: T) {
     const thumbnailKey = asset.kind === 'IMAGE' ? asset.storageKey : asset.thumbnailKey;
+    const insights = 'insights' in asset && Array.isArray(asset.insights)
+      ? asset.insights.map((insight: unknown) => insight && typeof insight === 'object'
+        ? { ...insight, zhTwJson: (insight as { zhTwFields?: unknown }).zhTwFields ? JSON.stringify((insight as { zhTwFields: unknown }).zhTwFields) : null }
+        : insight)
+      : [];
     return {
       ...asset,
+      insights,
       linkedSourceAds: asset.sourceAds,
       mediaUrl: await this.storage.presignGet(asset.storageKey),
       thumbnailUrl: thumbnailKey ? await this.storage.presignGet(thumbnailKey) : null,

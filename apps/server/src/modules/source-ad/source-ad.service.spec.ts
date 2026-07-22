@@ -45,6 +45,21 @@ describe('SourceAdService relationships', () => {
     }));
     expect(prisma.briefReference.findMany).toHaveBeenCalledTimes(1);
   });
+
+  it('번체중문 분석 필드를 nullable GraphQL JSON 문자열로 매핑한다', async () => {
+    const zhTwFields = { summary: '繁中摘要', hookType: '提問型', targetAudience: ['成人'], emotionalTriggers: ['好奇'], genres: ['戀愛'] };
+    const ad = { id: 'ad-2', analyses: [{ id: 'analysis-1', zhTwFields }], mediaAsset: null };
+    const prisma = {
+      sourceAd: { findMany: jest.fn(), count: jest.fn() },
+      briefReference: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn().mockResolvedValue([[ad], 1]),
+    };
+    const service = new SourceAdService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+
+    const page = await service.findPage({} as never);
+
+    expect(page.items[0].latestAnalysis).toEqual(expect.objectContaining({ zhTwJson: JSON.stringify(zhTwFields) }));
+  });
 });
 
 describe('SourceAdService.analyze 텍스트 가드', () => {

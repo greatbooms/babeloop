@@ -4,7 +4,8 @@ export type ResponseHint =
   | 'creative-brief'
   | 'copy-variants'
   | 'video-script'
-  | 'zh-tw-localization';
+  | 'zh-tw-localization'
+  | 'brand-zh-tw-translation';
 
 export interface TextGenerationInput {
   system: string;

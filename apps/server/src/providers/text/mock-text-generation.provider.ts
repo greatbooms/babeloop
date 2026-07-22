@@ -26,6 +26,13 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
           summary: `[MOCK 미디어 인사이트] ${input.prompt.slice(0, 40)}`,
           hookType: pick(HOOK_TYPES, 0), targetAudience: [pick(AUDIENCES, 2)],
           emotionalTriggers: [pick(TRIGGERS, 3)], genres: [pick(GENRES, 5)],
+          zhTw: {
+            summary: `[MOCK 繁中] ${input.prompt.slice(0, 40)}`,
+            hookType: '[MOCK 繁中] 鉤子',
+            targetAudience: ['[MOCK 繁中] 受眾'],
+            emotionalTriggers: ['[MOCK 繁中] 情緒'],
+            genres: ['[MOCK 繁中] 類型'],
+          },
         }) };
       case 'creative-brief':
         return { text: JSON.stringify({
@@ -73,6 +80,12 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
         }) };
       case 'zh-tw-localization':
         return { text: JSON.stringify({ zhTw: `[MOCK zh-TW] ${input.prompt.slice(0, 30)}`, notes: 'mock 번역' }) };
+      case 'brand-zh-tw-translation':
+        return { text: JSON.stringify({
+          description: `[MOCK 繁中] ${input.prompt.slice(0, 30)}`,
+          features: [{ name: '[MOCK 繁中] 功能', description: '[MOCK 繁中] 功能說明' }],
+          guidelines: [{ title: '[MOCK 繁中] 規範', content: '[MOCK 繁中] 規範內容' }],
+        }) };
       case 'creative-analysis':
       default:
         return { text: JSON.stringify({
@@ -83,6 +96,13 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
           emotionalTriggers: [pick(TRIGGERS, 3), pick(TRIGGERS, 4)],
           genres: [pick(GENRES, 5)],
           language: 'zh-TW',
+          zhTw: {
+            summary: `[MOCK 繁中] ${input.prompt.slice(0, 40)}`,
+            hookType: '[MOCK 繁中] 鉤子',
+            targetAudience: ['[MOCK 繁中] 受眾'],
+            emotionalTriggers: ['[MOCK 繁中] 情緒'],
+            genres: ['[MOCK 繁中] 類型'],
+          },
         }) };
     }
   }

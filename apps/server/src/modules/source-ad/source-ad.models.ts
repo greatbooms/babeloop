@@ -26,6 +26,7 @@ export class CreativeAnalysisModel {
   @Field(() => [String]) emotionalTriggers: string[];
   @Field(() => [String]) genres: string[];
   @Field() language: string;
+  @Field(() => String, { nullable: true }) zhTwJson: string | null;
   @Field() createdAt: Date;
 }
 

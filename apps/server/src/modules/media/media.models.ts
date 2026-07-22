@@ -15,6 +15,7 @@ export class MediaInsightModel {
   @Field(() => [String]) targetAudience: string[];
   @Field(() => [String]) emotionalTriggers: string[];
   @Field(() => [String]) genres: string[];
+  @Field(() => String, { nullable: true }) zhTwJson: string | null;
   @Field() provider: string;
   @Field() model: string;
   @Field() promptVersion: string;

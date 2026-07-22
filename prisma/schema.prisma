@@ -37,6 +37,8 @@ model Brand {
   name        String
   serviceUrl  String?
   description String?
+  zhTw        Json? // 번체중문 번역본 { description, features:[{name,description}], guidelines:[{title,content}] }
+  zhTwTranslatedAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   features    BrandFeature[]
@@ -160,6 +162,7 @@ model MediaInsight {
   targetAudience    String[]
   emotionalTriggers String[]
   genres            String[]
+  zhTwFields        Json? // 번체중문 병행 생성본 { summary, hookType, targetAudience, emotionalTriggers, genres }
   raw               Json
   provider          String
   model             String
@@ -318,6 +321,7 @@ model CreativeAnalysis {
   emotionalTriggers String[]
   genres            String[]
   language          String
+  zhTwFields        Json? // 번체중문 병행 생성본 { summary, hookType, targetAudience, emotionalTriggers, genres }
   raw               Json
   provider          String
   model             String

@@ -12,6 +12,8 @@ import { graphql } from '../generated';
 import { MediaAssetKind, SourceAdStatus } from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { STATUS_LABELS } from '../lib/status-labels';
+import { formatDate } from '../i18n/format-date';
+import { useT } from '../i18n/lang-context';
 import './source-ads.css';
 
 const PAGE_SIZE = 24;
@@ -32,20 +34,17 @@ const SourceAdsPageDocument = graphql(`
 const CreateSourceAdDocument = graphql(`mutation CreateSourceAd($input: CreateSourceAdInput!) { createSourceAd(input: $input) { sourceAd { id } job { id } } }`);
 const ImportCsvDocument = graphql(`mutation ImportCsv($input: ImportSensorTowerCsvInput!) { importSensorTowerCsv(input: $input) { importedCount duplicateCount errors } }`);
 
-function fileAsDataUrl(file: File): Promise<string> {
+function fileAsDataUrl(file: File, readError: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('파일 읽기 실패'));
+    reader.onerror = () => reject(reader.error ?? new Error(readError));
     reader.readAsDataURL(file);
   });
 }
 
-function dateLabel(value: unknown) {
-  return value ? new Intl.DateTimeFormat('ko-KR').format(new Date(String(value))) : '날짜 없음';
-}
-
 export function SourceAdsPage() {
+  const { lang, t } = useT();
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState<SourceAdStatus | ''>('');
   const [kind, setKind] = useState<MediaAssetKind | ''>('');
@@ -88,10 +87,10 @@ export function SourceAdsPage() {
     const file = event.target.files?.[0]; if (!file) return;
     setError(null); setMessage(null);
     try {
-      const fileBase64 = (await fileAsDataUrl(file)).split(',', 2)[1] ?? '';
+      const fileBase64 = (await fileAsDataUrl(file, t('ads.fileReadFailed'))).split(',', 2)[1] ?? '';
       const result = await importCsv({ variables: { input: { fileBase64 } } });
       const imported = result.data!.importSensorTowerCsv;
-      setMessage(`${imported.importedCount}건 임포트, ${imported.duplicateCount}건 중복`);
+      setMessage(t('ads.importSummary', { imported: imported.importedCount, duplicates: imported.duplicateCount }));
       if (imported.errors.length) setError(imported.errors.join('\n'));
       setOffset(0); await refetch();
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
@@ -101,50 +100,51 @@ export function SourceAdsPage() {
   const page = data?.sourceAdsPage;
   const total = page?.totalCount ?? 0;
   const end = Math.min(offset + PAGE_SIZE, total);
+  const dateLabel = (value: unknown) => value ? formatDate(String(value), lang) : t('ads.noDate');
 
   return (
     <section className="stage-collect">
-      <PageHeader title="광고" step="루프 1·2단계 — 수집·분석" description="경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요." actions={<>
-        <label className="file-button button button-secondary button-sm">CSV 임포트<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>
-        <Button variant="primary" size="sm" onClick={() => setRegisterOpen(true)}>새 광고 등록</Button>
+      <PageHeader title={t('ads.title')} step={t('ads.step')} description={t('ads.description')} actions={<>
+        <label className="file-button button button-secondary button-sm">{t('ads.csvImport')}<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>
+        <Button variant="primary" size="sm" onClick={() => setRegisterOpen(true)}>{t('ads.newAd')}</Button>
       </>} />
       <HelpPanel page="ads" />
-      <Modal title="광고 수동 등록" open={registerOpen} onClose={() => setRegisterOpen(false)}>
-        <FormField label="제목" htmlFor="source-ad-title"><input id="source-ad-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
-        <FormField label="광고 문구" htmlFor="source-ad-text"><textarea id="source-ad-text" value={adText} onChange={(event) => setAdText(event.target.value)} /></FormField>
-        <FormField label="소스 URL" htmlFor="source-ad-url"><input id="source-ad-url" type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></FormField>
-        <Button variant="primary" onClick={() => void onCreate()}>광고 등록</Button>
+      <Modal title={t('ads.manualRegister')} open={registerOpen} onClose={() => setRegisterOpen(false)}>
+        <FormField label={t('ads.adTitle')} htmlFor="source-ad-title"><input id="source-ad-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
+        <FormField label={t('ads.adCopy')} htmlFor="source-ad-text"><textarea id="source-ad-text" value={adText} onChange={(event) => setAdText(event.target.value)} /></FormField>
+        <FormField label={t('ads.sourceUrl')} htmlFor="source-ad-url"><input id="source-ad-url" type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></FormField>
+        <Button variant="primary" onClick={() => void onCreate()}>{t('ads.register')}</Button>
       </Modal>
       <div className="ads-content">
           <div className="filter-bar">
-            <FormField label="상태" htmlFor="ad-status"><select id="ad-status" value={status} onChange={(event) => { setOffset(0); setStatus(event.target.value as SourceAdStatus | ''); }}><option value="">전체</option>{Object.values(SourceAdStatus).map((value) => <option key={value} value={value}>{STATUS_LABELS[value]?.ko ?? value}</option>)}</select></FormField>
-            <FormField label="종류" htmlFor="ad-kind"><select id="ad-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">전체</option><option value={MediaAssetKind.Image}>이미지</option><option value={MediaAssetKind.Video}>영상</option></select></FormField>
-            <FormField label="검색" htmlFor="ad-search"><input id="ad-search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
-            <p className="result-count">{total === 0 ? '0건' : `${total}건 중 ${offset + 1}–${end}`}</p>
+            <FormField label={t('ads.status')} htmlFor="ad-status"><select id="ad-status" value={status} onChange={(event) => { setOffset(0); setStatus(event.target.value as SourceAdStatus | ''); }}><option value="">{t('ads.all')}</option>{Object.values(SourceAdStatus).map((value) => <option key={value} value={value}>{STATUS_LABELS[value]?.[lang] ?? value}</option>)}</select></FormField>
+            <FormField label={t('ads.kind')} htmlFor="ad-kind"><select id="ad-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">{t('ads.all')}</option><option value={MediaAssetKind.Image}>{t('ads.image')}</option><option value={MediaAssetKind.Video}>{t('ads.video')}</option></select></FormField>
+            <FormField label={t('ads.search')} htmlFor="ad-search"><input id="ad-search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
+            <p className="result-count">{total === 0 ? t('ads.zeroCount') : t('ads.resultCount', { total, start: offset + 1, end })}</p>
           </div>
           {message && <p className="notice">{message}</p>}
           {error && <p className="error" role="alert">{error}</p>}
-          {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>분석 중… ({job.status})</p>}
+          {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>{t('ads.analyzing', { status: job.status })}</p>}
           <ul className="ads-grid">
             {page?.items.map((ad) => (
               <li key={ad.id}>
                 <Card className="ad-card">
-                  <Link className="ad-media" aria-label={`${ad.title ?? '광고'} 상세 보기`} to={`/ads/${ad.id}`}>
-                    {ad.mediaAsset?.thumbnailUrl ? <img src={ad.mediaAsset.thumbnailUrl} alt="" /> : <span>{ad.mediaAsset?.kind === MediaAssetKind.Video ? '영상' : '이미지 없음'}</span>}
+                  <Link className="ad-media" aria-label={t('ads.detailAria', { title: ad.title ?? t('ads.ad') })} to={`/ads/${ad.id}`}>
+                    {ad.mediaAsset?.thumbnailUrl ? <img src={ad.mediaAsset.thumbnailUrl} alt="" /> : <span>{ad.mediaAsset?.kind === MediaAssetKind.Video ? t('ads.video') : t('ads.noImage')}</span>}
                     {ad.mediaAsset?.kind === MediaAssetKind.Video && <span className="play-overlay" aria-hidden="true">▶</span>}
                     <StatusBadge status={ad.status} />
                   </Link>
                   <div className="ad-meta">
                     <strong title={ad.title ?? ad.adText ?? ad.id}>{ad.competitor?.name ? `${ad.competitor.name} · ` : ''}{ad.title ?? ad.adText ?? ad.id}</strong>
-                    <p>{[...ad.networks, ...ad.countries].join(' · ') || '네트워크·국가 정보 없음'}</p>
+                    <p>{[...ad.networks, ...ad.countries].join(' · ') || t('ads.noNetworkCountry')}</p>
                     <p>{dateLabel(ad.firstSeenAt)} ~ {dateLabel(ad.lastSeenAt)}</p>
-                    <Link className="brand-detail-cta" to={`/ads/${ad.id}`}>상세 보기 →</Link>
+                    <Link className="brand-detail-cta" to={`/ads/${ad.id}`}>{t('common.detail')}</Link>
                   </div>
                 </Card>
               </li>
             ))}
           </ul>
-          <div className="pagination"><Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>이전</Button><span>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span><Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>다음</Button></div>
+          <div className="pagination"><Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>{t('common.previous')}</Button><span>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span><Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>{t('common.next')}</Button></div>
       </div>
     </section>
   );

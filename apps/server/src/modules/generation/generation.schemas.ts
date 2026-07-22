@@ -5,6 +5,7 @@ export const GENERATION_PROMPT_VERSIONS = {
   copyVariants: 'generate-copy-variants@v1',
   videoScript: 'generate-video-script@v1',
   localizeZhTw: 'localize-zh-tw@v1',
+  translateBrand: 'translate-brand@v1',
 } as const;
 
 const briefFields = {
@@ -54,4 +55,10 @@ export const videoScriptSchema = z.object({
 export const localizationSchema = z.object({
   zhTw: z.string().min(1),
   notes: z.string().optional(),
+});
+
+export const brandTranslationSchema = z.object({
+  description: z.string(),
+  features: z.array(z.object({ name: z.string().min(1), description: z.string() })),
+  guidelines: z.array(z.object({ title: z.string().min(1), content: z.string() })),
 });

@@ -47,7 +47,11 @@ export class SourceAdService {
   ) {}
 
   private mapSourceAd<T extends { analyses: unknown[] }>(ad: T) {
-    return { ...ad, latestAnalysis: ad.analyses[0] ?? null, referencingBriefs: [] };
+    const analysis = ad.analyses[0];
+    const latestAnalysis = analysis && typeof analysis === 'object'
+      ? { ...analysis, zhTwJson: (analysis as { zhTwFields?: unknown }).zhTwFields ? JSON.stringify((analysis as { zhTwFields: unknown }).zhTwFields) : null }
+      : null;
+    return { ...ad, latestAnalysis, referencingBriefs: [] };
   }
 
   private async mapSourceAdWithThumbnail<T extends { id: string; analyses: unknown[]; mediaAsset: { kind: string; status: string; storageKey: string; thumbnailKey: string | null } | null }>(

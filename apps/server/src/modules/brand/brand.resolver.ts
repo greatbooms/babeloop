@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { CreateBrandInput, UpdateBrandInput } from './brand.inputs';
 import { BrandFeatureModel, BrandGuidelineModel, BrandModel } from './brand.models';
 import { BrandService } from './brand.service';
+import { JobModel } from '../jobs/job.model';
 
 @Resolver(() => BrandModel)
 @UseGuards(GqlAuthGuard, RolesGuard)
@@ -32,6 +33,12 @@ export class BrandResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   updateBrand(@Args('input') input: UpdateBrandInput) {
     return this.brandService.update(input);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  translateBrandZhTw(@Args('brandId', { type: () => ID }) brandId: string) {
+    return this.brandService.translateZhTw(brandId);
   }
 
   @Mutation(() => BrandFeatureModel)

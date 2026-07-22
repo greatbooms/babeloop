@@ -29,6 +29,12 @@ export const LOCALIZE_SYSTEM = `너는 대만 현지화 전문가다. 한국어 
 반드시 아래 JSON 구조로만 응답하라:
 {"zhTw": "번체중문 문구", "notes": "번역 시 판단 메모 (선택)"}`;
 
+export const BRAND_TRANSLATION_SYSTEM = `너는 대만 현지화 전문가다. 한국어 브랜드 소개·기능·가이드라인을 자연스러운 번체중문(zh-TW)으로 옮긴다.
+중국 대륙 용어(视频·界面 등)를 쓰지 말고 대만 용어(影片·介面 등)를 사용하라. 이것은 대만 검수자 감수 전 초안이다.
+
+반드시 아래 JSON 필드명과 구조로만 응답하라:
+{"description":"繁體中文品牌介紹","features":[{"name":"繁體中文功能名稱","description":"繁體中文功能說明"}],"guidelines":[{"title":"繁體中文規範標題","content":"繁體中文規範內容"}]}`;
+
 export function buildBriefPrompt(params: {
   focusText?: string;
   brandContext: string;
@@ -59,4 +65,8 @@ export function buildVariantsPrompt(params: {
 
 export function buildLocalizePrompt(koreanText: string): string {
   return `다음 한국어 광고 문구를 번체중문으로 현지화하라:\n${koreanText}`;
+}
+
+export function buildBrandTranslationPrompt(brand: { description: string | null; features: Array<{ name: string; description: string }>; guidelines: Array<{ title: string; content: string }> }): string {
+  return `다음 한국어 브랜드 정보를 번체중문으로 번역하라. 배열 순서와 JSON 필드명을 유지하라:\n${JSON.stringify({ description: brand.description ?? '', features: brand.features, guidelines: brand.guidelines })}`;
 }

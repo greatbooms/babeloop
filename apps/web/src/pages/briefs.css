@@ -27,6 +27,3 @@
 .localized-box p { color: var(--body); line-height: 1.6; }
 
 /* 언어 토글 — 한국 작업자 / 대만 검수자 */
-.lang-toggle { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-full); overflow: hidden; }
-.lang-toggle button { border: 0; background: var(--canvas); color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
-.lang-toggle button.active { background: var(--stage-bg, #f3efff); color: var(--stage-fg, #5b3df5); }

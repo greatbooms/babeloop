@@ -11,12 +11,15 @@ import {
   buildVariantsPrompt,
   COPY_SYSTEM,
   SCRIPT_SYSTEM,
+  BRAND_TRANSLATION_SYSTEM,
+  buildBrandTranslationPrompt,
 } from '../modules/generation/generation.prompts';
 import {
   briefSchema,
   copyVariantsSchema,
   GENERATION_PROMPT_VERSIONS,
   videoScriptSchema,
+  brandTranslationSchema,
 } from '../modules/generation/generation.schemas';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../providers/embedding/embedding.provider';
@@ -52,6 +55,8 @@ interface GenerateVariantsJobData {
   count: number;
 }
 
+interface TranslateBrandJobData { brandId: string }
+
 @Processor(CREATIVE_GENERATION_QUEUE)
 export class CreativeGenerationProcessor extends WorkerHost {
   constructor(
@@ -73,7 +78,30 @@ export class CreativeGenerationProcessor extends WorkerHost {
     if (job.name === JOB_TYPES.GENERATE_COPY_VARIANTS) {
       return this.generateVariants(job as BullJob<GenerateVariantsJobData>);
     }
+    if (job.name === JOB_TYPES.TRANSLATE_BRAND) {
+      return this.translateBrand(job as BullJob<TranslateBrandJobData>);
+    }
     throw new Error(`알 수 없는 잡: ${job.name}`);
+  }
+
+  private async translateBrand(job: BullJob<TranslateBrandJobData>): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const brand = await this.prisma.brand.findUniqueOrThrow({ where: { id: job.data.brandId }, include: { features: true, guidelines: true } });
+      const meta: AiExecutionMeta = { provider: this.textAi.name, model: this.textAi.model, promptVersion: GENERATION_PROMPT_VERSIONS.translateBrand, inputRef: `brand:${brand.id}` };
+      const result = await this.aiLog.record(meta, async () => {
+        const generated = await generateJsonWithRepair(this.textAi, { system: BRAND_TRANSLATION_SYSTEM, prompt: buildBrandTranslationPrompt(brand), responseHint: 'brand-zh-tw-translation' }, brandTranslationSchema);
+        Object.assign(meta, generated.usage);
+        return generated.data;
+      });
+      const translatedAt = new Date();
+      await this.prisma.brand.update({ where: { id: brand.id }, data: { zhTw: result, zhTwTranslatedAt: translatedAt, updatedAt: translatedAt } });
+      await this.jobRecord.markSucceeded(jobId, { brandId: brand.id });
+    } catch (error) {
+      await this.failFinalAttempt(job, error);
+      throw error;
+    }
   }
 
   private async generateBrief(job: BullJob<GenerateBriefJobData>): Promise<void> {

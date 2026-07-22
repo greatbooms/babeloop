@@ -4,6 +4,9 @@
 .nav-link { color: var(--muted); font-size: 16px; font-weight: 600; line-height: 1.25; text-decoration: none; display: flex; align-items: center; padding: 0 var(--sp-sm); border-bottom: 2px solid transparent; }
 .nav-link.active { color: var(--ink); border-bottom-color: var(--ink); }
 .account-area { display: flex; align-items: center; gap: var(--sp-md); }
+.lang-toggle { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-full); overflow: hidden; }
+.lang-toggle button { border: 0; background: var(--canvas); color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
+.lang-toggle button.active { background: var(--stage-bg, #f3efff); color: var(--stage-fg, #5b3df5); }
 .account-copy { display: flex; flex-direction: column; text-align: right; font-size: 14px; line-height: 1.43; }
 .account-copy small { color: var(--muted); font-size: 13px; }
 .app-main { width: min(100%, 1280px); margin: 0 auto; padding: var(--sp-xl) var(--sp-lg) var(--sp-section); }

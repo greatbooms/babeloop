@@ -10,6 +10,8 @@ import { PageHeader } from '../components/PageHeader';
 import { HelpPanel } from '../components/HelpPanel';
 import { StatusBadge } from '../components/StatusBadge';
 import { Link, useNavigate } from 'react-router';
+import { formatDate } from '../i18n/format-date';
+import { useT } from '../i18n/lang-context';
 import './source-ads.css';
 import './media.css';
 
@@ -39,11 +41,8 @@ const CompleteUploadDocument = graphql(`
   }
 `);
 
-function dateLabel(value: unknown) {
-  return value ? new Intl.DateTimeFormat('ko-KR').format(new Date(String(value))) : '';
-}
-
 export function MediaPage() {
+  const { lang, t } = useT();
   const [offset, setOffset] = useState(0);
   const [kind, setKind] = useState<MediaAssetKind | ''>('');
   const [searchInput, setSearchInput] = useState('');
@@ -75,7 +74,7 @@ export function MediaPage() {
       });
       const { uploadUrl, mediaAsset } = req.data!.requestMediaUpload;
       const put = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-      if (!put.ok) throw new Error(`업로드 실패: HTTP ${put.status}`);
+      if (!put.ok) throw new Error(t('media.uploadFailed', { status: put.status }));
       const done = await completeUpload({ variables: { input: { mediaAssetId: mediaAsset.id } } });
       navigate(`/media/${done.data!.completeMediaUpload.mediaAsset.id}`);
     } catch (e) {
@@ -91,45 +90,45 @@ export function MediaPage() {
 
   return (
     <section className="stage-prep">
-      <PageHeader title="미디어" step="보조 도구" description="내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙" actions={<Button variant="primary" size="sm" onClick={() => setUploadOpen(true)}>미디어 업로드</Button>} />
+      <PageHeader title={t('media.title')} step={t('media.step')} description={t('media.description')} actions={<Button variant="primary" size="sm" onClick={() => setUploadOpen(true)}>{t('media.uploadMedia')}</Button>} />
       <HelpPanel page="media" />
-      <Modal title="미디어 업로드" open={uploadOpen} onClose={() => setUploadOpen(false)}>
+      <Modal title={t('media.uploadMedia')} open={uploadOpen} onClose={() => setUploadOpen(false)}>
         <div className="upload-zone">
           <label className="button button-secondary button-sm file-button">
-            파일 선택
+            {t('media.chooseFile')}
             <input type="file" ref={fileRef} accept="image/*,video/*" onChange={(event) => setFileName(event.target.files?.[0]?.name ?? null)} />
           </label>
-          <span className="form-hint">{fileName ?? '이미지 또는 영상 파일을 선택하세요'}</span>
+          <span className="form-hint">{fileName ?? t('media.chooseFileHint')}</span>
         </div>
-        <Button variant="primary" disabled={!fileName} onClick={onUpload}>업로드</Button>
+        <Button variant="primary" disabled={!fileName} onClick={onUpload}>{t('media.upload')}</Button>
       </Modal>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="filter-bar media-filter-bar">
-        <FormField label="종류" htmlFor="media-kind"><select id="media-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">전체</option><option value={MediaAssetKind.Image}>이미지</option><option value={MediaAssetKind.Video}>영상</option></select></FormField>
-        <FormField label="검색" htmlFor="media-search"><input id="media-search" type="search" placeholder="파일명" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
-        <p className="result-count">{total === 0 ? '0건' : `${total}건 중 ${offset + 1}–${end}`}</p>
+        <FormField label={t('media.kind')} htmlFor="media-kind"><select id="media-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">{t('media.all')}</option><option value={MediaAssetKind.Image}>{t('media.image')}</option><option value={MediaAssetKind.Video}>{t('media.video')}</option></select></FormField>
+        <FormField label={t('media.searchLabel')} htmlFor="media-search"><input id="media-search" type="search" placeholder={t('media.filename')} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
+        <p className="result-count">{total === 0 ? t('media.zeroCount') : t('media.resultCount', { total, start: offset + 1, end })}</p>
       </div>
       {assets.length === 0 ? (
         <Card className="empty-state">
-          <p>{filtered ? '조건에 맞는 미디어가 없습니다.' : '아직 올린 미디어가 없습니다. 시안이나 참고 이미지·영상을 올려 인사이트를 확인해보세요.'}</p>
+          <p>{filtered ? t('media.emptyFiltered') : t('media.empty')}</p>
         </Card>
       ) : (
         <ul className="ads-grid">
           {assets.map((a) => (
             <li key={a.id}>
               <Card className="ad-card">
-                <Link className="ad-media" aria-label={`${a.originalFilename} 상세 보기`} to={`/media/${a.id}`}>
+                <Link className="ad-media" aria-label={t('media.detailAria', { filename: a.originalFilename })} to={`/media/${a.id}`}>
                   {a.kind === MediaAssetKind.Video
-                    ? (a.thumbnailUrl ? <img src={a.thumbnailUrl} alt="" /> : <span>영상</span>)
-                    : (a.mediaUrl ? <img src={a.mediaUrl} alt="" /> : <span>이미지</span>)}
+                    ? (a.thumbnailUrl ? <img src={a.thumbnailUrl} alt="" /> : <span>{t('media.video')}</span>)
+                    : (a.mediaUrl ? <img src={a.mediaUrl} alt="" /> : <span>{t('media.image')}</span>)}
                   {a.kind === MediaAssetKind.Video && <span className="play-overlay" aria-hidden="true">▶</span>}
                   <StatusBadge status={a.status} />
                 </Link>
                 <div className="ad-meta">
                   <strong title={a.originalFilename}>{a.originalFilename}</strong>
-                  <p>{a.kind === MediaAssetKind.Video ? '영상' : '이미지'} · 인사이트 {a.insights.length}개</p>
-                  <p>{dateLabel(a.createdAt)} 업로드</p>
-                  <Link className="brand-detail-cta" to={`/media/${a.id}`}>상세 보기 →</Link>
+                  <p>{t('media.cardMeta', { kind: a.kind === MediaAssetKind.Video ? t('media.video') : t('media.image'), count: a.insights.length })}</p>
+                  <p>{t('media.uploadedAt', { date: formatDate(String(a.createdAt), lang) })}</p>
+                  <Link className="brand-detail-cta" to={`/media/${a.id}`}>{t('common.detail')}</Link>
                 </div>
               </Card>
             </li>
@@ -138,9 +137,9 @@ export function MediaPage() {
       )}
       {total > PAGE_SIZE && (
         <div className="pagination">
-          <Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>이전</Button>
+          <Button size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>{t('common.previous')}</Button>
           <span>{Math.floor(offset / PAGE_SIZE) + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span>
-          <Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>다음</Button>
+          <Button size="sm" disabled={end >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>{t('common.next')}</Button>
         </div>
       )}
     </section>

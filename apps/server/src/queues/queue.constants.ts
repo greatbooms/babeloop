@@ -14,6 +14,7 @@ export const JOB_TYPES = {
   DOWNLOAD_EXTERNAL_MEDIA: 'download-external-media',
   GENERATE_BRIEF: 'generate-brief',
   GENERATE_COPY_VARIANTS: 'generate-copy-variants',
+  TRANSLATE_BRAND: 'translate-brand',
   LOCALIZE_ZH_TW: 'localize-zh-tw',
   RUN_POLICY_CHECK: 'run-policy-check',
 } as const;
@@ -49,6 +50,10 @@ export function generateBriefJobId(requestId: string): string {
 
 export function generateCopyVariantsJobId(briefId: string, requestId: string): string {
   return `${JOB_TYPES.GENERATE_COPY_VARIANTS}--${briefId}--${requestId}`;
+}
+
+export function translateBrandJobId(brandId: string): string {
+  return `${JOB_TYPES.TRANSLATE_BRAND}--${brandId}`;
 }
 
 export function localizeZhTwJobId(creativeId: string): string {

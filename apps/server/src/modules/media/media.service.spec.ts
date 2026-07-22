@@ -94,6 +94,18 @@ describe('MediaService relationships', () => {
       }),
     ]);
   });
+
+  it('번체중문 인사이트 필드를 nullable GraphQL JSON 문자열로 매핑한다', async () => {
+    const zhTwFields = { summary: '繁中摘要', hookType: '提問型', targetAudience: ['成人'], emotionalTriggers: ['好奇'], genres: ['戀愛'] };
+    const asset = { id: 'media-2', kind: 'IMAGE', storageKey: 'original', thumbnailKey: null, ocrResults: [], transcriptions: [], sourceAds: [], insights: [{ id: 'insight-1', zhTwFields }] };
+    const prisma = { mediaAsset: { findMany: jest.fn().mockResolvedValue([asset]) } };
+    const storage = { presignGet: jest.fn(async (key: string) => `signed:${key}`) };
+    const service = new MediaService(prisma as never, storage as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+
+    const [mapped] = await service.findAll();
+
+    expect(mapped.insights[0]).toEqual(expect.objectContaining({ zhTwJson: JSON.stringify(zhTwFields) }));
+  });
 });
 
 describe('MediaService.analyzeMediaAsset', () => {

@@ -4,7 +4,7 @@ import { Job as BullJob, Queue } from 'bullmq';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { AnalysisService } from '../modules/creative-analysis/analysis.service';
-import { creativeAnalysisSchema, PROMPT_VERSION } from '../modules/creative-analysis/creative-analysis.schema';
+import { CREATIVE_ANALYSIS_SYSTEM, creativeAnalysisSchema, PROMPT_VERSION } from '../modules/creative-analysis/creative-analysis.schema';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { generateJsonWithRepair } from '../providers/text/generate-json-with-repair';
 import { TEXT_GENERATION_PROVIDER, TextGenerationProvider } from '../providers/text/text-generation.provider';
@@ -17,11 +17,6 @@ import {
   generateEmbeddingJobId,
   JOB_TYPES,
 } from './queue.constants';
-
-const SYSTEM_PROMPT = `너는 광고 크리에이티브 분석가다. 주어진 광고 텍스트를 분석한다.
-
-반드시 아래 JSON 구조로만 응답하라 (배열 값은 문자열 배열):
-{"summary": "...", "hook": {"text": "훅 문구", "type": "훅 유형"}, "callToAction": {"text": "...", "type": "..."}, "targetAudience": ["..."], "emotionalTriggers": ["..."], "genres": ["..."], "language": "ko 또는 zh-TW 등"}`;
 
 @Processor(CREATIVE_ANALYSIS_QUEUE)
 export class CreativeAnalysisProcessor extends WorkerHost {
@@ -56,7 +51,7 @@ export class CreativeAnalysisProcessor extends WorkerHost {
       const result = await this.aiLog.record(meta, async () => {
           const { data, usage } = await generateJsonWithRepair(
             this.textAi,
-            { system: SYSTEM_PROMPT, prompt: inputText, responseHint: 'creative-analysis' },
+            { system: CREATIVE_ANALYSIS_SYSTEM, prompt: inputText, responseHint: 'creative-analysis' },
             creativeAnalysisSchema,
           );
           Object.assign(meta, usage);
@@ -75,6 +70,7 @@ export class CreativeAnalysisProcessor extends WorkerHost {
           emotionalTriggers: result.emotionalTriggers,
           genres: result.genres,
           language: result.language,
+          zhTwFields: result.zhTw,
           raw: result,
           provider: this.textAi.name,
           model: this.textAi.model,
@@ -119,7 +115,8 @@ export class CreativeAnalysisProcessor extends WorkerHost {
         Object.assign(meta, generated.usage);
         return generated.data;
       });
-      await this.prisma.mediaInsight.create({ data: { mediaAssetId: asset.id, ...result, raw: result, provider: this.textAi.name, model: this.textAi.model, promptVersion: MEDIA_INSIGHT_PROMPT_VERSION } });
+      const { zhTw, ...koreanResult } = result;
+      await this.prisma.mediaInsight.create({ data: { mediaAssetId: asset.id, ...koreanResult, zhTwFields: zhTw, raw: result, provider: this.textAi.name, model: this.textAi.model, promptVersion: MEDIA_INSIGHT_PROMPT_VERSION } });
       const embedding = await this.aiLog.record({ provider: this.embedder.name, model: this.embedder.model, inputRef: `mediaAsset:${asset.id}` }, () => this.embedder.embed(inputText));
       await this.vectors.upsertMediaEmbedding({ mediaAssetId: asset.id, model: this.embedder.model, dimension: this.embedder.dimension, vector: embedding });
       await this.jobRecord.markSucceeded(jobId, { mediaAssetId: asset.id, targetAudience: { length: result.targetAudience.length }, emotionalTriggers: { length: result.emotionalTriggers.length }, genres: { length: result.genres.length } });

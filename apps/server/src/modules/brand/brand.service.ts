@@ -1,25 +1,38 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { CREATIVE_GENERATION_QUEUE, JOB_TYPES, translateBrandJobId } from '../../queues/queue.constants';
+import { JobRecordService } from '../jobs/job-record.service';
 import { CreateBrandInput, UpdateBrandInput } from './brand.inputs';
 
 const BRAND_INCLUDE = { features: true, guidelines: true } as const;
 
 @Injectable()
 export class BrandService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobRecord: JobRecordService,
+    @InjectQueue(CREATIVE_GENERATION_QUEUE) private readonly queue: Queue,
+  ) {}
 
-  findAll() {
-    return this.prisma.brand.findMany({ include: BRAND_INCLUDE, orderBy: { createdAt: 'asc' } });
+  private mapBrand<T extends { zhTw?: unknown }>(brand: T) {
+    return { ...brand, zhTwJson: brand.zhTw ? JSON.stringify(brand.zhTw) : null };
+  }
+
+  async findAll() {
+    const brands = await this.prisma.brand.findMany({ include: BRAND_INCLUDE, orderBy: { createdAt: 'asc' } });
+    return brands.map((brand) => this.mapBrand(brand));
   }
 
   async findById(id: string) {
     const brand = await this.prisma.brand.findUnique({ where: { id }, include: BRAND_INCLUDE });
     if (!brand) throw new NotFoundException('브랜드를 찾을 수 없습니다');
-    return brand;
+    return this.mapBrand(brand);
   }
 
-  create(input: CreateBrandInput) {
-    return this.prisma.brand.create({
+  async create(input: CreateBrandInput) {
+    const brand = await this.prisma.brand.create({
       data: {
         name: input.name,
         serviceUrl: input.serviceUrl,
@@ -28,34 +41,48 @@ export class BrandService {
       },
       include: BRAND_INCLUDE,
     });
+    return this.mapBrand(brand);
   }
 
   async update(input: UpdateBrandInput) {
     await this.findById(input.id);
-    return this.prisma.brand.update({
+    const brand = await this.prisma.brand.update({
       where: { id: input.id },
       data: { name: input.name ?? undefined, serviceUrl: input.serviceUrl, description: input.description },
       include: BRAND_INCLUDE,
     });
+    return this.mapBrand(brand);
+  }
+
+  async translateZhTw(brandId: string) {
+    await this.findById(brandId);
+    const jobId = translateBrandJobId(brandId);
+    return this.jobRecord.enqueueOrRetry(this.queue, CREATIVE_GENERATION_QUEUE, JOB_TYPES.TRANSLATE_BRAND, jobId, { brandId });
   }
 
   async addFeature(brandId: string, name: string, description: string) {
     await this.findById(brandId);
-    return this.prisma.brandFeature.create({ data: { brandId, name, description } });
+    const feature = await this.prisma.brandFeature.create({ data: { brandId, name, description } });
+    await this.prisma.brand.update({ where: { id: brandId }, data: { updatedAt: new Date() } });
+    return feature;
   }
 
   async deleteFeature(id: string): Promise<boolean> {
-    await this.prisma.brandFeature.delete({ where: { id } });
+    const feature = await this.prisma.brandFeature.delete({ where: { id } });
+    await this.prisma.brand.update({ where: { id: feature.brandId }, data: { updatedAt: new Date() } });
     return true;
   }
 
   async addGuideline(brandId: string, title: string, content: string) {
     await this.findById(brandId);
-    return this.prisma.brandGuideline.create({ data: { brandId, title, content } });
+    const guideline = await this.prisma.brandGuideline.create({ data: { brandId, title, content } });
+    await this.prisma.brand.update({ where: { id: brandId }, data: { updatedAt: new Date() } });
+    return guideline;
   }
 
   async deleteGuideline(id: string): Promise<boolean> {
-    await this.prisma.brandGuideline.delete({ where: { id } });
+    const guideline = await this.prisma.brandGuideline.delete({ where: { id } });
+    await this.prisma.brand.update({ where: { id: guideline.brandId }, data: { updatedAt: new Date() } });
     return true;
   }
 }

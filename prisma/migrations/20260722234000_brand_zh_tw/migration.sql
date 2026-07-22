@@ -1,0 +1,2 @@
+ALTER TABLE "brands" ADD COLUMN "zhTw" JSONB;
+ALTER TABLE "brands" ADD COLUMN "zhTwTranslatedAt" TIMESTAMP(3);

@@ -168,12 +168,12 @@ describe('generation pipeline', () => {
     const logs = await prisma.aiExecutionLog.findMany({
       where: {
         promptVersion: {
-          in: ['generate-brief@v1', 'generate-copy-variants@v1', 'localize-zh-tw@v1'],
+          in: ['generate-brief@v2', 'generate-copy-variants@v1', 'localize-zh-tw@v1'],
         },
       },
     });
     expect(new Set(logs.map((log) => log.promptVersion))).toEqual(
-      new Set(['generate-brief@v1', 'generate-copy-variants@v1', 'localize-zh-tw@v1']),
+      new Set(['generate-brief@v2', 'generate-copy-variants@v1', 'localize-zh-tw@v1']),
     );
   });
 

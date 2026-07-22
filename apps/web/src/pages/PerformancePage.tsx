@@ -8,6 +8,7 @@ import { Card } from '../components/Card';
 import { FormField } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
 import { HelpPanel } from '../components/HelpPanel';
+import { useT } from '../i18n/lang-context';
 
 const PerformanceExperimentsDocument = graphql(`
   query PerformanceExperiments {
@@ -57,30 +58,16 @@ const GenerateBriefFromPerformanceDocument = graphql(`
   }
 `);
 
-function fileToBase64(file: File): Promise<string> {
+function fileToBase64(file: File, readError: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error('파일을 읽지 못했습니다'));
+    reader.onerror = () => reject(reader.error ?? new Error(readError));
     reader.onload = () => {
       const result = String(reader.result ?? '');
       resolve(result.slice(result.indexOf(',') + 1));
     };
     reader.readAsDataURL(file);
   });
-}
-
-function numberText(value: number | null | undefined) {
-  return value == null ? '—' : value.toLocaleString('ko-KR');
-}
-
-function funnelText(
-  value: number | null | undefined,
-  coverage: PerformanceCoverage,
-) {
-  if (coverage === PerformanceCoverage.Missing) {
-    return <span className="warn-text" title="CSV에 소재 단위 값이 없습니다">소재 단위 없음</span>;
-  }
-  return <>{numberText(value)}{coverage === PerformanceCoverage.Partial ? ' (부분)' : ''}</>;
 }
 
 type ImportSummary = {
@@ -93,6 +80,7 @@ type ImportSummary = {
 };
 
 export function PerformancePage() {
+  const { lang, t } = useT();
   const { data: experimentsData } = useQuery(PerformanceExperimentsDocument);
   const [experimentId, setExperimentId] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -110,14 +98,14 @@ export function PerformancePage() {
 
   useEffect(() => {
     if (job?.status === JobStatus.Failed) {
-      setError(job.error ?? '브리프 생성에 실패했습니다');
+      setError(job.error ?? t('performance.briefFailed'));
       setJobId(null);
       return;
     }
     if (job?.status !== JobStatus.Succeeded) return;
-    setMessage('브리프가 생성되었습니다 — 브리프 탭에서 확인');
+    setMessage(t('performance.briefCreated'));
     setJobId(null);
-  }, [job?.error, job?.status]);
+  }, [job?.error, job?.status, t]);
 
   async function onUpload() {
     if (!file) return;
@@ -126,7 +114,7 @@ export function PerformancePage() {
     try {
       const result = await importCsv({
         variables: {
-          input: { filename: file.name, fileBase64: await fileToBase64(file) },
+          input: { filename: file.name, fileBase64: await fileToBase64(file, t('performance.fileReadFailed')) },
         },
       });
       setSummary(result.data!.importPerformanceCsv);
@@ -149,39 +137,43 @@ export function PerformancePage() {
   }
 
   const rows = performanceData?.variantPerformance ?? [];
+  const numberText = (value: number | null | undefined) => value == null ? '—' : value.toLocaleString(lang === 'zhTw' ? 'zh-TW' : 'ko-KR');
+  const funnelText = (value: number | null | undefined, coverage: PerformanceCoverage) => coverage === PerformanceCoverage.Missing
+    ? <span className="warn-text" title={t('performance.missingTitle')}>{t('performance.missing')}</span>
+    : <>{numberText(value)}{coverage === PerformanceCoverage.Partial ? t('performance.partial') : ''}</>;
 
   return (
     <section className="stage-performance">
-      <PageHeader title="성과" step="루프 6단계 — 성과·환류" description="광고 집행 결과를 배우는 곳입니다. 성과 CSV를 올리면 추적코드로 소재와 연결되어 퍼널(클릭·설치·가입)이 표시되고, 「이 성과로 브리프 생성」을 누르면 잘된 패턴이 다음 브리프에 반영되어 루프가 다시 시작됩니다." />
+      <PageHeader title={t('performance.title')} step={t('performance.step')} description={t('performance.description')} />
       <HelpPanel page="performance" />
       <Card className="page-form-card">
-        <h2>성과 CSV 업로드</h2>
-        <details className="csv-guide"><summary>CSV 형식 안내</summary><p>
-          CSV 헤더: date,platform,tracking_code,impressions,clicks,installs,signups,first_messages,cost,currency
+        <h2>{t('performance.uploadTitle')}</h2>
+        <details className="csv-guide"><summary>{t('performance.csvGuide')}</summary><p>
+          {t('performance.csvHeader')}
         </p></details>
-        <div className="page-form"><FormField label="성과 CSV" htmlFor="performance-csv"><input id="performance-csv"
+        <div className="page-form"><FormField label={t('performance.performanceCsv')} htmlFor="performance-csv"><input id="performance-csv"
             type="file"
             accept=".csv,text/csv"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           /></FormField>
-        <Button data-hint="CSV를 읽어 추적코드별 성과를 저장합니다 (무료)" variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
-          성과 업로드
+        <Button data-hint={t('performance.uploadHint')} variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
+          {t('performance.upload')}
         </Button></div>
 
         {summary && (
           <div>
             <p>
-              신규 {summary.importedRows}행, 갱신 {summary.updatedRows}행, 오류 {summary.errorRows}행
-              {summary.duplicateFile ? ' (동일 파일 재업로드)' : ''}
+              {t('performance.summary', { imported: summary.importedRows, updated: summary.updatedRows, errors: summary.errorRows })}
+              {summary.duplicateFile ? t('performance.duplicate') : ''}
             </p>
             {summary.errors.length > 0 && (
-              <ul aria-label="CSV 오류">
+              <ul aria-label={t('performance.csvErrors')}>
                 {summary.errors.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
               </ul>
             )}
             {summary.unmatchedTrackingCodes.length > 0 && (
               <p role="alert">
-                일치하는 실험 소재가 없는 추적 코드: {summary.unmatchedTrackingCodes.join(', ')}
+                {t('performance.unmatched', { codes: summary.unmatchedTrackingCodes.join(', ') })}
               </p>
             )}
           </div>
@@ -189,9 +181,9 @@ export function PerformancePage() {
       </Card>
 
       <Card className="card-stack">
-        <h2>퍼널 대시보드</h2>
-        <FormField label="실험" htmlFor="performance-experiment"><select id="performance-experiment" value={experimentId} onChange={(event) => setExperimentId(event.target.value)}>
-            <option value="">선택하세요</option>
+        <h2>{t('performance.dashboard')}</h2>
+        <FormField label={t('performance.experiment')} htmlFor="performance-experiment"><select id="performance-experiment" value={experimentId} onChange={(event) => setExperimentId(event.target.value)}>
+            <option value="">{t('performance.select')}</option>
             {experimentsData?.experiments.map((experiment) => (
               <option key={experiment.id} value={experiment.id}>{experiment.name}</option>
             ))}
@@ -202,8 +194,8 @@ export function PerformancePage() {
             <div className="table-wrap"><table className="data-table">
               <thead>
                 <tr>
-                  <th>추적코드</th><th>훅</th><th>노출</th><th>클릭</th><th>CTR</th>
-                  <th>설치</th><th>CPI</th><th>가입</th><th>첫메시지</th><th>비용</th>
+                  <th>{t('performance.trackingCode')}</th><th>{t('performance.hook')}</th><th>{t('performance.impressions')}</th><th>{t('performance.clicks')}</th><th>CTR</th>
+                  <th>{t('performance.installs')}</th><th>CPI</th><th>{t('performance.signups')}</th><th>{t('performance.firstMessages')}</th><th>{t('performance.cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,18 +216,18 @@ export function PerformancePage() {
               </tbody>
             </table></div>
             <Button
-              data-hint="상위 성과를 근거로 새 브리프를 생성합니다 (AI 비용 발생)"
+              data-hint={t('performance.generateHint')}
               type="button"
               disabled={Boolean(jobId) || rows.length === 0}
               onClick={() => void onGenerateBrief()}
             >
-              이 성과로 브리프 생성
+              {t('performance.generate')}
             </Button>
           </>
         )}
       </Card>
 
-      {jobId && <p>브리프 생성 중…</p>}
+      {jobId && <p>{t('performance.generating')}</p>}
       {message && <p>{message}</p>}
       {error && <p role="alert">{error}</p>}
     </section>
