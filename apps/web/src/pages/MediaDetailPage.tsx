@@ -52,7 +52,8 @@ export function MediaDetailPage() {
         <div className="page-header-title-row"><h1>{asset.originalFilename}</h1><StatusBadge status={asset.status} /></div>
         <p>{kindLabel} · {dateLabel(asset.createdAt)} 업로드 · 인사이트 {asset.insights.length}개</p>
       </div>
-      <div className="page-header-actions">
+      <div className="page-header-actions detail-actions">
+        <div className="action-steps">
         <span className="action-step">
           <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
           <Button data-hint="1단계 — 이미지 글자·영상 음성을 텍스트로 추출합니다 (AI, 건당 1~2센트)" size="sm" variant={!hasText ? 'primary' : undefined} onClick={() => { if (hasText && !window.confirm('이미 추출된 텍스트가 있습니다. 다시 실행하면 기존 결과를 새 결과로 교체하며 약 1~2센트가 발생합니다. 계속할까요?')) return; void run(async () => (await processMedia({ variables: { mediaAssetId: asset.id } })).data!.processMediaAsset.id); }}>미디어 텍스트 추출</Button>
@@ -61,6 +62,7 @@ export function MediaDetailPage() {
           <span className={`action-step-num${hasInsight ? ' done' : ''}`} aria-hidden="true">{hasInsight ? '✓' : '2'}</span>
           <Button data-hint="2단계 — 추출된 텍스트로 자체 인사이트를 분석합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasInsight ? 'primary' : undefined} onClick={() => { if (hasInsight && !window.confirm('이미 인사이트가 있습니다. 다시 실행하면 새 인사이트가 추가되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeMedia({ variables: { mediaAssetId: asset.id } })).data!.analyzeMediaAsset.id); }}>인사이트 분석</Button>
         </span>
+        </div>
         <div className="action-utils">
           <Button data-hint="비슷한 경쟁 광고를 검색합니다 (무료, 순서 무관) · 인사이트 분석 후 사용 가능 — 결과에서 광고로 넘어가 브리프를 만들 수 있습니다" size="sm" onClick={() => { void run(async () => { await loadSimilar({ variables: { mediaAssetId: asset.id, limit: 5 } }); setSimilarOpen(true); return null; }); }}>유사 광고</Button>
         </div>

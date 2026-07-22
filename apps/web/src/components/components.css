@@ -122,7 +122,10 @@
 .action-step-num.done { color: var(--status-positive-fg); background: var(--status-positive-bg); }
 .action-flow-hint { color: var(--muted); font-size: 13px; margin-bottom: var(--sp-base); }
 
-/* 상세 액션 — 번호 있는 처리 단계(1·2·3)와 보조 도구(유사 광고·재다운로드)의 위계 구분 */
-.action-utils { display: inline-flex; align-items: center; gap: var(--sp-xs); margin-left: var(--sp-xs); padding-left: var(--sp-md); border-left: 1px solid var(--hairline); }
-.action-utils .button { color: var(--muted); border-color: transparent; background: transparent; padding-inline: var(--sp-sm); }
-.action-utils .button:hover { color: var(--ink); background: var(--surface-soft); }
+/* 상세 액션 — 위: 번호 있는 처리 단계(1·2·3), 아래: 보조 도구(유사 광고·재다운로드). 의도된 2단 구성 */
+.detail-actions { flex-direction: column; align-items: flex-end; gap: var(--sp-sm); }
+.detail-actions .action-steps { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--sp-sm); }
+.action-utils { display: inline-flex; align-items: center; gap: var(--sp-sm); }
+.action-utils .button { color: var(--muted); border-color: var(--hairline); background: var(--canvas); }
+.action-utils .button:hover { color: var(--ink); border-color: var(--border-strong); }
+@media (max-width: 744px) { .detail-actions { align-items: flex-start; } .detail-actions .action-steps { justify-content: flex-start; } }
