@@ -73,6 +73,7 @@ export class CreativeBriefModel {
   @Field() model: string;
   @Field() promptVersion: string;
   @Field() rawJson: string;
+  @Field(() => String, { nullable: true }) zhTwJson: string | null;
   @Field(() => ID, { nullable: true }) createdById: string | null;
   @Field() createdAt: Date;
   @Field(() => [GeneratedCreativeModel]) creatives: GeneratedCreativeModel[];

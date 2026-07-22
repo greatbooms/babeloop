@@ -147,6 +147,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           visualFormat: result.visualFormat,
           callToAction: result.callToAction,
           rationale: result.rationale,
+          zhTwFields: result.zhTw,
           focusText: job.data.focusText,
           sourceAdIds,
           brandId: job.data.brandId,

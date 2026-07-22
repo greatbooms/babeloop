@@ -354,6 +354,7 @@ model CreativeBrief {
   callToAction       String
   rationale          String
   focusText          String?
+  zhTwFields         Json? // 번체중문 병행 생성본 { title, audienceHypothesis, desire, hookType, messageAngle, visualFormat, callToAction, rationale }
   sourceAdIds        String[]
   brandId            String?
   brand              Brand?              @relation(fields: [brandId], references: [id])

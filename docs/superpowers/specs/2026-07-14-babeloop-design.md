@@ -382,3 +382,10 @@ MVP 완료 조건(스펙 26장) 14단계의 시스템 관점:
 - **미디어 2트랙 분리 (사용자 요구)**: `MediaAsset.origin = MANUAL | AD_IMPORT`. 미디어 탭은 MANUAL 전용(내 시안·참고 미디어 인사이트 트랙), 광고 미디어는 광고 상세에서만. 수동 미디어는 텍스트 추출 → MediaInsight(광고 분석과 동일 분류 체계, 별도 테이블) → 임베딩 → 유사 경쟁 광고 검색. 브리프 RAG에는 흘러들지 않음(분리 유지, 필요 시 추후 연결).
 - **브리프 출처 명시 (사용자 요구)**: BriefReference 조인 테이블(method MANUAL/SIMILARITY/UNKNOWN, similarity, rank, titleSnapshot — 광고 삭제 시 SetNull + 스냅샷 표시). 상세 화면에 입력 포커스·브랜드·참조 광고(선택 방식+유사도)·성과 환류·AI 메타 표시. 기존 발견: sourceAdIds는 저장되고 있었으나 유사도·방식 미저장, 삭제 참조는 UI에서 조용히 소실.
 - 계획서: docs/superpowers/plans/2026-07-21-media-track-brief-provenance.md
+
+## 2026-07-22 추가 결정: 브리프 이중 언어 생성
+
+- 사용자 확정 워크플로: 실제 광고 게재는 대만 측, 과정 작업은 한국인 가능해야 함, 최종 검수는 반드시 대만인.
+- 브리프는 한 번의 호출로 한국어(최상위 필드) + 번체중문(zhTw 객체) 병행 생성 (generate-brief@v2). CreativeBrief.zhTwFields Json 저장, GraphQL zhTwJson 노출.
+- 브리프 상세에 언어 토글(한국어/繁體中文, localStorage 기억). 구버전 단일 언어 브리프는 안내 후 원문 표시.
+- 문구 변형은 기존 구조 유지 (koreanText + zh-TW 현지화 초안 → 검수 승인 게이트).

@@ -13,7 +13,7 @@ import './briefs.css';
 const CreativeBriefDocument = graphql(`
   query CreativeBriefDetail($id: ID!) {
     creativeBrief(id: $id) {
-      id title audienceHypothesis desire hookType messageAngle visualFormat callToAction rationale focusText brandId createdAt
+      id title audienceHypothesis desire hookType messageAngle visualFormat callToAction rationale focusText brandId createdAt zhTwJson
       brand { id name }
       references { sourceAdId title method similarity deleted }
       provider model promptVersion rawJson
@@ -27,13 +27,19 @@ function dateLabel(value: unknown) {
   return value ? new Intl.DateTimeFormat('ko-KR').format(new Date(String(value))) : '';
 }
 
+type BriefFields = { title: string; audienceHypothesis: string; desire: string; hookType: string; messageAngle: string; visualFormat: string; callToAction: string; rationale: string };
+const LANG_STORAGE_KEY = 'babeloop-brief-lang';
+
 export function BriefDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: 3000 });
   const [generateVariants] = useMutation(GenerateCreativeVariantsDocument);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 한국 작업자·대만 검수자가 같은 브리프를 각자 언어로 읽는다 — 선택은 브라우저에 기억
+  const [lang, setLang] = useState<'ko' | 'zhTw'>(() => (localStorage.getItem(LANG_STORAGE_KEY) === 'zhTw' ? 'zhTw' : 'ko'));
   const job = useJobPolling(jobId);
+  useEffect(() => { localStorage.setItem(LANG_STORAGE_KEY, lang); }, [lang]);
   useEffect(() => {
     if (job?.status === JobStatus.Failed) { setError(job.error ?? '생성 작업에 실패했습니다'); setJobId(null); return; }
     if (job?.status !== JobStatus.Succeeded) return;
@@ -54,15 +60,22 @@ export function BriefDetailPage() {
   const brief = data?.creativeBrief;
   if (!brief) return <section><p className="muted">브리프를 불러오는 중…</p></section>;
   const performanceContext = (JSON.parse(brief.rawJson) as { performanceContext?: { trackingCode: string; koreanText: string } }).performanceContext;
+  const zhTw = brief.zhTwJson ? (JSON.parse(brief.zhTwJson) as BriefFields) : null;
+  const showZh = lang === 'zhTw' && zhTw !== null;
+  const fields: BriefFields = showZh ? zhTw! : brief;
   return (
     <section className="stage-create brief-detail ad-detail">
       <Link className="back-link" to="/briefs">← 브리프 목록</Link>
       <header className="page-header">
         <div>
-          <div className="page-header-title-row"><h1>{brief.title}</h1><span className="step-chip">생성</span></div>
+          <div className="page-header-title-row"><h1>{fields.title}</h1><span className="step-chip">생성</span></div>
           <p>{dateLabel(brief.createdAt)} 생성 · 변형 {brief.creatives.length}개</p>
         </div>
         <div className="page-header-actions">
+          <div className="lang-toggle" role="group" aria-label="브리프 표시 언어">
+            <button type="button" className={lang === 'ko' ? 'active' : ''} onClick={() => setLang('ko')}>한국어</button>
+            <button type="button" className={lang === 'zhTw' ? 'active' : ''} data-hint={zhTw ? undefined : '이 브리프는 한 언어로만 생성되어 번체중문 병행본이 없습니다'} onClick={() => setLang('zhTw')}>繁體中文</button>
+          </div>
           <Button data-hint="브리프를 바탕으로 광고 문구 3개와 zh-TW 초안을 생성합니다 (AI 비용 발생)" variant={brief.creatives.length === 0 ? 'primary' : 'secondary'} size="sm" disabled={Boolean(jobId)} onClick={() => void onGenerateVariants()}>문구 변형 3개 생성</Button>
         </div>
       </header>
@@ -71,14 +84,15 @@ export function BriefDetailPage() {
 
       <Card className="card-stack">
         <h2>브리프 전체 내용</h2>
-        <div className="insight-facet"><span className="facet-label">훅</span><div className="tag-row"><span className="tag tag-accent">{brief.hookType}</span></div></div>
+        {lang === 'zhTw' && !zhTw && <p className="muted">이 브리프는 한 언어로만 생성되어 번체중문 병행본이 없습니다. 원문을 표시합니다.</p>}
+        <div className="insight-facet"><span className="facet-label">훅</span><div className="tag-row"><span className="tag tag-accent">{fields.hookType}</span></div></div>
         <div className="brief-fields">
-          <div className="brief-field"><span className="facet-label">욕구</span><p>{brief.desire}</p></div>
-          <div className="brief-field"><span className="facet-label">메시지 앵글</span><p>{brief.messageAngle}</p></div>
-          <div className="brief-field"><span className="facet-label">비주얼 형식</span><p>{brief.visualFormat}</p></div>
-          <div className="brief-field"><span className="facet-label">CTA</span><p>{brief.callToAction}</p></div>
-          <div className="brief-field"><span className="facet-label">타깃</span><p>{brief.audienceHypothesis}</p></div>
-          <div className="brief-field brief-field-wide"><span className="facet-label">근거</span><p>{brief.rationale}</p></div>
+          <div className="brief-field"><span className="facet-label">욕구</span><p>{fields.desire}</p></div>
+          <div className="brief-field"><span className="facet-label">메시지 앵글</span><p>{fields.messageAngle}</p></div>
+          <div className="brief-field"><span className="facet-label">비주얼 형식</span><p>{fields.visualFormat}</p></div>
+          <div className="brief-field"><span className="facet-label">CTA</span><p>{fields.callToAction}</p></div>
+          <div className="brief-field"><span className="facet-label">타깃</span><p>{fields.audienceHypothesis}</p></div>
+          <div className="brief-field brief-field-wide"><span className="facet-label">근거</span><p>{fields.rationale}</p></div>
         </div>
       </Card>
 

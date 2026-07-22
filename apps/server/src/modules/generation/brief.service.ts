@@ -151,11 +151,12 @@ export class BriefService {
     return this.mapBrief(brief);
   }
 
-  private mapBrief<T extends { raw: unknown; references: Array<{ sourceAdId: string | null; titleSnapshot: string | null; method: string; similarity: number | null; sourceAd: { id: string; title: string | null } | null }>; creatives: Array<{ scenes: unknown }> }>(brief: T) {
+  private mapBrief<T extends { raw: unknown; zhTwFields?: unknown; references: Array<{ sourceAdId: string | null; titleSnapshot: string | null; method: string; similarity: number | null; sourceAd: { id: string; title: string | null } | null }>; creatives: Array<{ scenes: unknown }> }>(brief: T) {
     return {
       ...brief,
       references: brief.references.map((reference) => ({ sourceAdId: reference.sourceAdId, title: reference.sourceAd?.title ?? reference.titleSnapshot, method: reference.method, similarity: reference.similarity, deleted: reference.sourceAd === null })),
       rawJson: JSON.stringify(brief.raw),
+      zhTwJson: brief.zhTwFields ? JSON.stringify(brief.zhTwFields) : null,
       creatives: brief.creatives.map((creative) => ({
         ...creative,
         scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,

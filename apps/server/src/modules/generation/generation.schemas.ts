@@ -1,13 +1,13 @@
 import { z } from 'zod';
 
 export const GENERATION_PROMPT_VERSIONS = {
-  brief: 'generate-brief@v1',
+  brief: 'generate-brief@v2',
   copyVariants: 'generate-copy-variants@v1',
   videoScript: 'generate-video-script@v1',
   localizeZhTw: 'localize-zh-tw@v1',
 } as const;
 
-export const briefSchema = z.object({
+const briefFields = {
   title: z.string().min(1),
   audienceHypothesis: z.string().min(1),
   desire: z.string().min(1),
@@ -16,6 +16,12 @@ export const briefSchema = z.object({
   visualFormat: z.string().min(1),
   callToAction: z.string().min(1),
   rationale: z.string().min(1),
+};
+
+export const briefSchema = z.object({
+  ...briefFields,
+  // 번체중문 병행본 — 한국 작업자·대만 검수자가 같은 브리프를 각자 언어로 읽는다
+  zhTw: z.object(briefFields),
 });
 
 export const copyVariantsSchema = z.object({

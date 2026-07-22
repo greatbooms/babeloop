@@ -37,6 +37,16 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
           visualFormat: pick(FORMATS, 4),
           callToAction: pick(CTA_TYPES, 5),
           rationale: `[MOCK 근거] 참조 패턴 기반: ${pick(TRIGGERS, 6)}`,
+          zhTw: {
+            title: `[MOCK 繁中 브리프] ${input.prompt.slice(0, 30)}`,
+            audienceHypothesis: '[MOCK 繁中] 受眾',
+            desire: '[MOCK 繁中] 欲望',
+            hookType: '[MOCK 繁中] 鉤子',
+            messageAngle: '[MOCK 繁中] 訊息角度',
+            visualFormat: '[MOCK 繁中] 視覺形式',
+            callToAction: '[MOCK 繁中] CTA',
+            rationale: '[MOCK 繁中] 根據',
+          },
         }) };
       case 'copy-variants':
         return { text: JSON.stringify({
