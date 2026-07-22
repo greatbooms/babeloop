@@ -1,0 +1,27 @@
+/* 브리프 — 목록 그리드와 상세 필드·변형 카드 */
+
+.briefs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-base); }
+@media (max-width: 900px) { .briefs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 744px) { .briefs-grid { grid-template-columns: 1fr; } }
+
+.brief-card { height: 100%; display: flex; flex-direction: column; gap: var(--sp-md); }
+.brief-card h2 { font-size: 17px; line-height: 1.45; }
+.brief-card h2 a { text-decoration: none; color: var(--ink); }
+.brief-card h2 a:hover { text-decoration: underline; }
+.brief-cta-line { color: var(--body); font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.brief-meta { color: var(--muted); font-size: 13px; margin-top: auto; }
+
+/* 상세 — 7개 필드를 2열 그리드로 (근거는 전폭) */
+.brief-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-base) var(--sp-xl); }
+.brief-field p { color: var(--body); font-size: 14px; line-height: 1.6; margin-top: var(--sp-xs); }
+.brief-field-wide { grid-column: 1 / -1; }
+@media (max-width: 744px) { .brief-fields { grid-template-columns: 1fr; } }
+
+/* 변형 카드 */
+.variant-list { list-style: none; display: grid; gap: var(--sp-base); }
+.variant-item { border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: var(--sp-base); display: grid; gap: var(--sp-md); }
+.variant-head { display: flex; align-items: center; gap: var(--sp-sm); }
+.variant-head .brand-detail-cta { margin-left: auto; white-space: nowrap; }
+.variant-chip { flex-shrink: 0; font-size: 11px; font-weight: 700; color: var(--stage-fg, var(--primary-active)); background: var(--stage-bg, #fff0f3); border-radius: var(--r-full); padding: 3px 10px; }
+.localized-box { background: var(--surface-soft); border-radius: var(--r-sm); padding: var(--sp-md); display: grid; gap: var(--sp-xs); }
+.localized-box p { color: var(--body); line-height: 1.6; }

@@ -26,11 +26,11 @@ test('MVP 전체 루프 — 승인·내보내기 소재의 성과 업로드 → 
   ).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole('link', { name: '브리프', exact: true }).click();
+  await page.getByRole('button', { name: '새 브리프 생성' }).click();
   await page.getByLabel('포커스').fill(`성과 e2e ${tag}`);
-  await page.getByRole('button', { name: '브리프 생성' }).click();
-  const briefCard = page.locator('li', { hasText: `성과 e2e ${tag}` }).first();
-  await expect(briefCard).toBeVisible({ timeout: 30_000 });
-  await briefCard.getByRole('link', { name: '상세 보기 →' }).click();
+  await page.getByRole('button', { name: '브리프 생성', exact: true }).click();
+  // 생성 완료 시 새 브리프 상세로 자동 이동한다
+  await expect(page.getByRole('button', { name: '문구 변형 3개 생성' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: '문구 변형 3개 생성' }).click();
   await expect(page.getByText('[MOCK zh-TW]').first()).toBeVisible({ timeout: 60_000 });
 
