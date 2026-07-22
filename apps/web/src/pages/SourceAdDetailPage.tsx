@@ -44,9 +44,17 @@ export function SourceAdDetailPage() {
   const [similarOpen, setSimilarOpen] = useState(false);
   const ad = data?.sourceAd;
 
+  // 유사 광고 링크로 /ads/A → /ads/B 이동 시 같은 컴포넌트가 재사용된다 — 이전 광고의 고정 URL·잡·에러가 남지 않게 리셋
   useEffect(() => {
-    if (!mediaUrl && ad?.mediaAsset?.mediaUrl) setMediaUrl(ad.mediaAsset.mediaUrl);
-  }, [ad?.mediaAsset?.mediaUrl, mediaUrl]);
+    setMediaUrl(null);
+    setJobId(null);
+    setError(null);
+    setSimilarOpen(false);
+  }, [id]);
+  useEffect(() => {
+    // ad가 아직 이전 광고 데이터일 수 있으므로 라우트 id와 일치할 때만 고정한다
+    if (!mediaUrl && ad && ad.id === id && ad.mediaAsset?.mediaUrl) setMediaUrl(ad.mediaAsset.mediaUrl);
+  }, [ad, id, mediaUrl]);
   useEffect(() => {
     if (job?.status === 'SUCCEEDED' || job?.status === 'FAILED') void refetch();
   }, [job?.status, refetch]);
