@@ -1,8 +1,9 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { FormField } from '../components/FormField';
 import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
@@ -25,6 +26,8 @@ const SimilarDocument = graphql(`query Similar($input: SimilarSourceAdsInput!) {
 const ProcessMediaAssetDocument = graphql(`mutation ProcessMediaAsset($mediaAssetId: ID!) { processMediaAsset(mediaAssetId: $mediaAssetId) { id status } }`);
 const AnalyzeSourceAdDocument = graphql(`mutation AnalyzeSourceAd($input: AnalyzeSourceAdInput!) { analyzeSourceAd(input: $input) { id status } }`);
 const RedownloadMediaDocument = graphql(`mutation RedownloadSourceAdMedia($sourceAdId: ID!) { redownloadSourceAdMedia(sourceAdId: $sourceAdId) { id status } }`);
+const AdDetailBrandsDocument = graphql(`query AdDetailBrands { brands { id name } }`);
+const GenerateBriefFromAdDocument = graphql(`mutation GenerateBriefFromAd($input: GenerateCreativeBriefInput!) { generateCreativeBrief(input: $input) { job { id status } } }`);
 
 function dateLabel(value: unknown) {
   return value ? new Intl.DateTimeFormat('ko-KR').format(new Date(String(value))) : '날짜 없음';
@@ -42,6 +45,15 @@ export function SourceAdDetailPage() {
   const [redownloadMedia] = useMutation(RedownloadMediaDocument);
   const [loadSimilar, similarQuery] = useLazyQuery(SimilarDocument);
   const [similarOpen, setSimilarOpen] = useState(false);
+  const navigate = useNavigate();
+  const brandsQuery = useQuery(AdDetailBrandsDocument);
+  const [generateBrief] = useMutation(GenerateBriefFromAdDocument);
+  const [briefModalOpen, setBriefModalOpen] = useState(false);
+  const [briefTitle, setBriefTitle] = useState('');
+  const [briefBrandId, setBriefBrandId] = useState('');
+  const [briefFocus, setBriefFocus] = useState('');
+  const [briefJobId, setBriefJobId] = useState<string | null>(null);
+  const briefJob = useJobPolling(briefJobId);
   const ad = data?.sourceAd;
 
   // 유사 광고 링크로 /ads/A → /ads/B 이동 시 같은 컴포넌트가 재사용된다 — 이전 광고의 고정 URL·잡·에러가 남지 않게 리셋
@@ -50,6 +62,8 @@ export function SourceAdDetailPage() {
     setJobId(null);
     setError(null);
     setSimilarOpen(false);
+    setBriefModalOpen(false);
+    setBriefJobId(null);
   }, [id]);
   useEffect(() => {
     // ad가 아직 이전 광고 데이터일 수 있으므로 라우트 id와 일치할 때만 고정한다
@@ -58,6 +72,14 @@ export function SourceAdDetailPage() {
   useEffect(() => {
     if (job?.status === 'SUCCEEDED' || job?.status === 'FAILED') void refetch();
   }, [job?.status, refetch]);
+  // 브리프 생성이 끝나면 새 브리프 상세로 이동한다
+  useEffect(() => {
+    if (briefJob?.status === 'SUCCEEDED') {
+      const briefId = briefJob.resultJson ? (JSON.parse(briefJob.resultJson) as { briefId?: string }).briefId : undefined;
+      navigate(briefId ? `/briefs/${briefId}` : '/briefs');
+    }
+    if (briefJob?.status === 'FAILED') setError(briefJob.error ?? '브리프 생성에 실패했습니다');
+  }, [briefJob?.status, briefJob?.resultJson, briefJob?.error, navigate]);
 
   async function run(action: () => Promise<string | null>) {
     setError(null);
@@ -78,6 +100,7 @@ export function SourceAdDetailPage() {
   if (!ad) return <section><p className="muted">광고를 불러오는 중…</p></section>;
   const hasText = Boolean(ad.adText) || (ad.mediaAsset?.ocrResults.length ?? 0) > 0 || (ad.mediaAsset?.transcriptions.length ?? 0) > 0;
   const hasAnalysis = Boolean(ad.latestAnalysis);
+  const hasBrief = ad.referencingBriefs.length > 0;
   return (
     <section className="stage-collect ad-detail">
       <Link className="back-link" to="/ads">← 광고 목록</Link>
@@ -95,15 +118,17 @@ export function SourceAdDetailPage() {
             <Button data-hint="2단계 — 추출된 텍스트로 훅·타깃·감정을 분류합니다 (AI, 약 1센트) · 텍스트 추출 후 실행" size="sm" variant={hasText && !hasAnalysis ? 'primary' : undefined} onClick={() => { if (hasAnalysis && !window.confirm('이미 분석 결과가 있습니다. 다시 실행하면 새 분석으로 갱신되며 약 1센트가 발생합니다. 계속할까요?')) return; void run(async () => (await analyzeSourceAd({ variables: { input: { sourceAdId: ad.id } } })).data!.analyzeSourceAd.id); }}>광고 분석</Button>
           </span>
           <span className="action-step">
-            <span className={`action-step-num${similarOpen && similarQuery.data ? ' done' : ''}`} aria-hidden="true">{similarOpen && similarQuery.data ? '✓' : '3'}</span>
-            <Button data-hint="3단계 — 비슷한 메시지의 광고를 검색합니다 (무료) · 분석 완료 후 사용 가능" size="sm" variant={hasAnalysis && !(similarOpen && similarQuery.data) ? 'primary' : undefined} onClick={() => void onSimilar()}>유사 광고</Button>
+            <span className={`action-step-num${hasBrief ? ' done' : ''}`} aria-hidden="true">{hasBrief ? '✓' : '3'}</span>
+            <Button data-hint="3단계 — 이 광고를 참조로 지정해 광고 기획서를 생성합니다 (AI, 약 1~2센트) · 분석 완료 후 실행" size="sm" variant={hasAnalysis && !hasBrief ? 'primary' : undefined} onClick={() => setBriefModalOpen(true)}>브리프 생성</Button>
           </span>
+          <Button data-hint="비슷한 메시지의 광고를 검색합니다 (무료, 순서 무관) · 분석 완료 후 사용 가능" size="sm" onClick={() => void onSimilar()}>유사 광고</Button>
           {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
         </div>
       </header>
-      <p className="action-flow-hint">진행 순서: ① 미디어 텍스트 추출 → ② 광고 분석 → ③ 유사 광고 검색. 완료된 단계는 ✓, 다음에 누를 버튼은 붉게 표시됩니다. 재다운로드는 순서와 무관하게 언제든 가능합니다.</p>
+      <p className="action-flow-hint">진행 순서: ① 미디어 텍스트 추출 → ② 광고 분석 → ③ 브리프 생성 (이 광고를 참조한 기획서 작성). 완료된 단계는 ✓, 다음에 누를 버튼은 붉게 표시됩니다. 유사 광고·재다운로드는 순서와 무관한 보조 도구입니다.</p>
       {error && <p className="error" role="alert">{error}</p>}
       {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>분석 중… ({job.status})</p>}
+      {briefJob && briefJob.status !== 'SUCCEEDED' && briefJob.status !== 'FAILED' && <p>브리프 생성 중… 완료되면 브리프 상세로 이동합니다 ({briefJob.status})</p>}
       <Card className="card-stack">
         <h2>미디어</h2>
         {mediaUrl && ad.mediaAsset ? <div className="detail-media">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={mediaUrl} /> : <img src={mediaUrl} alt={ad.title ?? '광고 원본'} />}<a href={mediaUrl} download>원본 다운로드</a></div> : <p className="muted">등록된 미디어가 없습니다.</p>}
@@ -124,6 +149,13 @@ export function SourceAdDetailPage() {
             </li>
           ))}
         </ul>
+      </Modal>
+      <Modal title="이 광고를 참조해 브리프 생성" open={briefModalOpen} onClose={() => setBriefModalOpen(false)}>
+        <p className="muted">이 광고가 「직접 지정」 참조로 들어간 광고 기획서를 만듭니다. 브랜드를 고르면 제품 소개·기능이 함께 전달돼 품질이 좋아집니다. (AI, 약 1~2센트)</p>
+        <FormField label="브랜드" htmlFor="ad-brief-brand"><select id="ad-brief-brand" value={briefBrandId} onChange={(event) => setBriefBrandId(event.target.value)}><option value="">선택 안 함</option>{brandsQuery.data?.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></FormField>
+        <FormField label="브리프 제목 (선택)" htmlFor="ad-brief-title"><input id="ad-brief-title" value={briefTitle} onChange={(event) => setBriefTitle(event.target.value)} /></FormField>
+        <FormField label="추가 포커스 (선택)" htmlFor="ad-brief-focus"><textarea id="ad-brief-focus" placeholder="원하는 방향이 있으면 한 문장으로. 비워두면 이 광고의 패턴만으로 만듭니다" value={briefFocus} onChange={(event) => setBriefFocus(event.target.value)} /></FormField>
+        <Button variant="primary" onClick={() => { setBriefModalOpen(false); void run(async () => { const result = await generateBrief({ variables: { input: { sourceAdIds: [ad.id], brandId: briefBrandId || undefined, title: briefTitle || undefined, focusText: briefFocus || undefined } } }); setBriefJobId(result.data!.generateCreativeBrief.job.id); return null; }); }}>생성 시작</Button>
       </Modal>
     </section>
   );
