@@ -121,8 +121,10 @@ export function SourceAdDetailPage() {
             <span className={`action-step-num${hasBrief ? ' done' : ''}`} aria-hidden="true">{hasBrief ? '✓' : '3'}</span>
             <Button data-hint="3단계 — 이 광고를 참조로 지정해 광고 기획서를 생성합니다 (AI, 약 1~2센트) · 분석 완료 후 실행" size="sm" variant={hasAnalysis && !hasBrief ? 'primary' : undefined} onClick={() => setBriefModalOpen(true)}>브리프 생성</Button>
           </span>
-          <Button data-hint="비슷한 메시지의 광고를 검색합니다 (무료, 순서 무관) · 분석 완료 후 사용 가능" size="sm" onClick={() => void onSimilar()}>유사 광고</Button>
-          {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
+          <div className="action-utils">
+            <Button data-hint="비슷한 메시지의 광고를 검색합니다 (무료, 순서 무관) · 분석 완료 후 사용 가능" size="sm" onClick={() => void onSimilar()}>유사 광고</Button>
+            {ad.sourceUrl && <Button data-hint="원본 미디어를 다시 받습니다 (무료, 순서 무관)" size="sm" onClick={() => void run(async () => (await redownloadMedia({ variables: { sourceAdId: ad.id } })).data!.redownloadSourceAdMedia.id)}>재다운로드</Button>}
+          </div>
         </div>
       </header>
       <p className="action-flow-hint">진행 순서: ① 미디어 텍스트 추출 → ② 광고 분석 → ③ 브리프 생성 (이 광고를 참조한 기획서 작성). 완료된 단계는 ✓, 다음에 누를 버튼은 붉게 표시됩니다. 유사 광고·재다운로드는 순서와 무관한 보조 도구입니다.</p>
