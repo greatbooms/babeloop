@@ -71,9 +71,11 @@ export function runPolicyCheckJobId(creativeId: string): string {
 }
 
 /** BullMQ connection 옵션 — ioredis는 옵션 객체에서 url을 파싱하지 않으므로 직접 분해한다 */
-export function redisConnectionFromUrl(url: string): { host: string; port: number } {
+export function redisConnectionFromUrl(url: string): { host: string; port: number; db?: number } {
   const u = new URL(url);
-  return { host: u.hostname, port: Number(u.port || 6379) };
+  const db = Number(u.pathname.replace('/', ''));
+  // e2e 스택은 db 1로 격리한다 — dev 워커(실 프로바이더)가 같은 큐의 잡을 가로채는 비용 유출 방지
+  return { host: u.hostname, port: Number(u.port || 6379), ...(Number.isInteger(db) && db > 0 ? { db } : {}) };
 }
 
 export function backTranslateJobId(localizationId: string): string {
