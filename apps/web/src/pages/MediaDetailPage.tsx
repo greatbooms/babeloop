@@ -22,7 +22,8 @@ export function MediaDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>();
   // 업로드 직후 목록에서 넘어오면 처리 잡이 이 페이지 밖에서 끝난다 — 3초 폴링으로 추출·인사이트 결과를 따라잡는다 (미디어 URL은 fixedMediaUrl로 고정)
-  const { data, refetch } = useQuery(MediaDetailDocument, { variables: { id: id! }, skip: !id, pollInterval: 3000 });
+  const [pollFast, setPollFast] = useState(true);
+  const { data, refetch } = useQuery(MediaDetailDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
   const [processMedia] = useMutation(ProcessMediaDocument);
   const [analyzeMedia] = useMutation(AnalyzeMediaDocument);
   const [loadSimilar, similar] = useLazyQuery(SimilarMediaAdsDocument);
@@ -31,6 +32,10 @@ export function MediaDetailPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [fixedMediaUrl, setFixedMediaUrl] = useState<string | null>(null);
   const job = useJobPolling(jobId);
+  useEffect(() => {
+    const assetStatus = data?.mediaAsset?.status;
+    setPollFast(Boolean(jobId) || assetStatus === 'PENDING' || assetStatus === 'UPLOADED' || assetStatus === 'PROCESSING');
+  }, [data, jobId]);
   useEffect(() => { if (!fixedMediaUrl && data?.mediaAsset.mediaUrl) setFixedMediaUrl(data.mediaAsset.mediaUrl); }, [data?.mediaAsset.mediaUrl, fixedMediaUrl]);
   useEffect(() => { if (job?.status === JobStatus.Succeeded || job?.status === JobStatus.Failed) { void refetch(); setJobId(null); } }, [job?.status, refetch]);
   const asset = data?.mediaAsset;

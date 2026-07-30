@@ -30,11 +30,16 @@ type BriefFields = { title: string; audienceHypothesis: string; desire: string; 
 export function BriefDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>();
-  const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: 3000 });
+  const [pollFast, setPollFast] = useState(true);
+  const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
   const [generateVariants] = useMutation(GenerateCreativeVariantsDocument);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
+  useEffect(() => {
+    const creatives = data?.creativeBrief?.creatives ?? [];
+    setPollFast(Boolean(jobId) || creatives.some((creative) => !creative.localizations.some((localization) => localization.kind === LocalizationKind.AiDraft)));
+  }, [data, jobId]);
   useEffect(() => {
     if (job?.status === JobStatus.Failed) { setError(job.error ?? t('briefs.failed')); setJobId(null); return; }
     if (job?.status !== JobStatus.Succeeded) return;

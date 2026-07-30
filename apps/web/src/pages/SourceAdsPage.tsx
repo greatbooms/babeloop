@@ -50,10 +50,12 @@ export function SourceAdsPage() {
   const [kind, setKind] = useState<MediaAssetKind | ''>('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  // 분석→임베딩 체인이 잡 폴링 종료 후에도 상태를 바꾸므로 목록은 상시 폴링한다 (BriefsPage와 동일 근거)
+  // 분석→임베딩 체인이 잡 폴링 종료 후에도 상태를 바꾸므로 목록을 폴링하되,
+  // 진행 중(잡 활성·ANALYZING 항목)일 때만 3초, 평상시엔 30초로 줄인다 (원격 접속 트래픽 절감)
+  const [pollFast, setPollFast] = useState(false);
   const { data, refetch } = useQuery(SourceAdsPageDocument, {
     variables: { input: { offset, limit: PAGE_SIZE, status: status || undefined, kind: kind || undefined, search: search || undefined } },
-    pollInterval: 3000,
+    pollInterval: pollFast ? 3000 : 30_000,
   });
   const [createSourceAd] = useMutation(CreateSourceAdDocument);
   const [importCsv] = useMutation(ImportCsvDocument);
@@ -65,6 +67,10 @@ export function SourceAdsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
+  useEffect(() => {
+    const items = data?.sourceAdsPage?.items ?? [];
+    setPollFast(Boolean(jobId) || items.some((item) => item.status === 'ANALYZING'));
+  }, [data, jobId]);
 
   useEffect(() => { const timer = window.setTimeout(() => { setOffset(0); setSearch(searchInput); }, 300); return () => window.clearTimeout(timer); }, [searchInput]);
   useEffect(() => { if (job?.status !== 'SUCCEEDED' && job?.status !== 'FAILED') return; void refetch(); const timer = window.setTimeout(() => void refetch(), 2000); return () => window.clearTimeout(timer); }, [job?.status, refetch]);

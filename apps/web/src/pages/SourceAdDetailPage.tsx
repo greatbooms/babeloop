@@ -34,7 +34,9 @@ const GenerateBriefFromAdDocument = graphql(`mutation GenerateBriefFromAd($input
 export function SourceAdDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>();
-  const { data, refetch } = useQuery(SourceAdDocument, { variables: { id: id! }, skip: !id, pollInterval: 3000 });
+  // 진행 중(잡 활성·ANALYZING)일 때만 3초, 평상시 30초 폴링
+  const [pollFast, setPollFast] = useState(true);
+  const { data, refetch } = useQuery(SourceAdDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,9 @@ export function SourceAdDetailPage() {
   const [briefFocus, setBriefFocus] = useState('');
   const [briefJobId, setBriefJobId] = useState<string | null>(null);
   const briefJob = useJobPolling(briefJobId);
+  useEffect(() => {
+    setPollFast(Boolean(jobId) || Boolean(briefJobId) || data?.sourceAd?.status === 'ANALYZING');
+  }, [data, jobId, briefJobId]);
   const ad = data?.sourceAd;
 
   // 유사 광고 링크로 /ads/A → /ads/B 이동 시 같은 컴포넌트가 재사용된다 — 이전 광고의 고정 URL·잡·에러가 남지 않게 리셋

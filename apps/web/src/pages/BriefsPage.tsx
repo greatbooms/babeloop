@@ -34,15 +34,15 @@ const GenerateCreativeBriefDocument = graphql(`
 
 export function BriefsPage() {
   const { lang, t } = useT();
-  // 변형 잡 완료 후에도 현지화 잡이 뒤따라 도착하므로 목록은 상시 폴링한다 (내부 도구 — 비용 무시 가능)
-  const { data, refetch } = useQuery(CreativeBriefsDocument, { pollInterval: 3000 });
+  // 변형 잡 완료 후에도 현지화 잡이 뒤따라 도착하므로 폴링하되, 생성 잡이 돌 때만 3초·평상시 30초
+  const [jobId, setJobId] = useState<string | null>(null);
+  const { data, refetch } = useQuery(CreativeBriefsDocument, { pollInterval: jobId ? 3000 : 30_000 });
   const { data: brandsData } = useQuery(BriefBrandsDocument);
   const [generateBrief] = useMutation(GenerateCreativeBriefDocument);
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [focusText, setFocusText] = useState('');
   const [brandId, setBrandId] = useState('');
-  const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
   const navigate = useNavigate();

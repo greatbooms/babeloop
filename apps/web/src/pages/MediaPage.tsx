@@ -47,10 +47,12 @@ export function MediaPage() {
   const [kind, setKind] = useState<MediaAssetKind | ''>('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  // 광고 목록과 동일: 3초 폴링 + cache-and-network — 상세에서 돌아왔을 때 캐시의 빈 목록이 남지 않게 한다
+  // 광고 목록과 동일: cache-and-network — 상세에서 돌아왔을 때 캐시의 빈 목록이 남지 않게 한다.
+  // 폴링은 처리 중 항목이 보일 때만 3초, 평상시 30초 (원격 접속 트래픽 절감)
+  const [pollFast, setPollFast] = useState(false);
   const { data } = useQuery(MediaAssetsPageDocument, {
     variables: { input: { origin: MediaAssetOrigin.Manual, offset, limit: PAGE_SIZE, kind: kind || undefined, search: search || undefined } },
-    pollInterval: 3000,
+    pollInterval: pollFast ? 3000 : 30_000,
     fetchPolicy: 'cache-and-network',
   });
   const [requestUpload] = useMutation(RequestUploadDocument);
@@ -59,6 +61,10 @@ export function MediaPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const items = data?.mediaAssetsPage?.items ?? [];
+    setPollFast(items.some((item) => item.status === 'PENDING' || item.status === 'UPLOADED' || item.status === 'PROCESSING'));
+  }, [data]);
   const navigate = useNavigate();
 
   useEffect(() => { const timer = window.setTimeout(() => { setOffset(0); setSearch(searchInput); }, 300); return () => window.clearTimeout(timer); }, [searchInput]);
