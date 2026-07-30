@@ -30,6 +30,7 @@ export class LocalizationVersionModel {
   @Field(() => LocalizationKind) kind: LocalizationKind;
   @Field() text: string;
   @Field(() => String, { nullable: true }) notes: string | null;
+  @Field(() => String, { nullable: true }) koBackTranslation: string | null;
   @Field() createdAt: Date;
 }
 

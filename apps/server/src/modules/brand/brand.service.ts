@@ -16,8 +16,8 @@ export class BrandService {
     @InjectQueue(CREATIVE_GENERATION_QUEUE) private readonly queue: Queue,
   ) {}
 
-  private mapBrand<T extends { zhTw?: unknown }>(brand: T) {
-    return { ...brand, zhTwJson: brand.zhTw ? JSON.stringify(brand.zhTw) : null };
+  private mapBrand<T extends { zhTw?: unknown; koFields?: unknown }>(brand: T) {
+    return { ...brand, zhTwJson: brand.zhTw ? JSON.stringify(brand.zhTw) : null, koJson: brand.koFields ? JSON.stringify(brand.koFields) : null };
   }
 
   async findAll() {

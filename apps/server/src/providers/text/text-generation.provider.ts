@@ -1,4 +1,5 @@
 export type ResponseHint =
+  | 'ko-back-translation'
   | 'creative-analysis'
   | 'media-insight'
   | 'creative-brief'

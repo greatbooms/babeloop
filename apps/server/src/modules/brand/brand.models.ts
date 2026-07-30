@@ -21,6 +21,7 @@ export class BrandModel {
   @Field(() => String, { nullable: true }) serviceUrl: string | null;
   @Field(() => String, { nullable: true }) description: string | null;
   @Field(() => String, { nullable: true }) zhTwJson: string | null;
+  @Field(() => String, { nullable: true }) koJson: string | null;
   @Field(() => Date, { nullable: true }) zhTwTranslatedAt: Date | null;
   @Field() updatedAt: Date;
   @Field(() => [BrandFeatureModel]) features: BrandFeatureModel[];

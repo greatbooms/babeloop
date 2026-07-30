@@ -96,7 +96,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
         return generated.data;
       });
       const translatedAt = new Date();
-      await this.prisma.brand.update({ where: { id: brand.id }, data: { zhTw: result, zhTwTranslatedAt: translatedAt, updatedAt: translatedAt } });
+      await this.prisma.brand.update({ where: { id: brand.id }, data: { zhTw: result.zhTw, koFields: result.ko, zhTwTranslatedAt: translatedAt, updatedAt: translatedAt } });
       await this.jobRecord.markSucceeded(jobId, { brandId: brand.id });
     } catch (error) {
       await this.failFinalAttempt(job, error);

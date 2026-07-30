@@ -82,10 +82,19 @@ export class MockTextGenerationProvider implements TextGenerationProvider {
         return { text: JSON.stringify({ zhTw: `[MOCK zh-TW] ${input.prompt.slice(0, 30)}`, notes: 'mock 번역' }) };
       case 'brand-zh-tw-translation':
         return { text: JSON.stringify({
-          description: `[MOCK 繁中] ${input.prompt.slice(0, 30)}`,
-          features: [{ name: '[MOCK 繁中] 功能', description: '[MOCK 繁中] 功能說明' }],
-          guidelines: [{ title: '[MOCK 繁中] 規範', content: '[MOCK 繁中] 規範內容' }],
+          ko: {
+            description: `[MOCK 한국어] ${input.prompt.slice(0, 30)}`,
+            features: [{ name: '[MOCK 한국어] 기능', description: '[MOCK 한국어] 기능 설명' }],
+            guidelines: [{ title: '[MOCK 한국어] 규범', content: '[MOCK 한국어] 규범 내용' }],
+          },
+          zhTw: {
+            description: `[MOCK 繁中] ${input.prompt.slice(0, 30)}`,
+            features: [{ name: '[MOCK 繁中] 功能', description: '[MOCK 繁中] 功能說明' }],
+            guidelines: [{ title: '[MOCK 繁中] 規範', content: '[MOCK 繁中] 規範內容' }],
+          },
         }) };
+      case 'ko-back-translation':
+        return { text: JSON.stringify({ ko: `[MOCK 한국어 역번역] ${input.prompt.slice(0, 30)}` }) };
       case 'creative-analysis':
       default:
         return { text: JSON.stringify({

@@ -6,6 +6,7 @@ import { CreativeStatus, ReviewEventKind, User } from '../../../generated/prisma
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   JOB_TYPES,
+  backTranslateJobId,
   LOCALIZATION_QUEUE,
   localizeZhTwJobId,
   POLICY_CHECK_QUEUE,
@@ -56,7 +57,7 @@ export class ReviewService {
       this.fail('IN_REVIEW 상태에서만 현지화를 수정할 수 있습니다', 'ILLEGAL_TRANSITION');
     }
     if (!text.trim()) this.fail('현지화 텍스트는 비어 있을 수 없습니다', 'BAD_USER_INPUT');
-    await this.prisma.localizationVersion.create({
+    const localization = await this.prisma.localizationVersion.create({
       data: {
         creativeId,
         locale: 'zh-TW',
@@ -66,6 +67,14 @@ export class ReviewService {
         reviewerId: user.id,
       },
     });
+    // 수정본을 한국어로 역번역(참고용) — 한국 작업자가 검수자의 변경 내용을 읽을 수 있게 (AI, ~1센트 미만)
+    await this.jobRecord.enqueueOrRetry(
+      this.localizationQueue,
+      LOCALIZATION_QUEUE,
+      JOB_TYPES.BACK_TRANSLATE_KO,
+      backTranslateJobId(localization.id),
+      { localizationId: localization.id },
+    );
     await this.recordEvent(creativeId, 'LOCALIZATION_REVISED', user.id, note);
     return this.findById(creativeId);
   }

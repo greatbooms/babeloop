@@ -11,7 +11,7 @@ import { useJobPolling } from '../hooks/useJobPolling';
 
 const BrandDocument = graphql(`
   query Brand($id: ID!) {
-    brand(id: $id) { id name serviceUrl description zhTwJson zhTwTranslatedAt updatedAt features { id name description } guidelines { id title content } }
+    brand(id: $id) { id name serviceUrl description zhTwJson koJson zhTwTranslatedAt updatedAt features { id name description } guidelines { id title content } }
   }
 `);
 
@@ -75,12 +75,14 @@ export function BrandDetailPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }
 
-  type BrandZhTw = { description: string; features: Array<{ name: string; description: string }>; guidelines: Array<{ title: string; content: string }> };
-  const zhTw = brand.zhTwJson ? JSON.parse(brand.zhTwJson) as BrandZhTw : null;
-  const showZh = lang === 'zhTw' && zhTw !== null;
-  const shownDescription = showZh ? zhTw.description : brand.description;
-  const shownFeatures = showZh ? zhTw.features : brand.features;
-  const shownGuidelines = showZh ? zhTw.guidelines : brand.guidelines;
+  type BrandRendition = { description: string; features: Array<{ name: string; description: string }>; guidelines: Array<{ title: string; content: string }> };
+  const zhTw = brand.zhTwJson ? JSON.parse(brand.zhTwJson) as BrandRendition : null;
+  const koRendition = brand.koJson ? JSON.parse(brand.koJson) as BrandRendition : null;
+  // 원문이 어느 언어로 작성되었든, 번역 생성이 채운 언어별 정리본이 있으면 그것을 우선 표시하고 없으면 원문을 보여준다
+  const rendition = lang === 'zhTw' ? zhTw : koRendition;
+  const shownDescription = rendition ? rendition.description : brand.description;
+  const shownFeatures = rendition ? rendition.features : brand.features;
+  const shownGuidelines = rendition ? rendition.guidelines : brand.guidelines;
   const translationStale = Boolean(brand.zhTwTranslatedAt && new Date(brand.updatedAt).getTime() > new Date(brand.zhTwTranslatedAt).getTime());
 
   return (

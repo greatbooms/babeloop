@@ -16,6 +16,7 @@ export const JOB_TYPES = {
   GENERATE_COPY_VARIANTS: 'generate-copy-variants',
   TRANSLATE_BRAND: 'translate-brand',
   LOCALIZE_ZH_TW: 'localize-zh-tw',
+  BACK_TRANSLATE_KO: 'back-translate-ko',
   RUN_POLICY_CHECK: 'run-policy-check',
 } as const;
 
@@ -68,4 +69,8 @@ export function runPolicyCheckJobId(creativeId: string): string {
 export function redisConnectionFromUrl(url: string): { host: string; port: number } {
   const u = new URL(url);
   return { host: u.hostname, port: Number(u.port || 6379) };
+}
+
+export function backTranslateJobId(localizationId: string): string {
+  return `${JOB_TYPES.BACK_TRANSLATE_KO}--${localizationId}`;
 }

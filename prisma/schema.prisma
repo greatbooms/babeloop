@@ -38,6 +38,7 @@ model Brand {
   serviceUrl  String?
   description String?
   zhTw        Json? // 번체중문 번역본 { description, features:[{name,description}], guidelines:[{title,content}] }
+  koFields         Json? // 한국어 정리본 — 원문이 중문일 때 한국 작업자용 (번역 생성이 양언어를 함께 채운다)
   zhTwTranslatedAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -459,6 +460,7 @@ model LocalizationVersion {
   kind       LocalizationKind
   text       String
   notes      String?
+  koBackTranslation String? // 검수자 수정본의 한국어 참고 역번역 (표시용)
   reviewerId String?
   reviewer   User?             @relation(fields: [reviewerId], references: [id])
   provider   String?
