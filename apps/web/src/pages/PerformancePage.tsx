@@ -9,6 +9,8 @@ import { FormField } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
 import { HelpPanel } from '../components/HelpPanel';
 import { useT } from '../i18n/lang-context';
+import './source-ads.css';
+import './media.css';
 
 const PerformanceExperimentsDocument = graphql(`
   query PerformanceExperiments {
@@ -151,18 +153,20 @@ export function PerformancePage() {
         <details className="csv-guide"><summary>{t('performance.csvGuide')}</summary><p>
           {t('performance.csvHeader')}
         </p></details>
-        <div className="page-form"><FormField label={t('performance.performanceCsv')} htmlFor="performance-csv"><input id="performance-csv"
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          /></FormField>
-        <Button data-hint={t('performance.uploadHint')} variant="primary" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
-          {t('performance.upload')}
-        </Button></div>
+        <div className="upload-zone">
+          <label className="button button-secondary button-sm file-button">
+            {t('performance.chooseFile')}
+            <input id="performance-csv" aria-label={t('performance.performanceCsv')} type="file" accept=".csv,text/csv" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          </label>
+          <span className="form-hint">{file?.name ?? t('performance.chooseFileHint')}</span>
+          <Button data-hint={t('performance.uploadHint')} variant="primary" size="sm" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
+            {t('performance.upload')}
+          </Button>
+        </div>
 
         {summary && (
           <div>
-            <p>
+            <p className="notice">
               {t('performance.summary', { imported: summary.importedRows, updated: summary.updatedRows, errors: summary.errorRows })}
               {summary.duplicateFile ? t('performance.duplicate') : ''}
             </p>
@@ -217,6 +221,8 @@ export function PerformancePage() {
             </table></div>
             <Button
               data-hint={t('performance.generateHint')}
+              variant="primary"
+              size="sm"
               type="button"
               disabled={Boolean(jobId) || rows.length === 0}
               onClick={() => void onGenerateBrief()}
