@@ -26,6 +26,11 @@ export const envSchema = z.object({
   EMBEDDING_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
   EMBEDDING_API_KEY: z.string().optional(),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
+  IMAGE_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+  IMAGE_MODEL: z.string().default('gpt-image-1'),
+  IMAGE_API_KEY: z.string().optional(),
+  IMAGE_PRICE_LOW_USD: z.coerce.number().default(0.04),
+  IMAGE_PRICE_HIGH_USD: z.coerce.number().default(0.19),
 }).superRefine((env, ctx) => {
   if (env.OCR_PROVIDER === 'openai' && !env.OCR_MODEL && !env.TEXT_AI_MODEL) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['OCR_MODEL'], message: 'OCR_PROVIDER=openai이면 OCR_MODEL 또는 TEXT_AI_MODEL이 필요합니다' });
@@ -43,6 +48,9 @@ export const envSchema = z.object({
   }
   if (env.EMBEDDING_PROVIDER === 'openai' && !env.EMBEDDING_API_KEY) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['EMBEDDING_API_KEY'], message: 'EMBEDDING_PROVIDER=openai이면 EMBEDDING_API_KEY가 필요합니다' });
+  }
+  if (env.IMAGE_PROVIDER === 'openai' && !env.IMAGE_API_KEY && !env.TEXT_AI_API_KEY) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['IMAGE_API_KEY'], message: 'IMAGE_PROVIDER=openai이면 IMAGE_API_KEY 또는 TEXT_AI_API_KEY가 필요합니다' });
   }
 });
 

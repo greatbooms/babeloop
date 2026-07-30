@@ -335,9 +335,14 @@ describe('review flow', () => {
       const body = await response.text();
       expect(body).toContain(file.trackingCode);
       expect(body).toContain('--- zh-TW 승인본 ---');
+      expect(body).toContain('이미지: 없음');
     }
     const manifestResponse = await fetch(exported.manifestUrl);
-    expect(await manifestResponse.text()).toContain('광고 1개에 소재 1개만 연결할 것');
+    const manifestBody = await manifestResponse.text();
+    expect(manifestBody).toContain('광고 1개에 소재 1개만 연결할 것');
+    expect(manifestBody).toContain(
+      'trackingCode,adName,utmContent,filename,imageFilenames',
+    );
     const exportedCreatives = await prisma.generatedCreative.findMany({
       where: { id: { in: [happy.id, secondApproved.id] } },
     });

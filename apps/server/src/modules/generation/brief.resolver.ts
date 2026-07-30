@@ -7,11 +7,13 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import {
   GenerateBriefFromPerformanceInput,
+  GenerateBriefImagesInput,
   GenerateCreativeBriefInput,
   GenerateCreativeVariantsInput,
 } from './brief.inputs';
 import { CreativeBriefModel, GenerateJobPayload } from './brief.models';
 import { BriefService } from './brief.service';
+import { JobModel } from '../jobs/job.model';
 
 @Resolver(() => CreativeBriefModel)
 @UseGuards(GqlAuthGuard, RolesGuard)
@@ -44,6 +46,12 @@ export class BriefResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   generateCreativeVariants(@Args('input') input: GenerateCreativeVariantsInput) {
     return this.briefService.requestVariants(input);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  generateBriefImages(@Args('input') input: GenerateBriefImagesInput) {
+    return this.briefService.requestImages(input);
   }
 
   @Mutation(() => GenerateJobPayload)

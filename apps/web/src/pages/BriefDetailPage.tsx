@@ -1,8 +1,10 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { FormField } from '../components/FormField';
+import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import { CreativeType, JobStatus, LocalizationKind } from '../generated/graphql';
@@ -19,13 +21,35 @@ const CreativeBriefDocument = graphql(`
       brand { id name }
       references { sourceAdId title method similarity deleted }
       provider model promptVersion rawJson
-      creatives { id variantIndex koreanText status localizations { id kind text } }
+      images { id url quality instructions createdAt costEstimateUsd }
+      creatives { id variantIndex type koreanText scenesJson status localizations { id kind text } }
     }
   }
 `);
 const GenerateCreativeVariantsDocument = graphql(`mutation GenerateCreativeVariants($input: GenerateCreativeVariantsInput!) { generateCreativeVariants(input: $input) { job { id status } } }`);
+const GenerateBriefImagesDocument = graphql(`mutation GenerateBriefImages($input: GenerateBriefImagesInput!) { generateBriefImages(input: $input) { id status } }`);
 
 type BriefFields = { title: string; audienceHypothesis: string; desire: string; hookType: string; messageAngle: string; visualFormat: string; callToAction: string; rationale: string };
+type VideoScene = { seconds: number; visual: string; dialogue: string; caption: string };
+
+function parseScenes(value: string | null | undefined): VideoScene[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (scene): scene is VideoScene =>
+        typeof scene === 'object' &&
+        scene !== null &&
+        typeof (scene as VideoScene).seconds === 'number' &&
+        typeof (scene as VideoScene).visual === 'string' &&
+        typeof (scene as VideoScene).dialogue === 'string' &&
+        typeof (scene as VideoScene).caption === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
 
 export function BriefDetailPage() {
   const { lang, t } = useT();
@@ -33,13 +57,29 @@ export function BriefDetailPage() {
   const [pollFast, setPollFast] = useState(true);
   const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [generateVariants] = useMutation(GenerateCreativeVariantsDocument);
+  const [generateImages] = useMutation(GenerateBriefImagesDocument);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [imageJobId, setImageJobId] = useState<string | null>(null);
+  const [scriptJobId, setScriptJobId] = useState<string | null>(null);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageInstructions, setImageInstructions] = useState('');
+  const [imageCount, setImageCount] = useState(2);
+  const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
+  const imageJob = useJobPolling(imageJobId);
+  const scriptJob = useJobPolling(scriptJobId);
   useEffect(() => {
     const creatives = data?.creativeBrief?.creatives ?? [];
-    setPollFast(Boolean(jobId) || creatives.some((creative) => !creative.localizations.some((localization) => localization.kind === LocalizationKind.AiDraft)));
-  }, [data, jobId]);
+    setPollFast(
+      Boolean(jobId || imageJobId || scriptJobId) ||
+        creatives.some(
+          (creative) =>
+            creative.type === CreativeType.Copy &&
+            !creative.localizations.some((localization) => localization.kind === LocalizationKind.AiDraft),
+        ),
+    );
+  }, [data, imageJobId, jobId, scriptJobId]);
   useEffect(() => {
     if (job?.status === JobStatus.Failed) { setError(job.error ?? t('briefs.failed')); setJobId(null); return; }
     if (job?.status !== JobStatus.Succeeded) return;
@@ -47,13 +87,56 @@ export function BriefDetailPage() {
     const timer = window.setTimeout(() => void refetch(), 2000);
     return () => window.clearTimeout(timer);
   }, [job?.error, job?.status, refetch, t]);
+  useEffect(() => {
+    if (imageJob?.status === JobStatus.Failed) { setError(imageJob.error ?? t('briefs.failed')); setImageJobId(null); return; }
+    if (imageJob?.status !== JobStatus.Succeeded) return;
+    void refetch(); setImageJobId(null);
+  }, [imageJob?.error, imageJob?.status, refetch, t]);
+  useEffect(() => {
+    if (scriptJob?.status === JobStatus.Failed) { setError(scriptJob.error ?? t('briefs.failed')); setScriptJobId(null); return; }
+    if (scriptJob?.status !== JobStatus.Succeeded) return;
+    void refetch(); setScriptJobId(null);
+    const timer = window.setTimeout(() => void refetch(), 2000);
+    return () => window.clearTimeout(timer);
+  }, [refetch, scriptJob?.error, scriptJob?.status, t]);
 
   async function onGenerateVariants() {
-    if (brief!.creatives.length > 0 && !window.confirm(t('briefs.confirmVariants', { count: brief!.creatives.length }))) return;
+    const copies = brief!.creatives.filter((creative) => creative.type === CreativeType.Copy);
+    if (copies.length > 0 && !window.confirm(t('briefs.confirmVariants', { count: copies.length }))) return;
     setError(null);
     try {
       const result = await generateVariants({ variables: { input: { briefId: id!, type: CreativeType.Copy, count: 3 } } });
       setJobId(result.data!.generateCreativeVariants.job.id);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+  }
+
+  async function onGenerateImages(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    try {
+      const result = await generateImages({
+        variables: {
+          input: {
+            briefId: id!,
+            instructions: imageInstructions || undefined,
+            count: imageCount,
+            quality: imageQuality,
+          },
+        },
+      });
+      setImageJobId(result.data!.generateBriefImages.id);
+      setImageModalOpen(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+  }
+
+  async function onGenerateScript() {
+    if (!window.confirm(t('briefs.confirmVideoScript'))) return;
+    setError(null);
+    try {
+      const result = await generateVariants({
+        variables: { input: { briefId: id!, type: CreativeType.VideoScript, count: 2 } },
+      });
+      setScriptJobId(result.data!.generateCreativeVariants.job.id);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }
 
@@ -63,20 +146,53 @@ export function BriefDetailPage() {
   const zhTw = brief.zhTwJson ? (JSON.parse(brief.zhTwJson) as BriefFields) : null;
   const showZh = lang === 'zhTw' && zhTw !== null;
   const fields: BriefFields = showZh ? zhTw! : brief;
+  const copyCreatives = brief.creatives.filter((creative) => creative.type === CreativeType.Copy);
+  const videoScripts = brief.creatives.filter((creative) => creative.type === CreativeType.VideoScript);
+  const anyJobActive = Boolean(jobId || imageJobId || scriptJobId);
   return (
     <section className="stage-create brief-detail ad-detail">
       <Link className="back-link" to="/briefs">{t('briefs.back')}</Link>
       <header className="page-header">
         <div>
           <div className="page-header-title-row"><h1>{fields.title}</h1><span className="step-chip">{t('briefs.createStep')}</span></div>
-          <p>{t('briefs.detailMeta', { date: formatDate(String(brief.createdAt), lang), count: brief.creatives.length })}</p>
+          <p>{t('briefs.detailMeta', { date: formatDate(String(brief.createdAt), lang), count: copyCreatives.length })}</p>
         </div>
         <div className="page-header-actions">
-          <Button data-hint={t('briefs.variantsHint')} variant={brief.creatives.length === 0 ? 'primary' : 'secondary'} size="sm" disabled={Boolean(jobId)} onClick={() => void onGenerateVariants()}>{t('briefs.generateVariants')}</Button>
+          <Button data-hint={t('briefs.imageGenerateHint')} variant="secondary" size="sm" disabled={anyJobActive} onClick={() => setImageModalOpen(true)}>{t('briefs.imageGenerate')}</Button>
+          <Button data-hint={t('briefs.videoScriptHint')} variant="secondary" size="sm" disabled={anyJobActive} onClick={() => void onGenerateScript()}>{t('briefs.videoScriptGenerate')}</Button>
+          <Button data-hint={t('briefs.variantsHint')} variant={copyCreatives.length === 0 ? 'primary' : 'secondary'} size="sm" disabled={anyJobActive} onClick={() => void onGenerateVariants()}>{t('briefs.generateVariants')}</Button>
         </div>
       </header>
       {error && <p className="error" role="alert">{error}</p>}
       {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && <p>{t('briefs.generatingShort', { status: job.status })}</p>}
+      {imageJob && imageJob.status !== JobStatus.Succeeded && imageJob.status !== JobStatus.Failed && <p>{t('briefs.imageGenerating', { status: imageJob.status })}</p>}
+      {scriptJob && scriptJob.status !== JobStatus.Succeeded && scriptJob.status !== JobStatus.Failed && <p>{t('briefs.videoScriptGenerating', { status: scriptJob.status })}</p>}
+
+      <Modal title={t('briefs.imageGenerate')} open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
+        <p className="muted">{t('briefs.imageGenerateDescription')}</p>
+        <form className="page-form" onSubmit={onGenerateImages}>
+          <FormField label={t('briefs.imageInstructions')} htmlFor="image-instructions">
+            <textarea id="image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
+          </FormField>
+          <div className="brief-fields">
+            <FormField label={t('briefs.imageCount')} htmlFor="image-count">
+              <select id="image-count" value={imageCount} onChange={(event) => setImageCount(Number(event.target.value))}>
+                {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{t('briefs.imageCountOption', { count })}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t('briefs.imageQuality')} htmlFor="image-quality">
+              <select id="image-quality" value={imageQuality} onChange={(event) => setImageQuality(event.target.value as 'low' | 'high')}>
+                <option value="low">{t('briefs.imageQualityLow')}</option>
+                <option value="high">{t('briefs.imageQualityHigh')}</option>
+              </select>
+            </FormField>
+          </div>
+          <div className="upload-zone">
+            <span className="form-hint">{t('briefs.imageCostNotice')}</span>
+            <Button variant="primary" type="submit" disabled={anyJobActive}>{t('briefs.startGeneration')}</Button>
+          </div>
+        </form>
+      </Modal>
 
       <Card className="card-stack">
         <h2>{t('briefs.fullContent')}</h2>
@@ -104,10 +220,59 @@ export function BriefDetailPage() {
       </Card>
 
       <Card className="card-stack">
-        <h2>{t('briefs.variantsTitle', { count: brief.creatives.length })}</h2>
-        {brief.creatives.length === 0 && <p className="muted">{t('briefs.noVariants')}</p>}
+        <h2>{t('briefs.imagesTitle', { count: brief.images.length })}</h2>
+        {brief.images.length === 0 && <p className="muted">{t('briefs.noImages')}</p>}
+        <div className="brief-image-grid">
+          {brief.images.map((image) => (
+            <figure className="brief-image-item" key={image.id}>
+              <a href={image.url} target="_blank" rel="noreferrer" aria-label={t('briefs.imageOpenOriginal')}>
+                <img src={image.url} alt={t('briefs.imageAlt')} />
+              </a>
+              <figcaption>
+                <div className="tag-row">
+                  <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
+                  <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
+                </div>
+                <p>{image.instructions || t('briefs.noImageInstructions')}</p>
+                <time>{formatDate(String(image.createdAt), lang)}</time>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="card-stack">
+        <h2>{t('briefs.videoScriptsTitle', { count: videoScripts.length })}</h2>
+        {videoScripts.length === 0 && <p className="muted">{t('briefs.noVideoScripts')}</p>}
+        <div className="video-script-list">
+          {videoScripts.map((creative) => {
+            const scenes = parseScenes(creative.scenesJson);
+            return (
+              <section className="variant-item" key={creative.id}>
+                <div className="variant-head">
+                  <span className="variant-chip">{t('briefs.videoScriptVariant', { index: creative.variantIndex })}</span>
+                  <StatusBadge status={creative.status} />
+                  <Link className="brand-detail-cta" to={`/review/${creative.id}`}>{t('briefs.viewInReview')}</Link>
+                </div>
+                {scenes.length === 0 ? <p className="muted">{t('briefs.noSceneData')}</p> : (
+                  <div className="scene-table-wrap">
+                    <table className="scene-table">
+                      <thead><tr><th>{t('briefs.sceneSeconds')}</th><th>{t('briefs.sceneVisual')}</th><th>{t('briefs.sceneDialogue')}</th><th>{t('briefs.sceneCaption')}</th></tr></thead>
+                      <tbody>{scenes.map((scene, index) => <tr key={`${creative.id}-${index}`}><td>{t('briefs.secondsValue', { seconds: scene.seconds })}</td><td>{scene.visual}</td><td>{scene.dialogue}</td><td>{scene.caption}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="card-stack">
+        <h2>{t('briefs.variantsTitle', { count: copyCreatives.length })}</h2>
+        {copyCreatives.length === 0 && <p className="muted">{t('briefs.noVariants')}</p>}
         <ol className="variant-list">
-          {brief.creatives.map((creative) => {
+          {copyCreatives.map((creative) => {
             const draft = creative.localizations.find((localization) => localization.kind === LocalizationKind.AiDraft);
             return (
               <li className="variant-item" key={creative.id}>

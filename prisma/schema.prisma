@@ -371,9 +371,29 @@ model CreativeBrief {
   createdBy          User?               @relation(fields: [createdById], references: [id])
   createdAt          DateTime            @default(now())
   creatives          GeneratedCreative[]
+  images             GeneratedImage[]
   references         BriefReference[]
 
   @@map("creative_briefs")
+}
+
+model GeneratedImage {
+  id              String        @id @default(cuid())
+  briefId         String
+  brief           CreativeBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  storageKey      String
+  contentType     String
+  quality         String
+  instructions    String
+  prompt          String
+  provider        String
+  model           String
+  promptVersion   String
+  costEstimateUsd Float?
+  createdAt       DateTime      @default(now())
+
+  @@index([briefId])
+  @@map("generated_images")
 }
 
 enum BriefReferenceMethod {

@@ -12,7 +12,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText minorFlagged minorFlagNote localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -75,6 +75,30 @@ export function ReviewDetailPage() {
         </div>
       </div>
     </Card>
+
+    {creative.briefImages.length > 0 && (
+      <Card className="card-stack">
+        <h2>{t('review.briefImages')}</h2>
+        <p className="muted">{t('review.briefImagesGuide')}</p>
+        <div className="brief-image-grid">
+          {creative.briefImages.map((image) => (
+            <figure className="brief-image-item" key={image.id}>
+              <a href={image.url} target="_blank" rel="noreferrer" aria-label={t('review.briefImageOpen')}>
+                <img src={image.url} alt={t('review.briefImageAlt')} />
+              </a>
+              <figcaption>
+                <div className="tag-row">
+                  <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
+                  <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
+                </div>
+                <p>{image.instructions || t('briefs.noImageInstructions')}</p>
+                <time>{formatDate(String(image.createdAt), lang)}</time>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </Card>
+    )}
 
     {creative.minorFlagged && (
       <Card className="card-stack minor-warning">

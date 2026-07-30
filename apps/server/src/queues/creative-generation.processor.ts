@@ -1,8 +1,10 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject } from '@nestjs/common';
 import { Job as BullJob, Queue } from 'bullmq';
+import { randomUUID } from 'crypto';
 import { CreativeType } from '../../generated/prisma';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { StorageService } from '../common/storage/storage.service';
 import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
@@ -23,6 +25,10 @@ import {
 } from '../modules/generation/generation.schemas';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../providers/embedding/embedding.provider';
+import {
+  IMAGE_GENERATION_PROVIDER,
+  ImageGenerationProvider,
+} from '../providers/image/image-generation.provider';
 import { generateJsonWithRepair } from '../providers/text/generate-json-with-repair';
 import { TEXT_GENERATION_PROVIDER, TextGenerationProvider } from '../providers/text/text-generation.provider';
 import {
@@ -55,6 +61,13 @@ interface GenerateVariantsJobData {
   count: number;
 }
 
+interface GenerateImagesJobData {
+  briefId: string;
+  instructions: string;
+  count: number;
+  quality: 'low' | 'high';
+}
+
 interface TranslateBrandJobData { brandId: string }
 
 @Processor(CREATIVE_GENERATION_QUEUE)
@@ -67,6 +80,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
     @Inject(TEXT_GENERATION_PROVIDER) private readonly textAi: TextGenerationProvider,
     @Inject(EMBEDDING_PROVIDER) private readonly embedder: EmbeddingProvider,
     @InjectQueue(LOCALIZATION_QUEUE) private readonly localizationQueue: Queue,
+    private readonly storage: StorageService,
+    @Inject(IMAGE_GENERATION_PROVIDER) private readonly imageAi: ImageGenerationProvider,
   ) {
     super();
   }
@@ -77,6 +92,9 @@ export class CreativeGenerationProcessor extends WorkerHost {
     }
     if (job.name === JOB_TYPES.GENERATE_COPY_VARIANTS) {
       return this.generateVariants(job as BullJob<GenerateVariantsJobData>);
+    }
+    if (job.name === JOB_TYPES.GENERATE_IMAGES) {
+      return this.generateImages(job as BullJob<GenerateImagesJobData>);
     }
     if (job.name === JOB_TYPES.TRANSLATE_BRAND) {
       return this.translateBrand(job as BullJob<TranslateBrandJobData>);
@@ -190,6 +208,79 @@ export class CreativeGenerationProcessor extends WorkerHost {
         },
       });
       await this.jobRecord.markSucceeded(jobId, { briefId: brief.id });
+    } catch (error) {
+      await this.failFinalAttempt(job, error);
+      throw error;
+    }
+  }
+
+  private async generateImages(job: BullJob<GenerateImagesJobData>): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const brief = await this.prisma.creativeBrief.findUniqueOrThrow({
+        where: { id: job.data.briefId },
+        include: { brand: { select: { name: true } } },
+      });
+      const prompt = [
+        '광고 제작용 단일 이미지를 생성하세요.',
+        `브랜드: ${brief.brand?.name ?? 'BabeChat'}`,
+        `비주얼 형식: ${brief.visualFormat}`,
+        `훅 유형: ${brief.hookType}`,
+        `핵심 욕구: ${brief.desire}`,
+        job.data.instructions ? `추가 요구사항: ${job.data.instructions}` : null,
+        '텍스트 오버레이 없음. 이미지 안에 글자, 자막, 로고, 워터마크를 넣지 마세요.',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      const meta: AiExecutionMeta = {
+        provider: this.imageAi.name,
+        model: this.imageAi.model,
+        promptVersion: 'generate-images@v1',
+        inputRef: `brief:${brief.id}`,
+      };
+      let generated:
+        | Awaited<ReturnType<ImageGenerationProvider['generate']>>
+        | undefined;
+      await this.aiLog.record(meta, async () => {
+        generated = await this.imageAi.generate({
+          prompt,
+          count: job.data.count,
+          quality: job.data.quality,
+        });
+        meta.costEstimateUsd = generated.costEstimateUsd;
+        return {
+          imageCount: generated.images.length,
+          contentTypes: generated.images.map((image) => image.contentType),
+        };
+      });
+      if (!generated) throw new Error('이미지 생성 결과가 없습니다');
+
+      const imageIds: string[] = [];
+      const costPerImage =
+        generated.costEstimateUsd === undefined || generated.images.length === 0
+          ? undefined
+          : generated.costEstimateUsd / generated.images.length;
+      for (const image of generated.images) {
+        const storageKey = `generated-images/${brief.id}/${randomUUID()}.png`;
+        await this.storage.putBuffer(storageKey, image.buffer, image.contentType);
+        const saved = await this.prisma.generatedImage.create({
+          data: {
+            briefId: brief.id,
+            storageKey,
+            contentType: image.contentType,
+            quality: job.data.quality,
+            instructions: job.data.instructions,
+            prompt,
+            provider: this.imageAi.name,
+            model: this.imageAi.model,
+            promptVersion: 'generate-images@v1',
+            costEstimateUsd: costPerImage,
+          },
+        });
+        imageIds.push(saved.id);
+      }
+      await this.jobRecord.markSucceeded(jobId, { imageIds });
     } catch (error) {
       await this.failFinalAttempt(job, error);
       throw error;

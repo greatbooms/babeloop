@@ -26,4 +26,23 @@
 .localized-box { background: var(--surface-soft); border-radius: var(--r-sm); padding: var(--sp-md); display: grid; gap: var(--sp-xs); }
 .localized-box p { color: var(--body); line-height: 1.6; }
 
+/* 이미지 시안 */
+.brief-image-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-base); }
+.brief-image-item { min-width: 0; overflow: hidden; border: 1px solid var(--hairline-soft); border-radius: var(--r-md); background: var(--surface-soft); }
+.brief-image-item a { display: block; aspect-ratio: 1; overflow: hidden; background: var(--canvas); }
+.brief-image-item img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 0.18s ease; }
+.brief-image-item a:hover img { transform: scale(1.02); }
+.brief-image-item figcaption { display: grid; gap: var(--sp-sm); padding: var(--sp-md); color: var(--body); font-size: 13px; line-height: 1.5; }
+.brief-image-item figcaption time { color: var(--muted); font-size: 12px; }
+@media (max-width: 900px) { .brief-image-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .brief-image-grid { grid-template-columns: 1fr; } }
+
+/* 영상 스크립트 장면표 */
+.video-script-list { display: grid; gap: var(--sp-base); }
+.scene-table-wrap { overflow-x: auto; }
+.scene-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+.scene-table th, .scene-table td { padding: var(--sp-sm) var(--sp-md); border: 1px solid var(--hairline-soft); text-align: left; vertical-align: top; }
+.scene-table th { color: var(--muted); background: var(--surface-soft); font-weight: 600; white-space: nowrap; }
+.scene-table td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* 언어 토글 — 한국 작업자 / 대만 검수자 */

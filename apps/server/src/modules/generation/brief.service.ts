@@ -5,15 +5,18 @@ import { randomUUID } from 'crypto';
 import { GraphQLError } from 'graphql';
 import { User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import {
   CREATIVE_GENERATION_QUEUE,
   generateBriefJobId,
   generateCopyVariantsJobId,
+  generateImagesJobId,
   JOB_TYPES,
 } from '../../queues/queue.constants';
 import { JobRecordService } from '../jobs/job-record.service';
 import { PerformanceService } from '../performance/performance.service';
 import {
+  GenerateBriefImagesInput,
   GenerateCreativeBriefInput,
   GenerateCreativeVariantsInput,
 } from './brief.inputs';
@@ -27,6 +30,11 @@ export const BRIEF_INCLUDE = {
   },
 } as const;
 
+export const BRIEF_DETAIL_INCLUDE = {
+  ...BRIEF_INCLUDE,
+  images: { orderBy: { createdAt: 'desc' as const } },
+} as const;
+
 @Injectable()
 export class BriefService {
   constructor(
@@ -34,6 +42,7 @@ export class BriefService {
     private readonly jobRecord: JobRecordService,
     private readonly performance: PerformanceService,
     @InjectQueue(CREATIVE_GENERATION_QUEUE) private readonly queue: Queue,
+    private readonly storage: StorageService,
   ) {}
 
   async requestBrief(user: User, input: GenerateCreativeBriefInput) {
@@ -87,6 +96,35 @@ export class BriefService {
       payload,
     );
     return { job };
+  }
+
+  async requestImages(input: GenerateBriefImagesInput) {
+    if (!Number.isInteger(input.count) || input.count < 1 || input.count > 4) {
+      throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (input.quality !== 'low' && input.quality !== 'high') {
+      throw new GraphQLError('이미지 품질은 low 또는 high여야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    await this.prisma.creativeBrief.findUniqueOrThrow({ where: { id: input.briefId } }).catch(() => {
+      throw new GraphQLError('브리프를 찾을 수 없습니다', { extensions: { code: 'NOT_FOUND' } });
+    });
+    const payload = {
+      briefId: input.briefId,
+      instructions: input.instructions?.trim() ?? '',
+      count: input.count,
+      quality: input.quality,
+    };
+    return this.jobRecord.enqueueOrRetry(
+      this.queue,
+      CREATIVE_GENERATION_QUEUE,
+      JOB_TYPES.GENERATE_IMAGES,
+      generateImagesJobId(input.briefId, randomUUID()),
+      payload,
+    );
   }
 
   async requestBriefFromPerformance(user: User, experimentId: string) {
@@ -157,9 +195,24 @@ export class BriefService {
   }
 
   async findById(id: string) {
-    const brief = await this.prisma.creativeBrief.findUnique({ where: { id }, include: BRIEF_INCLUDE });
+    const brief = await this.prisma.creativeBrief.findUnique({
+      where: { id },
+      include: BRIEF_DETAIL_INCLUDE,
+    });
     if (!brief) throw new NotFoundException('브리프를 찾을 수 없습니다');
-    return this.mapBrief(brief);
+    return {
+      ...this.mapBrief(brief),
+      images: await Promise.all(
+        brief.images.map(async (image) => ({
+          id: image.id,
+          url: await this.storage.presignGet(image.storageKey),
+          quality: image.quality,
+          instructions: image.instructions,
+          createdAt: image.createdAt,
+          costEstimateUsd: image.costEstimateUsd,
+        })),
+      ),
+    };
   }
 
   private mapBrief<T extends { raw: unknown; zhTwFields?: unknown; references: Array<{ sourceAdId: string | null; titleSnapshot: string | null; method: string; similarity: number | null; sourceAd: { id: string; title: string | null } | null }>; creatives: Array<{ scenes: unknown }> }>(brief: T) {
@@ -168,6 +221,7 @@ export class BriefService {
       references: brief.references.map((reference) => ({ sourceAdId: reference.sourceAdId, title: reference.sourceAd?.title ?? reference.titleSnapshot, method: reference.method, similarity: reference.similarity, deleted: reference.sourceAd === null })),
       rawJson: JSON.stringify(brief.raw),
       zhTwJson: brief.zhTwFields ? JSON.stringify(brief.zhTwFields) : null,
+      images: [],
       creatives: brief.creatives.map((creative) => ({
         ...creative,
         scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,

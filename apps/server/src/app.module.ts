@@ -24,6 +24,7 @@ import { ReviewModule } from './modules/review/review.module';
 import { PerformanceModule } from './modules/performance/performance.module';
 import { SourceAdModule } from './modules/source-ad/source-ad.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
+import { ImageModule } from './providers/image/image.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
 import { TextModule } from './providers/text/text.module';
@@ -46,6 +47,7 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
     PrismaModule,
     StorageModule,
     EmbeddingModule,
+    ImageModule,
     OcrModule,
     SttModule,
     TextModule,

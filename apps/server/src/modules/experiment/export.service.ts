@@ -12,6 +12,7 @@ interface ManifestRow extends Prisma.InputJsonObject {
   adName: string;
   utmContent: string;
   filename: string;
+  imageFilenames: string;
 }
 
 @Injectable()
@@ -30,7 +31,9 @@ export class ExportService {
           include: {
             creative: {
               include: {
-                brief: true,
+                brief: {
+                  include: { images: { orderBy: { createdAt: 'asc' } } },
+                },
                 localizations: { orderBy: { createdAt: 'desc' } },
               },
             },
@@ -73,10 +76,20 @@ export class ExportService {
       const adName = adNameFor(trackingCode, creative.hookType);
       const utmContent = utmContentFor(trackingCode);
       const filename = `${trackingCode}.txt`;
+      const imageFiles: Array<{ filename: string; key: string }> = [];
+      for (const [index, image] of creative.brief.images.entries()) {
+        const imageFilename = `${trackingCode}-IMG${index + 1}.png`;
+        const imageKey = `${storagePrefix}${imageFilename}`;
+        const imageBuffer = await this.storage.getBuffer(image.storageKey);
+        await this.storage.putBuffer(imageKey, imageBuffer, image.contentType);
+        imageFiles.push({ filename: imageFilename, key: imageKey });
+      }
+      const imageFilenames = imageFiles.map((image) => image.filename);
       const body = [
         `추적코드: ${trackingCode}`,
         `광고명(권장): ${adName}`,
         `UTM: ${utmContent}`,
+        `이미지: ${imageFilenames.length > 0 ? imageFilenames.join(' ') : '없음'}`,
         '규칙: 광고 1개에 소재 1개만 연결할 것 (Dynamic Creative 금지 — 소재 단위 성과 분석 불가)',
         '',
         '--- zh-TW 승인본 ---',
@@ -112,15 +125,28 @@ export class ExportService {
           note: trackingCode,
         },
       });
-      manifest.push({ trackingCode, adName, utmContent, filename });
+      manifest.push({
+        trackingCode,
+        adName,
+        utmContent,
+        filename,
+        imageFilenames: imageFilenames.join(';'),
+      });
       files.push({ trackingCode, filename, url: await this.storage.presignGet(key) });
+      for (const image of imageFiles) {
+        files.push({
+          trackingCode,
+          filename: image.filename,
+          url: await this.storage.presignGet(image.key),
+        });
+      }
     }
 
     const manifestBody = [
       '# 규칙: 광고 1개에 소재 1개만 연결할 것 (Dynamic Creative 금지 — 소재 단위 성과 분석 불가)',
-      'trackingCode,adName,utmContent,filename',
+      'trackingCode,adName,utmContent,filename,imageFilenames',
       ...manifest.map((row) =>
-        [row.trackingCode, row.adName, row.utmContent, row.filename]
+        [row.trackingCode, row.adName, row.utmContent, row.filename, row.imageFilenames]
           .map((value) => this.csvCell(value))
           .join(','),
       ),

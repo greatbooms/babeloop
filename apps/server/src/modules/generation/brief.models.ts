@@ -53,6 +53,16 @@ export class GeneratedCreativeModel {
 }
 
 @ObjectType()
+export class GeneratedImageModel {
+  @Field(() => ID) id: string;
+  @Field() url: string;
+  @Field() quality: string;
+  @Field() instructions: string;
+  @Field() createdAt: Date;
+  @Field(() => Float, { nullable: true }) costEstimateUsd: number | null;
+}
+
+@ObjectType()
 export class CreativeBriefModel {
   @Field(() => ID) id: string;
   @Field() title: string;
@@ -78,6 +88,7 @@ export class CreativeBriefModel {
   @Field(() => ID, { nullable: true }) createdById: string | null;
   @Field() createdAt: Date;
   @Field(() => [GeneratedCreativeModel]) creatives: GeneratedCreativeModel[];
+  @Field(() => [GeneratedImageModel]) images: GeneratedImageModel[];
 }
 
 @ObjectType()

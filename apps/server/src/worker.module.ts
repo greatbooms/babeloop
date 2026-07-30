@@ -9,6 +9,7 @@ import { CreativeAnalysisModule } from './modules/creative-analysis/creative-ana
 import { JobsModule } from './modules/jobs/jobs.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
+import { ImageModule } from './providers/image/image.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
 import { TextModule } from './providers/text/text.module';
@@ -45,6 +46,7 @@ import {
     PrismaModule,
     StorageModule,
     EmbeddingModule,
+    ImageModule,
     AiLogModule,
     CreativeAnalysisModule,
     JobsModule,

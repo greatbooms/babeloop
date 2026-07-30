@@ -6,7 +6,7 @@ import {
   PolicyCheckType,
   ReviewEventKind,
 } from '../../../generated/prisma';
-import { LocalizationVersionModel } from '../generation/brief.models';
+import { GeneratedImageModel, LocalizationVersionModel } from '../generation/brief.models';
 
 registerEnumType(PolicyCheckType, { name: 'PolicyCheckType' });
 registerEnumType(PolicyCheckStatus, { name: 'PolicyCheckStatus' });
@@ -60,6 +60,7 @@ export class CreativeDetailModel {
   @Field() createdAt: Date;
   @Field() updatedAt: Date;
   @Field(() => [LocalizationVersionModel]) localizations: LocalizationVersionModel[];
+  @Field(() => [GeneratedImageModel]) briefImages: GeneratedImageModel[];
   @Field(() => [PolicyCheckModel]) policyChecks: PolicyCheckModel[];
   @Field(() => [ReviewEventModel]) reviewEvents: ReviewEventModel[];
   @Field(() => [CreativeExperimentVariantModel])

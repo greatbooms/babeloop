@@ -11,7 +11,7 @@
     "build": "pnpm --filter @babeloop/server schema:emit && pnpm --filter @babeloop/web build && rm -rf apps/server/public && cp -R apps/web/dist apps/server/public",
     "start": "node apps/server/dist/main.js",
     "start:worker": "node apps/server/dist/worker.js",
-    "e2e:stack": "pnpm build && sh -c 'export TEXT_AI_PROVIDER=mock EMBEDDING_PROVIDER=mock OCR_PROVIDER=mock STT_PROVIDER=mock; node apps/server/dist/worker.js & exec node apps/server/dist/main.js'",
+    "e2e:stack": "pnpm build && sh -c 'export TEXT_AI_PROVIDER=mock EMBEDDING_PROVIDER=mock OCR_PROVIDER=mock STT_PROVIDER=mock IMAGE_PROVIDER=mock; node apps/server/dist/worker.js & exec node apps/server/dist/main.js'",
     "test": "pnpm --filter @babeloop/server test",
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "prisma:generate": "prisma generate",

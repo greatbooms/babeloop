@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { GraphQLError } from 'graphql';
 import { CreativeStatus, ReviewEventKind, User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import {
   JOB_TYPES,
   backTranslateJobId,
@@ -23,6 +24,13 @@ export const REVIEW_INCLUDE = {
   experimentVariants: { orderBy: { createdAt: 'asc' as const } },
 } as const;
 
+export const REVIEW_DETAIL_INCLUDE = {
+  ...REVIEW_INCLUDE,
+  brief: {
+    include: { images: { orderBy: { createdAt: 'desc' as const } } },
+  },
+} as const;
+
 @Injectable()
 export class ReviewService {
   constructor(
@@ -30,6 +38,7 @@ export class ReviewService {
     private readonly jobRecord: JobRecordService,
     @InjectQueue(POLICY_CHECK_QUEUE) private readonly policyQueue: Queue,
     @InjectQueue(LOCALIZATION_QUEUE) private readonly localizationQueue: Queue,
+    private readonly storage: StorageService,
   ) {}
 
   async runPolicyCheck(user: User, creativeId: string) {
@@ -194,10 +203,22 @@ export class ReviewService {
   async findById(id: string) {
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id },
-      include: REVIEW_INCLUDE,
+      include: REVIEW_DETAIL_INCLUDE,
     });
     if (!creative) throw new NotFoundException('생성물을 찾을 수 없습니다');
-    return this.mapCreative(creative);
+    return {
+      ...this.mapCreative(creative),
+      briefImages: await Promise.all(
+        creative.brief.images.map(async (image) => ({
+          id: image.id,
+          url: await this.storage.presignGet(image.storageKey),
+          quality: image.quality,
+          instructions: image.instructions,
+          createdAt: image.createdAt,
+          costEstimateUsd: image.costEstimateUsd,
+        })),
+      ),
+    };
   }
 
   private async transition(
@@ -256,6 +277,7 @@ export class ReviewService {
       ...creative,
       briefTitle: creative.brief.title,
       locale: creative.brief.locale,
+      briefImages: [],
       scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,
       policyChecks: creative.policyChecks.map((check) => ({
         ...check,
