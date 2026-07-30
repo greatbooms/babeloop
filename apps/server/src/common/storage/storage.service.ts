@@ -72,9 +72,17 @@ export class StorageService implements OnModuleInit {
     );
   }
 
-  presignGet(key: string): Promise<string> {
-    return getSignedUrl(this.presignClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+  /** 같은 키는 유효 기간 내 같은 서명 URL을 재사용한다 — 3초 폴링마다 새로 서명하면
+   *  URL 문자열이 바뀌어 브라우저가 같은 썸네일을 매번 다시 다운로드한다. (15분 서명 중 10분 캐시) */
+  private readonly presignCache = new Map<string, { url: string; until: number }>();
+
+  async presignGet(key: string): Promise<string> {
+    const cached = this.presignCache.get(key);
+    if (cached && Date.now() < cached.until) return cached.url;
+    const url = await getSignedUrl(this.presignClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: 900,
     });
+    this.presignCache.set(key, { url, until: Date.now() + 10 * 60 * 1000 });
+    return url;
   }
 }
