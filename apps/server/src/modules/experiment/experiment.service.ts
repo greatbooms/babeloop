@@ -54,8 +54,9 @@ export class ExperimentService {
       where: { id: input.creativeId },
     });
     if (!creative) throw new NotFoundException('생성물을 찾을 수 없습니다');
-    if (creative.status !== 'APPROVED') {
-      throw new GraphQLError('승인된 소재만 실험에 추가할 수 있습니다', {
+    // 내보낸(EXPORTED) 소재도 새 실험에 재사용할 수 있다 — 검증된 소재의 재투입. 추적코드가 실험별로 발급되어 측정은 분리된다.
+    if (creative.status !== 'APPROVED' && creative.status !== 'EXPORTED') {
+      throw new GraphQLError('승인되었거나 내보낸 소재만 실험에 추가할 수 있습니다', {
         extensions: { code: 'NOT_APPROVED' },
       });
     }

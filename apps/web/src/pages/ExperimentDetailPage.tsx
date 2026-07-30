@@ -13,6 +13,8 @@ import './review.css';
 
 const ExperimentDocument = graphql(`query ExperimentDetail($id: ID!) { experiment(id: $id) { id code name marketCode variants { id variantCode trackingCode creative { id koreanText status } } } exportPackages(experimentId: $id) { id manifestJson createdAt } }`);
 const ExportExperimentDocument = graphql(`mutation ExperimentsExport($input: ExportExperimentInput!) { exportExperiment(input: $input) { package { id } files { trackingCode filename url } manifestUrl } }`);
+const AddableCreativesDocument = graphql(`query AddableCreatives { approved: creatives(status: APPROVED) { id briefTitle koreanText } exported: creatives(status: EXPORTED) { id briefTitle koreanText } }`);
+const ExperimentAddCreativeDocument = graphql(`mutation ExperimentDetailAddCreative($input: AddCreativeToExperimentInput!) { addCreativeToExperiment(input: $input) { id trackingCode } }`);
 interface ExportView { files: Array<{ trackingCode: string; filename: string; url: string }>; manifestUrl: string; }
 
 function manifestFileCount(manifestJson: string): number | null {
@@ -30,9 +32,24 @@ export function ExperimentDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>(); const { data, refetch } = useQuery(ExperimentDocument, { variables: { id: id! }, skip: !id });
   const [exportExperiment] = useMutation(ExportExperimentDocument); const [exported, setExported] = useState<ExportView | null>(null); const [error, setError] = useState<string | null>(null);
+  const { data: addableData, refetch: refetchAddable } = useQuery(AddableCreativesDocument);
+  const [addCreative] = useMutation(ExperimentAddCreativeDocument);
+  const [creativeSelection, setCreativeSelection] = useState('');
   async function onExport() { setError(null); try { const result = await exportExperiment({ variables: { input: { experimentId: id! } } }); setExported(result.data!.exportExperiment); await refetch(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } }
   const experiment = data?.experiment; if (!experiment) return <section><p className="muted">{t('experiments.loading')}</p></section>;
   const exportCount = data?.exportPackages.length ?? 0;
+  const memberIds = new Set(experiment.variants.map((variant) => variant.creative.id));
+  const addable = [...(addableData?.approved ?? []), ...(addableData?.exported ?? [])].filter((creative) => !memberIds.has(creative.id));
+  const selectedCreative = creativeSelection || addable[0]?.id || '';
+  async function onAddCreative() {
+    setError(null);
+    try {
+      await addCreative({ variables: { input: { experimentId: id!, creativeId: selectedCreative } } });
+      setCreativeSelection('');
+      await refetch();
+      await refetchAddable();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+  }
   return <section className="stage-export experiment-detail ad-detail">
     <Link className="back-link" to="/experiments">{t('experiments.back')}</Link>
     <header className="page-header">
@@ -49,6 +66,16 @@ export function ExperimentDetailPage() {
       {experiment.variants.length > 0 && (
         <div className="table-wrap"><table className="data-table"><thead><tr><th>{t('experiments.variantCode')}</th><th>{t('experiments.trackingCode')}</th><th>{t('experiments.copySummary')}</th><th>{t('experiments.status')}</th></tr></thead><tbody>{experiment.variants.map((variant) => <tr key={variant.id}><td><span className="variant-chip">{variant.variantCode}</span></td><td><strong>{variant.trackingCode}</strong></td><td><Link to={`/review/${variant.creative.id}`}>{variant.creative.koreanText.slice(0, 100)}</Link></td><td><StatusBadge status={variant.creative.status} /></td></tr>)}</tbody></table></div>
       )}
+    </Card>
+    <Card className="card-stack">
+      <h2>{t('experiments.addCreativeTitle')}</h2>
+      {addable.length === 0 ? <p className="muted">{t('experiments.noAddable')}</p> : (
+        <div className="experiment-add-row">
+          <label>{t('experiments.creativeSelection')}<select value={selectedCreative} onChange={(event) => setCreativeSelection(event.target.value)}>{addable.map((creative) => <option key={creative.id} value={creative.id}>{`${creative.koreanText.split('\n')[0].slice(0, 40)} — ${creative.briefTitle}`}</option>)}</select></label>
+          <Button variant="primary" size="sm" data-hint={t('experiments.addCreativeHint')} disabled={!selectedCreative} onClick={() => void onAddCreative()}>{t('experiments.addCreative')}</Button>
+        </div>
+      )}
+      <p className="form-hint">{t('experiments.membershipRules')}</p>
     </Card>
     {exported && (
       <Card className="card-stack">
