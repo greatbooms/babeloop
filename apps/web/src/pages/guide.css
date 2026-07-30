@@ -1,5 +1,5 @@
 /* 전체 가이드 — 처음부터 끝까지 읽는 문서형 페이지 */
-.guide-page { display: grid; gap: var(--sp-lg); max-width: 880px; }
+.guide-page { display: grid; gap: var(--sp-lg); max-width: 880px; margin: 0 auto; }
 .guide-intro { color: var(--body); font-size: 15px; line-height: 1.7; margin-top: var(--sp-sm); max-width: 72ch; }
 .guide-list { list-style: disc; padding-left: var(--sp-lg); display: grid; gap: var(--sp-sm); }
 .guide-list li { color: var(--body); font-size: 14px; line-height: 1.6; }
