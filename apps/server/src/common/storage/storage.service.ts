@@ -20,6 +20,19 @@ export class StorageService implements OnModuleInit {
     },
     forcePathStyle: true, // MinIO 필수
   });
+  /** presign 전용 클라이언트 — S3 서명에는 호스트가 포함되므로, 브라우저가 접근할 공개 주소로 서명해야
+   *  원격(테일스케일 등) 접속에서 미디어 미리보기·업로드가 동작한다. 미설정 시 내부 주소 그대로. */
+  private readonly presignClient = process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT
+    ? new S3Client({
+        endpoint: process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT,
+        region: process.env.OBJECT_STORAGE_REGION,
+        credentials: {
+          accessKeyId: process.env.OBJECT_STORAGE_ACCESS_KEY!,
+          secretAccessKey: process.env.OBJECT_STORAGE_SECRET_KEY!,
+        },
+        forcePathStyle: true,
+      })
+    : this.client;
 
   async onModuleInit() {
     try {
@@ -32,7 +45,7 @@ export class StorageService implements OnModuleInit {
 
   presignPut(key: string, contentType: string): Promise<string> {
     return getSignedUrl(
-      this.client,
+      this.presignClient,
       new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
       { expiresIn: 900 },
     );
@@ -60,7 +73,7 @@ export class StorageService implements OnModuleInit {
   }
 
   presignGet(key: string): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+    return getSignedUrl(this.presignClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: 900,
     });
   }
