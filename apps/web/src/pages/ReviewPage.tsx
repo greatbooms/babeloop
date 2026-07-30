@@ -6,6 +6,9 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import { useT } from '../i18n/lang-context';
+import './media.css';
+import './briefs.css';
+import './review.css';
 
 const ReviewCreativesDocument = graphql(`
   query ReviewCreatives {
@@ -16,24 +19,31 @@ const ReviewCreativesDocument = graphql(`
 export function ReviewPage() {
   const { t } = useT();
   const { data } = useQuery(ReviewCreativesDocument, { pollInterval: 3000 });
+  const creatives = data?.creatives ?? [];
   return (
     <section className="review-page stage-review">
       <PageHeader title={t('review.title')} step={t('review.step')} description={t('review.description')} />
       <HelpPanel page="review" />
-      <ul className="card-list">
-        {data?.creatives.map((creative) => (
-          <li key={creative.id}>
-            <Link className="brand-list-card" to={`/review/${creative.id}`}>
-              <Card className="card-stack review-card">
-                <div className="inline-actions"><StatusBadge status={creative.status} /><span className="muted">{t('review.revision', { revision: creative.revision })}</span>{creative.minorFlagged && <span title={t('review.minorFlag')}>⚠</span>}</div>
-                <p>{creative.koreanText.length > 60 ? `${creative.koreanText.slice(0, 60)}…` : creative.koreanText}</p>
-                <p className="muted">{creative.briefTitle}</p>
-                <span className="brand-detail-cta">{t('common.detail')}</span>
+      {creatives.length === 0 ? (
+        <Card className="empty-state"><p className="muted">{t('review.empty')}</p></Card>
+      ) : (
+        <ul className="briefs-grid">
+          {creatives.map((creative) => (
+            <li key={creative.id}>
+              <Card className="brief-card review-list-card">
+                <div className="inline-actions">
+                  <StatusBadge status={creative.status} />
+                  <span className="muted">{t('review.revision', { revision: creative.revision })}</span>
+                  {creative.minorFlagged && <span title={t('review.minorFlag')}>⚠</span>}
+                </div>
+                <p className="review-copy-excerpt">{creative.koreanText.length > 80 ? `${creative.koreanText.slice(0, 80)}…` : creative.koreanText}</p>
+                <div className="tag-row"><span className="tag">{creative.briefTitle}</span></div>
+                <Link className="brand-detail-cta" to={`/review/${creative.id}`}>{t('common.detail')}</Link>
               </Card>
-            </Link>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
