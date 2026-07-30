@@ -46,3 +46,9 @@
 .scene-table td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* 언어 토글 — 한국 작업자 / 대만 검수자 */
+
+/* 이미지 생성 모달 — 워크플로 안내와 예시 칩 */
+.image-workflow-hint { font-size: 13px; color: var(--body); background: var(--stage-bg, #f3efff); border-radius: var(--r-sm); padding: var(--sp-md); line-height: 1.6; }
+.image-example-block { display: grid; gap: var(--sp-xs); }
+.image-example-chip { cursor: pointer; border: 1px dashed var(--hairline); background: var(--canvas); }
+.image-example-chip:hover { border-color: var(--stage-fg, var(--primary-active)); color: var(--stage-fg, var(--primary-active)); }

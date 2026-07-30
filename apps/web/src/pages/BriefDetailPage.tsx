@@ -170,10 +170,26 @@ export function BriefDetailPage() {
 
       <Modal title={t('briefs.imageGenerate')} open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
         <p className="muted">{t('briefs.imageGenerateDescription')}</p>
+        <p className="image-workflow-hint">💡 {t('briefs.imageWorkflowHint')}</p>
         <form className="page-form" onSubmit={onGenerateImages}>
           <FormField label={t('briefs.imageInstructions')} htmlFor="image-instructions">
             <textarea id="image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
           </FormField>
+          <div className="image-example-block">
+            <span className="facet-label">{t('briefs.imageExamplesTitle')}</span>
+            <div className="tag-row">
+              {[1, 2, 3].map((index) => {
+                const example = t(`briefs.imageExample${index}`);
+                return <button type="button" className="tag image-example-chip" key={index} onClick={() => setImageInstructions(example)}>{example.slice(0, 34)}…</button>;
+              })}
+            </div>
+          </div>
+          <details className="csv-guide">
+            <summary>{t('briefs.imageTipsTitle')}</summary>
+            <ul className="guide-list">
+              {[1, 2, 3, 4, 5].map((index) => <li key={index}>{t(`briefs.imageTip${index}`)}</li>)}
+            </ul>
+          </details>
           <div className="brief-fields">
             <FormField label={t('briefs.imageCount')} htmlFor="image-count">
               <select id="image-count" value={imageCount} onChange={(event) => setImageCount(Number(event.target.value))}>
