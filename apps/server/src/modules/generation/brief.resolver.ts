@@ -19,8 +19,11 @@ export class BriefResolver {
   constructor(private readonly briefService: BriefService) {}
 
   @Query(() => [CreativeBriefModel])
-  creativeBriefs() {
-    return this.briefService.findAll();
+  creativeBriefs(
+    @Args('search', { type: () => String, nullable: true }) search?: string,
+    @Args('brandId', { type: () => ID, nullable: true }) brandId?: string,
+  ) {
+    return this.briefService.findAll(search, brandId);
   }
 
   @Query(() => CreativeBriefModel)

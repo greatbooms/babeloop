@@ -24,8 +24,9 @@ export class ReviewResolver {
   @Query(() => [CreativeDetailModel])
   creatives(
     @Args('status', { type: () => CreativeStatus, nullable: true }) status?: CreativeStatus,
+    @Args('search', { type: () => String, nullable: true }) search?: string,
   ) {
-    return this.reviewService.findAll(status);
+    return this.reviewService.findAll(status, search);
   }
 
   @Query(() => CreativeDetailModel)

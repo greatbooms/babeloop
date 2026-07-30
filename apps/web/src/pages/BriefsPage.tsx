@@ -16,8 +16,8 @@ import './media.css';
 import './briefs.css';
 
 const CreativeBriefsDocument = graphql(`
-  query CreativeBriefs {
-    creativeBriefs {
+  query CreativeBriefs($search: String, $brandId: ID) {
+    creativeBriefs(search: $search, brandId: $brandId) {
       id title hookType callToAction createdAt
       creatives { id }
     }
@@ -36,7 +36,10 @@ export function BriefsPage() {
   const { lang, t } = useT();
   // 변형 잡 완료 후에도 현지화 잡이 뒤따라 도착하므로 폴링하되, 생성 잡이 돌 때만 3초·평상시 30초
   const [jobId, setJobId] = useState<string | null>(null);
-  const { data, refetch } = useQuery(CreativeBriefsDocument, { pollInterval: jobId ? 3000 : 30_000 });
+  const [filterBrandId, setFilterBrandId] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const { data, refetch } = useQuery(CreativeBriefsDocument, { variables: { search: search || undefined, brandId: filterBrandId || undefined }, pollInterval: jobId ? 3000 : 30_000 });
   const { data: brandsData } = useQuery(BriefBrandsDocument);
   const [generateBrief] = useMutation(GenerateCreativeBriefDocument);
   const [createOpen, setCreateOpen] = useState(false);
@@ -46,6 +49,7 @@ export function BriefsPage() {
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
   const navigate = useNavigate();
+  useEffect(() => { const timer = window.setTimeout(() => setSearch(searchInput), 300); return () => window.clearTimeout(timer); }, [searchInput]);
 
   // 생성이 끝나면 새 브리프 상세로 자동 이동한다 (광고 상세의 브리프 생성과 동일한 흐름)
   useEffect(() => {
@@ -103,6 +107,11 @@ export function BriefsPage() {
         </form>
       </Modal>
 
+      <div className="filter-bar media-filter-bar">
+        <FormField label={t('briefs.brand')} htmlFor="brief-filter-brand"><select id="brief-filter-brand" value={filterBrandId} onChange={(event) => setFilterBrandId(event.target.value)}><option value="">{t('briefs.all')}</option>{brandsData?.brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></FormField>
+        <FormField label={t('briefs.searchLabel')} htmlFor="brief-search"><input id="brief-search" type="search" placeholder={t('briefs.searchPlaceholder')} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
+        <p className="result-count">{t('briefs.resultCount', { count: briefs.length })}</p>
+      </div>
       {error && <p className="error" role="alert">{error}</p>}
       {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && (
         <p>{t('briefs.generating', { status: job.status })}</p>

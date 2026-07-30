@@ -137,8 +137,19 @@ export class BriefService {
     return { job };
   }
 
-  async findAll() {
+  async findAll(search?: string, brandId?: string) {
+    const trimmed = search?.trim();
     const briefs = await this.prisma.creativeBrief.findMany({
+      where: {
+        brandId: brandId ?? undefined,
+        OR: trimmed
+          ? [
+              { title: { contains: trimmed, mode: 'insensitive' } },
+              { focusText: { contains: trimmed, mode: 'insensitive' } },
+              { hookType: { contains: trimmed, mode: 'insensitive' } },
+            ]
+          : undefined,
+      },
       include: BRIEF_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });

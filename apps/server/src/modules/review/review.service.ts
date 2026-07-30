@@ -173,9 +173,18 @@ export class ReviewService {
     return this.findById(creativeId);
   }
 
-  async findAll(status?: CreativeStatus) {
+  async findAll(status?: CreativeStatus, search?: string) {
+    const trimmed = search?.trim();
     const creatives = await this.prisma.generatedCreative.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        status: status ?? undefined,
+        OR: trimmed
+          ? [
+              { koreanText: { contains: trimmed, mode: 'insensitive' } },
+              { brief: { title: { contains: trimmed, mode: 'insensitive' } } },
+            ]
+          : undefined,
+      },
       include: REVIEW_INCLUDE,
       orderBy: { updatedAt: 'desc' },
     });
