@@ -23,7 +23,8 @@ export function MediaDetailPage() {
   const { id } = useParams<{ id: string }>();
   // 업로드 직후 목록에서 넘어오면 처리 잡이 이 페이지 밖에서 끝난다 — 3초 폴링으로 추출·인사이트 결과를 따라잡는다 (미디어 URL은 fixedMediaUrl로 고정)
   const [pollFast, setPollFast] = useState(true);
-  const { data, refetch } = useQuery(MediaDetailDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
+  // cache-and-network: 목록 폴링이 캐시에 심은 최신 상태와 상세 전용 필드(추출 텍스트 등)가 어긋날 수 있어 진입 시 반드시 네트워크로 확인한다
+  const { data, refetch } = useQuery(MediaDetailDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [processMedia] = useMutation(ProcessMediaDocument);
   const [analyzeMedia] = useMutation(AnalyzeMediaDocument);
   const [loadSimilar, similar] = useLazyQuery(SimilarMediaAdsDocument);

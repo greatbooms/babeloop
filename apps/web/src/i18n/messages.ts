@@ -11,6 +11,7 @@ export const messages = {
       review: { label: '검토', hint: '정책 검사 → 검수 → 승인 게이트' },
       experiments: { label: '실험', hint: '승인 문구 배정·추적코드 발급·내보내기' },
       performance: { label: '성과', hint: '성과 CSV 업로드 → 소재별 퍼널 → 브리프 환류' },
+      guide: { label: '가이드', hint: '전체 워크플로를 처음부터 끝까지 읽는 사용 가이드' },
     },
     common: {
       korean: '한국어',
@@ -108,6 +109,7 @@ export const messages = {
       review: { label: '審核', hint: '政策檢查 → 審核 → 核准關卡' },
       experiments: { label: '實驗', hint: '分配已核准文案、核發追蹤碼並匯出' },
       performance: { label: '成效', hint: '上傳成效 CSV → 素材漏斗 → 回饋簡報' },
+      guide: { label: '指南', hint: '從頭到尾閱讀整個工作流程的使用指南' },
     },
     common: {
       korean: '한국어',

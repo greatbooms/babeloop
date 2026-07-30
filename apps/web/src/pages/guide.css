@@ -1,0 +1,21 @@
+/* 전체 가이드 — 처음부터 끝까지 읽는 문서형 페이지 */
+.guide-page { display: grid; gap: var(--sp-lg); max-width: 880px; }
+.guide-intro { color: var(--body); font-size: 15px; line-height: 1.7; margin-top: var(--sp-sm); max-width: 72ch; }
+.guide-list { list-style: disc; padding-left: var(--sp-lg); display: grid; gap: var(--sp-sm); }
+.guide-list li { color: var(--body); font-size: 14px; line-height: 1.6; }
+.guide-loop { font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: 0.2px; }
+
+.guide-stage { border-left: 4px solid var(--stage-fg, var(--hairline)); }
+.guide-stage-head { display: flex; align-items: center; gap: var(--sp-sm); }
+.guide-tab { color: var(--muted); font-size: 13px; font-weight: 600; }
+.guide-what { color: var(--body); font-size: 14px; line-height: 1.7; }
+.guide-who { font-size: 14px; color: var(--body); }
+.guide-steps { list-style: decimal; padding-left: var(--sp-lg); margin-top: var(--sp-sm); display: grid; gap: var(--sp-sm); }
+.guide-steps li { color: var(--body); font-size: 14px; line-height: 1.6; }
+.guide-states { font-size: 13px; color: var(--muted); }
+.guide-tip { font-size: 13px; color: var(--body); background: var(--surface-soft); border-radius: var(--r-sm); padding: var(--sp-md); }
+
+.guide-extra h3 { font-size: 15px; margin-bottom: var(--sp-xs); }
+.guide-extra { padding: var(--sp-md) 0; border-bottom: 1px solid var(--hairline-soft); }
+.guide-extra:last-child { border-bottom: none; }
+.guide-extra p { color: var(--body); font-size: 14px; line-height: 1.6; margin-top: var(--sp-xs); }

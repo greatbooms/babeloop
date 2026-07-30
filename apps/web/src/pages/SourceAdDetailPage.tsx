@@ -36,7 +36,7 @@ export function SourceAdDetailPage() {
   const { id } = useParams<{ id: string }>();
   // 진행 중(잡 활성·ANALYZING)일 때만 3초, 평상시 30초 폴링
   const [pollFast, setPollFast] = useState(true);
-  const { data, refetch } = useQuery(SourceAdDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
+  const { data, refetch } = useQuery(SourceAdDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

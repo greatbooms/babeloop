@@ -12,6 +12,7 @@ const navigation = [
   ['/review', 'review'],
   ['/experiments', 'experiments'],
   ['/performance', 'performance'],
+  ['/guide', 'guide'],
 ] as const;
 
 export function AppShell({ user, onLogout, children }: { user: { displayName?: string | null; email: string; role: string }; onLogout: () => void; children: ReactNode }) {

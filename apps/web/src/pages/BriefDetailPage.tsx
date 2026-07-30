@@ -31,7 +31,7 @@ export function BriefDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>();
   const [pollFast, setPollFast] = useState(true);
-  const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000 });
+  const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [generateVariants] = useMutation(GenerateCreativeVariantsDocument);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

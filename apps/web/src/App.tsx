@@ -15,6 +15,7 @@ import { ExperimentsPage } from './pages/ExperimentsPage';
 import { ExperimentDetailPage } from './pages/ExperimentDetailPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { ReviewDetailPage } from './pages/ReviewDetailPage';
+import { GuidePage } from './pages/GuidePage';
 import { PerformancePage } from './pages/PerformancePage';
 import { HomePage } from './pages/HomePage';
 import { useT } from './i18n/lang-context';
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/experiments" element={me ? <ExperimentsPage /> : <Navigate to="/login" />} />
         <Route path="/experiments/:id" element={me ? <ExperimentDetailPage /> : <Navigate to="/login" />} />
         <Route path="/performance" element={me ? <PerformancePage /> : <Navigate to="/login" />} />
+        <Route path="/guide" element={me ? <GuidePage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={me ? '/brands' : '/login'} />} />
       </Routes></AppShell> : <Routes>
         <Route path="/login" element={<LoginPage onLogin={() => refetch()} />} />
