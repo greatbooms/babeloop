@@ -13,7 +13,7 @@ import './review.css';
 
 const ExperimentDocument = graphql(`query ExperimentDetail($id: ID!) { experiment(id: $id) { id code name marketCode variants { id variantCode trackingCode creative { id koreanText status } } } exportPackages(experimentId: $id) { id manifestJson createdAt } }`);
 const ExportExperimentDocument = graphql(`mutation ExperimentsExport($input: ExportExperimentInput!) { exportExperiment(input: $input) { package { id } files { trackingCode filename url } manifestUrl } }`);
-const AddableCreativesDocument = graphql(`query AddableCreatives { approved: creatives(status: APPROVED) { id briefTitle koreanText } exported: creatives(status: EXPORTED) { id briefTitle koreanText } }`);
+const AddableCreativesDocument = graphql(`query AddableCreatives { approved: creatives(status: APPROVED) { id briefTitle koreanText localizations { kind text } } exported: creatives(status: EXPORTED) { id briefTitle koreanText localizations { kind text } } }`);
 const ExperimentAddCreativeDocument = graphql(`mutation ExperimentDetailAddCreative($input: AddCreativeToExperimentInput!) { addCreativeToExperiment(input: $input) { id trackingCode } }`);
 interface ExportView { files: Array<{ trackingCode: string; filename: string; url: string }>; manifestUrl: string; }
 
@@ -71,7 +71,7 @@ export function ExperimentDetailPage() {
       <h2>{t('experiments.addCreativeTitle')}</h2>
       {addable.length === 0 ? <p className="muted">{t('experiments.noAddable')}</p> : (
         <div className="experiment-add-row">
-          <label>{t('experiments.creativeSelection')}<select value={selectedCreative} onChange={(event) => setCreativeSelection(event.target.value)}>{addable.map((creative) => <option key={creative.id} value={creative.id}>{`${creative.koreanText.split('\n')[0].slice(0, 40)} — ${creative.briefTitle}`}</option>)}</select></label>
+          <label>{t('experiments.creativeSelection')}<select value={selectedCreative} onChange={(event) => setCreativeSelection(event.target.value)}>{addable.map((creative) => { const zhText = creative.localizations[0]?.text; const shown = lang === 'zhTw' && zhText ? zhText : creative.koreanText; return <option key={creative.id} value={creative.id}>{`${shown.split('\n')[0].slice(0, 40)} — ${creative.briefTitle}`}</option>; })}</select></label>
           <Button variant="primary" size="sm" data-hint={t('experiments.addCreativeHint')} disabled={!selectedCreative} onClick={() => void onAddCreative()}>{t('experiments.addCreative')}</Button>
         </div>
       )}
