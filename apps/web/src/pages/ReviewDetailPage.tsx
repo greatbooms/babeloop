@@ -8,11 +8,12 @@ import { graphql } from '../generated';
 import { CreativeStatus, CreativeType, UserRole } from '../generated/graphql';
 import { formatDate } from '../i18n/format-date';
 import { useT } from '../i18n/lang-context';
+import { parseScenes } from '../lib/parse-scenes';
 import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -76,7 +77,25 @@ export function ReviewDetailPage() {
       </div>
     </Card>
 
-    {creative.briefImages.length > 0 && (
+    {creative.type === CreativeType.VideoScript && (
+      <Card className="card-stack">
+        <h2>{t('review.sceneTableTitle')}</h2>
+        <p className="muted">{t('review.sceneTableGuide')}</p>
+        {(() => {
+          const scenes = parseScenes(creative.scenesJson);
+          return scenes.length === 0 ? <p className="muted">{t('briefs.noSceneData')}</p> : (
+            <div className="scene-table-wrap">
+              <table className="scene-table">
+                <thead><tr><th>{t('briefs.sceneSeconds')}</th><th>{t('briefs.sceneVisual')}</th><th>{t('briefs.sceneDialogue')}</th><th>{t('briefs.sceneCaption')}</th></tr></thead>
+                <tbody>{scenes.map((scene, index) => <tr key={`${creative.id}-${index}`}><td>{t('briefs.secondsValue', { seconds: scene.seconds })}</td><td>{scene.visual}</td><td>{scene.dialogue}</td><td>{scene.caption}</td></tr>)}</tbody>
+              </table>
+            </div>
+          );
+        })()}
+      </Card>
+    )}
+
+    {creative.type !== CreativeType.VideoScript && creative.briefImages.length > 0 && (
       <Card className="card-stack">
         <h2>{t('review.briefImages')}</h2>
         <p className="muted">{t('review.briefImagesGuide')}</p>

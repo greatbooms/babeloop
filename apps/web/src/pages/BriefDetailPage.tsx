@@ -11,6 +11,7 @@ import { CreativeType, JobStatus, LocalizationKind } from '../generated/graphql'
 import { useJobPolling } from '../hooks/useJobPolling';
 import { formatDate } from '../i18n/format-date';
 import { useT } from '../i18n/lang-context';
+import { parseScenes } from '../lib/parse-scenes';
 import './media.css';
 import './briefs.css';
 
@@ -30,26 +31,6 @@ const GenerateCreativeVariantsDocument = graphql(`mutation GenerateCreativeVaria
 const GenerateBriefImagesDocument = graphql(`mutation GenerateBriefImages($input: GenerateBriefImagesInput!) { generateBriefImages(input: $input) { id status } }`);
 
 type BriefFields = { title: string; audienceHypothesis: string; desire: string; hookType: string; messageAngle: string; visualFormat: string; callToAction: string; rationale: string };
-type VideoScene = { seconds: number; visual: string; dialogue: string; caption: string };
-
-function parseScenes(value: string | null | undefined): VideoScene[] {
-  if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (scene): scene is VideoScene =>
-        typeof scene === 'object' &&
-        scene !== null &&
-        typeof (scene as VideoScene).seconds === 'number' &&
-        typeof (scene as VideoScene).visual === 'string' &&
-        typeof (scene as VideoScene).dialogue === 'string' &&
-        typeof (scene as VideoScene).caption === 'string',
-    );
-  } catch {
-    return [];
-  }
-}
 
 export function BriefDetailPage() {
   const { lang, t } = useT();
