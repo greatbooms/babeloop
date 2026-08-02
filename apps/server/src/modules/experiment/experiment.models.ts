@@ -17,6 +17,7 @@ export class ExperimentVariantModel {
   @Field(() => ID) creativeId: string;
   @Field() variantCode: string;
   @Field() trackingCode: string;
+  @Field(() => Date, { nullable: true }) exportedAt: Date | null;
   @Field() createdAt: Date;
   @Field(() => ExperimentCreativeModel) creative: ExperimentCreativeModel;
 }

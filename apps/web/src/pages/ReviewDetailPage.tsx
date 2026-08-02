@@ -5,14 +5,14 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
-import { CreativeStatus, UserRole } from '../generated/graphql';
+import { CreativeStatus, CreativeType, UserRole } from '../generated/graphql';
 import { formatDate } from '../i18n/format-date';
 import { useT } from '../i18n/lang-context';
 import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -48,7 +48,7 @@ export function ReviewDetailPage() {
     <Link className="back-link" to="/review">{t('review.back')}</Link>
     <header className="page-header">
       <div>
-        <div className="page-header-title-row"><h1>{creative.briefTitle}</h1><StatusBadge status={creative.status} /></div>
+        <div className="page-header-title-row"><h1>{creative.briefTitle}</h1>{creative.type === CreativeType.VideoScript ? <span className="tag tag-video">{t('review.typeVideoScript')}</span> : <span className="tag">{t('review.typeCopy')}</span>}<StatusBadge status={creative.status} /></div>
         <p>{t('review.variantRevision', { variant: creative.variantIndex, revision: creative.revision })}</p>
       </div>
       <div className="page-header-actions">
@@ -143,7 +143,7 @@ export function ReviewDetailPage() {
           <Button variant="primary" size="sm" data-hint={t('review.addExperimentHint')} disabled={!selectedExperiment} onClick={() => void act(() => addToExperiment({ variables: { input: { creativeId: creative.id, experimentId: selectedExperiment } } }), true)}>{t('review.addExperiment')}</Button>
         </div>
         {creative.experimentVariants.length > 0 && (
-          <div className="tag-row">{creative.experimentVariants.map((variant) => <span className="tag tag-accent" key={variant.id}>{variant.trackingCode}</span>)}</div>
+          <div className="tag-row">{creative.experimentVariants.map((variant) => <span className="tag tag-accent" key={variant.id}>{variant.trackingCode}{variant.exportedAt && <small> · {t('review.exportedAt', { date: formatDate(String(variant.exportedAt), lang) })}</small>}</span>)}</div>
         )}
       </Card>
     )}

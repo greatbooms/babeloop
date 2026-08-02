@@ -346,7 +346,39 @@ describe('review flow', () => {
     const exportedCreatives = await prisma.generatedCreative.findMany({
       where: { id: { in: [happy.id, secondApproved.id] } },
     });
-    expect(exportedCreatives.every((creative) => creative.status === 'EXPORTED')).toBe(true);
+    expect(exportedCreatives.every((creative) => creative.status === 'APPROVED')).toBe(true);
+    const firstVariantExports = await prisma.experimentVariant.findMany({
+      where: { experimentId },
+      orderBy: { variantCode: 'asc' },
+      select: { id: true, exportedAt: true },
+    });
+    expect(firstVariantExports).toHaveLength(2);
+    expect(firstVariantExports.every((variant) => variant.exportedAt !== null)).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const reexportResponse = await reviewer.post('/graphql').send({
+      query: EXPORT_EXPERIMENT,
+      variables: { input: { experimentId } },
+    });
+    expect(reexportResponse.body.errors).toBeUndefined();
+    const reexported = reexportResponse.body.data.exportExperiment;
+    expect(reexported.package.id).not.toBe(exported.package.id);
+    expect(reexported.files.map((file: { trackingCode: string }) => file.trackingCode)).toEqual([
+      'BL-TW01-V1-R1',
+      'BL-TW01-V2-R1',
+    ]);
+    const secondVariantExports = await prisma.experimentVariant.findMany({
+      where: { experimentId },
+      orderBy: { variantCode: 'asc' },
+      select: { id: true, exportedAt: true },
+    });
+    expect(secondVariantExports).toHaveLength(2);
+    for (const [index, variant] of secondVariantExports.entries()) {
+      expect(variant.id).toBe(firstVariantExports[index].id);
+      expect(variant.exportedAt!.getTime()).toBeGreaterThan(
+        firstVariantExports[index].exportedAt!.getTime(),
+      );
+    }
 
     const immutable = await editor.post('/graphql').send({
       query: UPDATE_TEXT,

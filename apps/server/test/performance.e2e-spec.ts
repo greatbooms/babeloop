@@ -89,7 +89,7 @@ describe('performance', () => {
         data: {
           briefId: brief.id,
           type: 'COPY',
-          status: 'EXPORTED',
+          status: 'APPROVED',
           variantIndex: index + 1,
           hookType: index === 0 ? '질문형' : '후기형',
           koreanText,

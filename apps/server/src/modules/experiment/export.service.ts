@@ -5,7 +5,6 @@ import { Prisma, User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { adNameFor, buildTrackingCode, utmContentFor } from '../../common/tracking-code';
-import { assertTransition } from '../review/creative-state-machine';
 
 interface ManifestRow extends Prisma.InputJsonObject {
   trackingCode: string;
@@ -100,29 +99,16 @@ export class ExportService {
       ].join('\n');
       const key = `${storagePrefix}${filename}`;
       await this.storage.putBuffer(key, Buffer.from(body, 'utf8'), 'text/plain; charset=utf-8');
-      assertTransition(
-        {
-          creative: {
-            status: creative.status,
-            createdById: creative.createdById,
-            lastEditedById: creative.lastEditedById,
-            minorFlagged: creative.minorFlagged,
-            locale: creative.brief.locale,
-          },
-          actor: { id: user.id, role: user.role },
-        },
-        'EXPORTED',
-      );
-      await this.prisma.generatedCreative.update({
-        where: { id: creative.id },
-        data: { status: 'EXPORTED' },
+      await this.prisma.experimentVariant.update({
+        where: { id: variant.id },
+        data: { exportedAt: new Date() },
       });
       await this.prisma.reviewRequest.create({
         data: {
           creativeId: creative.id,
           kind: 'EXPORTED',
           actorId: user.id,
-          note: trackingCode,
+          note: `experiment=${experiment.code}; tracking=${trackingCode}`,
         },
       });
       manifest.push({

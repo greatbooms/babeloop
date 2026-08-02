@@ -18,7 +18,6 @@ export const STATUS_LABELS: Record<string, { ko: string; zhTw: string; tone: Sta
   IN_REVIEW: { ko: '검토 중', zhTw: '審核中', tone: 'progress' },
   LOCALIZATION_APPROVED: { ko: '현지화 승인', zhTw: '在地化核准', tone: 'progress' },
   APPROVED: { ko: '승인됨', zhTw: '已核准', tone: 'positive' },
-  EXPORTED: { ko: '내보냄', zhTw: '已匯出', tone: 'positive' },
   REVISION_REQUESTED: { ko: '수정 요청됨', zhTw: '已要求修改', tone: 'warn' },
   REJECTED: { ko: '거절됨', zhTw: '已拒絕', tone: 'warn' },
 };

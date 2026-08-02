@@ -430,7 +430,6 @@ enum CreativeStatus {
   IN_REVIEW
   LOCALIZATION_APPROVED
   APPROVED
-  EXPORTED
   REVISION_REQUESTED
   REJECTED
 }
@@ -561,6 +560,7 @@ model ExperimentVariant {
   creative     GeneratedCreative @relation(fields: [creativeId], references: [id])
   variantCode  String
   trackingCode String            @unique
+  exportedAt   DateTime?
   createdAt    DateTime          @default(now())
   performance  PerformanceDaily[]
 

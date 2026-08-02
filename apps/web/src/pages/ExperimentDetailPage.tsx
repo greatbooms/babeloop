@@ -11,9 +11,9 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ExperimentDocument = graphql(`query ExperimentDetail($id: ID!) { experiment(id: $id) { id code name marketCode variants { id variantCode trackingCode creative { id koreanText status } } } exportPackages(experimentId: $id) { id manifestJson createdAt } }`);
+const ExperimentDocument = graphql(`query ExperimentDetail($id: ID!) { experiment(id: $id) { id code name marketCode variants { id variantCode trackingCode exportedAt creative { id koreanText status } } } exportPackages(experimentId: $id) { id manifestJson createdAt } }`);
 const ExportExperimentDocument = graphql(`mutation ExperimentsExport($input: ExportExperimentInput!) { exportExperiment(input: $input) { package { id } files { trackingCode filename url } manifestUrl } }`);
-const AddableCreativesDocument = graphql(`query AddableCreatives { approved: creatives(status: APPROVED) { id briefTitle koreanText localizations { kind text } } exported: creatives(status: EXPORTED) { id briefTitle koreanText localizations { kind text } } }`);
+const AddableCreativesDocument = graphql(`query AddableCreatives { approved: creatives(status: APPROVED) { id briefTitle koreanText localizations { kind text } } }`);
 const ExperimentAddCreativeDocument = graphql(`mutation ExperimentDetailAddCreative($input: AddCreativeToExperimentInput!) { addCreativeToExperiment(input: $input) { id trackingCode } }`);
 interface ExportView { files: Array<{ trackingCode: string; filename: string; url: string }>; manifestUrl: string; }
 
@@ -39,7 +39,7 @@ export function ExperimentDetailPage() {
   const experiment = data?.experiment; if (!experiment) return <section><p className="muted">{t('experiments.loading')}</p></section>;
   const exportCount = data?.exportPackages.length ?? 0;
   const memberIds = new Set(experiment.variants.map((variant) => variant.creative.id));
-  const addable = [...(addableData?.approved ?? []), ...(addableData?.exported ?? [])].filter((creative) => !memberIds.has(creative.id));
+  const addable = (addableData?.approved ?? []).filter((creative) => !memberIds.has(creative.id));
   const selectedCreative = creativeSelection || addable[0]?.id || '';
   async function onAddCreative() {
     setError(null);
@@ -64,7 +64,7 @@ export function ExperimentDetailPage() {
       <h2>{t('experiments.variants')}</h2>
       {experiment.variants.length === 0 && <p className="muted">{t('experiments.noVariants')}</p>}
       {experiment.variants.length > 0 && (
-        <div className="table-wrap"><table className="data-table"><thead><tr><th>{t('experiments.variantCode')}</th><th>{t('experiments.trackingCode')}</th><th>{t('experiments.copySummary')}</th><th>{t('experiments.status')}</th></tr></thead><tbody>{experiment.variants.map((variant) => <tr key={variant.id}><td><span className="variant-chip">{variant.variantCode}</span></td><td><strong>{variant.trackingCode}</strong></td><td><Link to={`/review/${variant.creative.id}`}>{variant.creative.koreanText.slice(0, 100)}</Link></td><td><StatusBadge status={variant.creative.status} /></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table className="data-table"><thead><tr><th>{t('experiments.variantCode')}</th><th>{t('experiments.trackingCode')}</th><th>{t('experiments.copySummary')}</th><th>{t('experiments.status')}</th><th>{t('experiments.exportedAtColumn')}</th></tr></thead><tbody>{experiment.variants.map((variant) => <tr key={variant.id}><td><span className="variant-chip">{variant.variantCode}</span></td><td><strong>{variant.trackingCode}</strong></td><td><Link to={`/review/${variant.creative.id}`}>{variant.creative.koreanText.slice(0, 100)}</Link></td><td><StatusBadge status={variant.creative.status} /></td><td>{variant.exportedAt ? formatDate(String(variant.exportedAt), lang) : '—'}</td></tr>)}</tbody></table></div>
       )}
     </Card>
     <Card className="card-stack">
