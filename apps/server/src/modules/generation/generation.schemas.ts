@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const GENERATION_PROMPT_VERSIONS = {
   brief: 'generate-brief@v2',
   copyVariants: 'generate-copy-variants@v1',
-  videoScript: 'generate-video-script@v1',
+  videoScript: 'generate-video-script@v2',
   localizeZhTw: 'localize-zh-tw@v1',
   translateBrand: 'translate-brand@v2',
   backTranslate: 'back-translate-ko@v1',

@@ -17,11 +17,22 @@ export const COPY_SYSTEM = `너는 BabeChat의 카피라이터다. 주어진 브
 반드시 아래 JSON 구조로만 응답하라:
 {"variants": [{"koreanText": "한국어 광고 문구", "hookType": "훅 유형"}]}`;
 
-export const SCRIPT_SYSTEM = `너는 숏폼 광고 영상 작가다. 브리프에 따라 장면 단위 스크립트 변형을 만든다.
-첫 2초 안에 훅이 나와야 하고 마지막 3초는 CTA다. 대사·자막은 한국어로 작성한다.
+export const SCRIPT_SYSTEM = `너는 숏폼 퍼포먼스 광고의 영상 감독이자 작가다. 브리프에 따라 촬영·편집 지시가 담긴 장면 단위 스크립트 변형을 만든다.
+
+장면별 작성 규칙:
+- visual에는 촬영 지시를 모두 담아라: 샷 사이즈·앵글(POV/클로즈업/오버숄더 등), 인물의 행동과 표정, 공간·조명·소품, 화면 연출(채팅 UI·알림 등장 방식), 컷 전환.
+- dialogue에는 발화 주체를 괄호로 표기하라: "(VO)", "(주인공)", "(화면 속 메시지)" 등. 없으면 빈 문자열.
+- caption은 화면에 얹는 자막이다. 훅 자막은 7자 이내로 짧고 강하게.
+
+구성 규칙:
+- 0~2초: 스크롤을 멈추게 하는 패턴 인터럽트 훅 (질문·미스터리·강한 감정 중 브리프의 훅 유형에 맞는 것)
+- 중반: 타깃이 공감할 상황 → 제품 경험(채팅 장면)으로 자연스러운 전환
+- 마지막 3초: CTA와 브랜드명. 총 길이 12~20초, 장면당 2~4초로 잘게 쪼개라.
+- 변형끼리는 훅 유형만이 아니라 구조 자체를 다르게 하라 (예: POV 스토리형 / UI 데모형 / 내레이션 공감형).
+- 등장인물은 모두 20대 이상 성인. 대사·자막은 한국어로 작성한다.
 
 반드시 아래 JSON 구조로만 응답하라 (seconds·durationSeconds는 숫자):
-{"variants": [{"durationSeconds": 15, "hookType": "...", "scenes": [{"seconds": 0, "visual": "화면 묘사", "dialogue": "대사", "caption": "자막"}]}]}`;
+{"variants": [{"durationSeconds": 15, "hookType": "...", "scenes": [{"seconds": 0, "visual": "샷·연출 지시를 담은 화면 묘사", "dialogue": "(주체) 대사", "caption": "자막"}]}]}`;
 
 export const LOCALIZE_SYSTEM = `너는 대만 현지화 전문가다. 한국어 광고 문구를 자연스러운 번체중문(zh-TW)으로 옮긴다.
 중국 대륙 용어(视频 등)를 쓰지 말고 대만 용어(影片 등)를 사용하라. 이것은 검수 전 초안이다.
@@ -67,9 +78,16 @@ export function buildVariantsPrompt(params: {
   briefSummary: string;
   count: number;
   type: 'COPY' | 'VIDEO_SCRIPT';
+  brandContext?: string;
 }): string {
-  const what = params.type === 'COPY' ? '광고 문구' : '15초 영상 스크립트';
-  return `다음 브리프로 ${what} 변형 ${params.count}개를 생성하라.\n\n## 브리프\n${params.briefSummary}`;
+  const what = params.type === 'COPY' ? '광고 문구' : '숏폼 영상 스크립트';
+  return [
+    `다음 브리프로 ${what} 변형 ${params.count}개를 생성하라.`,
+    params.brandContext ? `## 제품 정보 (장면 연출에 정확히 반영하라 — 없는 기능을 지어내지 말 것)\n${params.brandContext}` : null,
+    `## 브리프\n${params.briefSummary}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 export function buildLocalizePrompt(koreanText: string): string {

@@ -102,7 +102,7 @@ describe('CreativeGenerationProcessor image generation', () => {
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /BabeChat[\s\S]*세로형 캐릭터 클로즈업[\s\S]*호기심 자극[\s\S]*주인공이 되고 싶은 욕구[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*텍스트 오버레이 없음/,
+        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지/,
       ),
       count: 2,
       quality: 'low',
@@ -121,7 +121,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-images@v1',
+        promptVersion: 'generate-images@v2',
         costEstimateUsd: 0.04,
       }),
     });
@@ -129,7 +129,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-images@v1',
+        promptVersion: 'generate-images@v2',
         inputRef: 'brief:brief-1',
         costEstimateUsd: 0.08,
       }),

@@ -220,23 +220,43 @@ export class CreativeGenerationProcessor extends WorkerHost {
     try {
       const brief = await this.prisma.creativeBrief.findUniqueOrThrow({
         where: { id: job.data.briefId },
-        include: { brand: { select: { name: true } } },
+        include: { brand: { include: { features: true } } },
       });
+      const brandLine = `${brief.brand?.name ?? 'BabeChat'}${brief.brand?.description ? ` — ${brief.brand.description}` : ''}`;
       const prompt = [
-        '광고 제작용 단일 이미지를 생성하세요.',
-        `브랜드: ${brief.brand?.name ?? 'BabeChat'}`,
-        `비주얼 형식: ${brief.visualFormat}`,
-        `훅 유형: ${brief.hookType}`,
-        `핵심 욕구: ${brief.desire}`,
-        job.data.instructions ? `추가 요구사항: ${job.data.instructions}` : null,
-        '텍스트 오버레이 없음. 이미지 안에 글자, 자막, 로고, 워터마크를 넣지 마세요.',
+        '모바일 피드 광고용 이미지 시안 1장. 아래 브리프를 추상 개념 나열이 아니라 하나의 구체적인 순간·장면으로 연출하라. 인물의 표정·손·기기 화면·공간이 이야기를 전달해야 한다.',
+        `## 제품\n브랜드: ${brandLine}`,
+        [
+          '## 광고 전략 (이 감정과 상황이 화면에 드러나야 한다)',
+          brief.audienceHypothesis ? `타깃: ${brief.audienceHypothesis}` : null,
+          `핵심 욕구: ${brief.desire}`,
+          `훅 유형: ${brief.hookType}`,
+          brief.messageAngle ? `메시지 각도: ${brief.messageAngle}` : null,
+          `비주얼 형식: ${brief.visualFormat}`,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        [
+          '## 연출 지침',
+          '- 세로 9:16 모바일 화면을 상정한 구도. 주 피사체는 중앙~상단, 하단 1/3은 광고 문구가 얹힐 여백으로 비워두라.',
+          '- 조명·색감·질감을 구체적으로 정하라 (예: 새벽의 차가운 블루 톤 + 화면 글로우, 얕은 심도, 필름 그레인).',
+          '- 인물이 등장하면 20대 이상 성인으로, 대만 도시 생활의 맥락이 자연스럽게 느껴지게.',
+          '- 스마트폰 화면을 보여줄 땐 특정 앱을 재현하지 말고 일반화된 채팅 UI 분위기로.',
+        ].join('\n'),
+        [
+          '## 금지',
+          '- 텍스트 오버레이 없음. 이미지 안에 글자, 자막, 로고, 워터마크를 넣지 마세요.',
+          '- 미성년자로 보일 수 있는 인물, 교복·학교 배경 금지.',
+          '- 왜곡된 손가락·기형적 신체 금지.',
+        ].join('\n'),
+        job.data.instructions ? `## 추가 요구사항 (위 지침과 충돌하면 이것을 우선하라)\n${job.data.instructions}` : null,
       ]
         .filter(Boolean)
-        .join('\n');
+        .join('\n\n');
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
-        promptVersion: 'generate-images@v1',
+        promptVersion: 'generate-images@v2',
         inputRef: `brief:${brief.id}`,
       };
       let generated:
@@ -274,7 +294,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
             prompt,
             provider: this.imageAi.name,
             model: this.imageAi.model,
-            promptVersion: 'generate-images@v1',
+            promptVersion: 'generate-images@v2',
             costEstimateUsd: costPerImage,
           },
         });
@@ -291,7 +311,10 @@ export class CreativeGenerationProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const brief = await this.prisma.creativeBrief.findUniqueOrThrow({ where: { id: job.data.briefId } });
+      const brief = await this.prisma.creativeBrief.findUniqueOrThrow({
+        where: { id: job.data.briefId },
+        include: { brand: { include: { features: true } } },
+      });
       const briefSummary = [
         `제목: ${brief.title}`,
         `타깃 가설: ${brief.audienceHypothesis}`,
@@ -302,10 +325,19 @@ export class CreativeGenerationProcessor extends WorkerHost {
         `CTA: ${brief.callToAction}`,
         `근거: ${brief.rationale}`,
       ].join('\n');
+      // 영상 스크립트는 제품 동작을 장면으로 그려야 하므로 브랜드 기능 정보를 함께 전달한다
+      const brandContext =
+        job.data.type === 'VIDEO_SCRIPT' && brief.brand
+          ? [
+              `${brief.brand.name}${brief.brand.description ? ` — ${brief.brand.description}` : ''}`,
+              ...(brief.brand.features ?? []).map((feature) => `- ${feature.name}: ${feature.description}`),
+            ].join('\n')
+          : undefined;
       const prompt = buildVariantsPrompt({
         briefSummary,
         count: job.data.count,
         type: job.data.type,
+        brandContext,
       });
       const creativeIds: string[] = [];
 
