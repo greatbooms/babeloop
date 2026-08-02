@@ -1,6 +1,6 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { CreativeStatus, User } from '../../../generated/prisma';
+import { CreativeStatus, CreativeType, User } from '../../../generated/prisma';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -25,8 +25,9 @@ export class ReviewResolver {
   creatives(
     @Args('status', { type: () => CreativeStatus, nullable: true }) status?: CreativeStatus,
     @Args('search', { type: () => String, nullable: true }) search?: string,
+    @Args('type', { type: () => CreativeType, nullable: true }) type?: CreativeType,
   ) {
-    return this.reviewService.findAll(status, search);
+    return this.reviewService.findAll(status, search, type);
   }
 
   @Query(() => CreativeDetailModel)

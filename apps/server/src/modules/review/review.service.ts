@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { GraphQLError } from 'graphql';
-import { CreativeStatus, ReviewEventKind, User } from '../../../generated/prisma';
+import { CreativeStatus, CreativeType, ReviewEventKind, User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import {
@@ -182,11 +182,12 @@ export class ReviewService {
     return this.findById(creativeId);
   }
 
-  async findAll(status?: CreativeStatus, search?: string) {
+  async findAll(status?: CreativeStatus, search?: string, type?: CreativeType) {
     const trimmed = search?.trim();
     const creatives = await this.prisma.generatedCreative.findMany({
       where: {
         status: status ?? undefined,
+        type: type ?? undefined,
         OR: trimmed
           ? [
               { koreanText: { contains: trimmed, mode: 'insensitive' } },

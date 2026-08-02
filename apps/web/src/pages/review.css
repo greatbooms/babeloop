@@ -32,3 +32,6 @@
 .experiment-add-row label { flex: 1; display: grid; gap: var(--sp-xs); color: var(--muted); font-size: 13px; font-weight: 600; }
 .experiment-add-row select { width: 100%; min-height: 40px; padding: 0 var(--sp-md); border: 1px solid var(--hairline); border-radius: var(--r-sm); background: var(--canvas); }
 .minor-warning { border-left: 4px solid var(--error-text); }
+
+/* 소재 유형 칩 — 영상 스크립트는 스테이지 색과 무관한 고정 앰버로 한눈에 구분한다 */
+.tag-video { color: #92400e; background: #fef3c7; border-color: transparent; font-weight: 600; }
