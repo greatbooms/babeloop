@@ -82,3 +82,113 @@ describe('BriefService.requestImages', () => {
     );
   });
 });
+
+describe('BriefService approved creative generation', () => {
+  function setup(creative: { id: string; briefId: string; type: string; status: string }) {
+    const prisma = {
+      generatedCreative: { findUnique: jest.fn().mockResolvedValue(creative) },
+    };
+    const queue = { name: 'creative-generation' };
+    const jobRecord = {
+      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }),
+    };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      queue as never,
+      {} as never,
+    );
+    return { service, queue, jobRecord };
+  }
+
+  it('APPROVED COPY의 전용 이미지 잡을 creativeId 포함 payload로 등록한다', async () => {
+    const { service, queue, jobRecord } = setup({
+      id: 'creative-copy-1',
+      briefId: 'brief-1',
+      type: 'COPY',
+      status: 'APPROVED',
+    });
+
+    await expect(service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '따뜻한 조명',
+      count: 2,
+      quality: 'high',
+    })).resolves.toEqual({ id: 'queued-job' });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      queue,
+      'creative-generation',
+      'generate-images',
+      expect.stringMatching(/^generate-images--creative-copy-1--[0-9a-f-]+$/),
+      {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '따뜻한 조명',
+        count: 2,
+        quality: 'high',
+      },
+    );
+  });
+
+  it('APPROVED COPY가 아니면 전용 이미지 생성을 거부한다', async () => {
+    const { service, jobRecord } = setup({
+      id: 'creative-video-1',
+      briefId: 'brief-1',
+      type: 'VIDEO_SCRIPT',
+      status: 'APPROVED',
+    });
+
+    await expect(service.requestCreativeImages({
+      creativeId: 'creative-video-1',
+      instructions: '',
+      count: 2,
+      quality: 'low',
+    })).rejects.toThrow('APPROVED 문구에서만 생성할 수 있습니다');
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('APPROVED VIDEO_SCRIPT의 영상 잡을 enqueueOrRetry로 등록한다', async () => {
+    const { service, queue, jobRecord } = setup({
+      id: 'creative-video-1',
+      briefId: 'brief-1',
+      type: 'VIDEO_SCRIPT',
+      status: 'APPROVED',
+    });
+
+    await expect(service.requestCreativeVideo({
+      creativeId: 'creative-video-1',
+      seconds: 12,
+      instructions: '영화적인 조명',
+    })).resolves.toEqual({ id: 'queued-job' });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      queue,
+      'creative-generation',
+      'generate-video',
+      expect.stringMatching(/^generate-video--creative-video-1--[0-9a-f-]+$/),
+      {
+        creativeId: 'creative-video-1',
+        seconds: 12,
+        instructions: '영화적인 조명',
+      },
+    );
+  });
+
+  it('4/8/12초 외 영상 길이를 거부한다', async () => {
+    const { service, jobRecord } = setup({
+      id: 'creative-video-1',
+      briefId: 'brief-1',
+      type: 'VIDEO_SCRIPT',
+      status: 'APPROVED',
+    });
+
+    await expect(service.requestCreativeVideo({
+      creativeId: 'creative-video-1',
+      seconds: 6,
+      instructions: '',
+    })).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+});

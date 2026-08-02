@@ -15,6 +15,7 @@ export const JOB_TYPES = {
   GENERATE_BRIEF: 'generate-brief',
   GENERATE_COPY_VARIANTS: 'generate-copy-variants',
   GENERATE_IMAGES: 'generate-images',
+  GENERATE_VIDEO: 'generate-video',
   TRANSLATE_BRAND: 'translate-brand',
   LOCALIZE_ZH_TW: 'localize-zh-tw',
   BACK_TRANSLATE_KO: 'back-translate-ko',
@@ -56,6 +57,10 @@ export function generateCopyVariantsJobId(briefId: string, requestId: string): s
 
 export function generateImagesJobId(briefId: string, requestId: string): string {
   return `${JOB_TYPES.GENERATE_IMAGES}--${briefId}--${requestId}`;
+}
+
+export function generateVideoJobId(creativeId: string, requestId: string): string {
+  return `${JOB_TYPES.GENERATE_VIDEO}--${creativeId}--${requestId}`;
 }
 
 export function translateBrandJobId(brandId: string): string {

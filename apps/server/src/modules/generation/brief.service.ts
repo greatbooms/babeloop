@@ -11,6 +11,7 @@ import {
   generateBriefJobId,
   generateCopyVariantsJobId,
   generateImagesJobId,
+  generateVideoJobId,
   JOB_TYPES,
 } from '../../queues/queue.constants';
 import { JobRecordService } from '../jobs/job-record.service';
@@ -18,6 +19,8 @@ import { PerformanceService } from '../performance/performance.service';
 import {
   GenerateBriefImagesInput,
   GenerateCreativeBriefInput,
+  GenerateCreativeImagesInput,
+  GenerateCreativeVideoInput,
   GenerateCreativeVariantsInput,
 } from './brief.inputs';
 
@@ -99,16 +102,7 @@ export class BriefService {
   }
 
   async requestImages(input: GenerateBriefImagesInput) {
-    if (!Number.isInteger(input.count) || input.count < 1 || input.count > 4) {
-      throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
-        extensions: { code: 'BAD_USER_INPUT' },
-      });
-    }
-    if (input.quality !== 'low' && input.quality !== 'high') {
-      throw new GraphQLError('이미지 품질은 low 또는 high여야 합니다', {
-        extensions: { code: 'BAD_USER_INPUT' },
-      });
-    }
+    this.validateImageRequest(input.count, input.quality);
     await this.prisma.creativeBrief.findUniqueOrThrow({ where: { id: input.briefId } }).catch(() => {
       throw new GraphQLError('브리프를 찾을 수 없습니다', { extensions: { code: 'NOT_FOUND' } });
     });
@@ -125,6 +119,75 @@ export class BriefService {
       generateImagesJobId(input.briefId, randomUUID()),
       payload,
     );
+  }
+
+  async requestCreativeImages(input: GenerateCreativeImagesInput) {
+    this.validateImageRequest(input.count, input.quality);
+    const creative = await this.prisma.generatedCreative.findUnique({
+      where: { id: input.creativeId },
+      select: { id: true, briefId: true, type: true, status: true },
+    });
+    if (!creative || creative.type !== 'COPY' || creative.status !== 'APPROVED') {
+      throw new GraphQLError('APPROVED 문구에서만 생성할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    const payload = {
+      briefId: creative.briefId,
+      creativeId: creative.id,
+      instructions: input.instructions?.trim() ?? '',
+      count: input.count,
+      quality: input.quality,
+    };
+    return this.jobRecord.enqueueOrRetry(
+      this.queue,
+      CREATIVE_GENERATION_QUEUE,
+      JOB_TYPES.GENERATE_IMAGES,
+      generateImagesJobId(creative.id, randomUUID()),
+      payload,
+    );
+  }
+
+  async requestCreativeVideo(input: GenerateCreativeVideoInput) {
+    if (input.seconds !== 4 && input.seconds !== 8 && input.seconds !== 12) {
+      throw new GraphQLError('영상 길이는 4초, 8초, 12초 중 하나여야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    const creative = await this.prisma.generatedCreative.findUnique({
+      where: { id: input.creativeId },
+      select: { id: true, type: true, status: true },
+    });
+    if (!creative || creative.type !== 'VIDEO_SCRIPT' || creative.status !== 'APPROVED') {
+      throw new GraphQLError('APPROVED 장면표에서만 생성할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    const payload = {
+      creativeId: creative.id,
+      seconds: input.seconds,
+      instructions: input.instructions?.trim() ?? '',
+    };
+    return this.jobRecord.enqueueOrRetry(
+      this.queue,
+      CREATIVE_GENERATION_QUEUE,
+      JOB_TYPES.GENERATE_VIDEO,
+      generateVideoJobId(creative.id, randomUUID()),
+      payload,
+    );
+  }
+
+  private validateImageRequest(count: number, quality: string): void {
+    if (!Number.isInteger(count) || count < 1 || count > 4) {
+      throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (quality !== 'low' && quality !== 'high') {
+      throw new GraphQLError('이미지 품질은 low 또는 high여야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
   }
 
   async requestBriefFromPerformance(user: User, experimentId: string) {

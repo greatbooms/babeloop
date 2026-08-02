@@ -9,6 +9,8 @@ import {
   GenerateBriefFromPerformanceInput,
   GenerateBriefImagesInput,
   GenerateCreativeBriefInput,
+  GenerateCreativeImagesInput,
+  GenerateCreativeVideoInput,
   GenerateCreativeVariantsInput,
 } from './brief.inputs';
 import { CreativeBriefModel, GenerateJobPayload } from './brief.models';
@@ -52,6 +54,18 @@ export class BriefResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   generateBriefImages(@Args('input') input: GenerateBriefImagesInput) {
     return this.briefService.requestImages(input);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  generateCreativeImages(@Args('input') input: GenerateCreativeImagesInput) {
+    return this.briefService.requestCreativeImages(input);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  generateCreativeVideo(@Args('input') input: GenerateCreativeVideoInput) {
+    return this.briefService.requestCreativeVideo(input);
   }
 
   @Mutation(() => GenerateJobPayload)

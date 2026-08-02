@@ -25,6 +25,21 @@ export class GenerateBriefImagesInput {
 }
 
 @InputType()
+export class GenerateCreativeImagesInput {
+  @Field(() => ID) creativeId: string;
+  @Field(() => String, { nullable: true }) instructions?: string;
+  @Field(() => Int, { nullable: true, defaultValue: 2 }) count: number;
+  @Field(() => String, { nullable: true, defaultValue: 'low' }) quality: string;
+}
+
+@InputType()
+export class GenerateCreativeVideoInput {
+  @Field(() => ID) creativeId: string;
+  @Field(() => Int, { nullable: true, defaultValue: 12 }) seconds: number;
+  @Field(() => String, { nullable: true }) instructions?: string;
+}
+
+@InputType()
 export class GenerateBriefFromPerformanceInput {
   @Field(() => ID) experimentId: string;
 }

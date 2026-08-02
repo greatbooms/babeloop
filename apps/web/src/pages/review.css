@@ -5,7 +5,17 @@
 /* 상세: 원문·번체중문 나란히 */
 .review-copy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-lg); }
 .review-copy-grid .long-copy { margin-top: var(--sp-xs); }
+.review-copy-single { max-width: 760px; }
+.review-copy-single .long-copy { margin-top: var(--sp-xs); }
 @media (max-width: 900px) { .review-copy-grid { grid-template-columns: 1fr; } }
+
+.creative-generation-action { display: grid; justify-items: end; gap: 4px; max-width: 300px; }
+.creative-generation-action small { color: var(--muted); font-size: 11px; line-height: 1.35; text-align: right; }
+.generated-video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 360px)); gap: var(--sp-lg); }
+.generated-video-item { margin: 0; display: grid; gap: var(--sp-sm); }
+.generated-video-item video { width: 100%; aspect-ratio: 9 / 16; max-height: 640px; border-radius: var(--r-md); background: #111827; object-fit: contain; }
+.generated-video-item figcaption { display: grid; gap: var(--sp-xs); }
+.generated-video-item time { color: var(--muted); font-size: 12px; }
 
 /* 상세: 액션 영역 */
 .review-edit-area { display: grid; gap: var(--sp-sm); }

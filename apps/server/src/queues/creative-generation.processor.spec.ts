@@ -24,7 +24,7 @@ describe('CreativeGenerationProcessor brand translation', () => {
     const aiLog = { record: jest.fn(async (_meta, run) => run()) };
     const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
     const textAi = { name: 'mock', model: 'mock-text-1', generate: jest.fn().mockResolvedValue({ text: JSON.stringify(translated) }) };
-    const processor = new CreativeGenerationProcessor(prisma as never, aiLog as never, jobRecord as never, {} as never, textAi as never, {} as never, {} as never, {} as never, {} as never);
+    const processor = new CreativeGenerationProcessor(prisma as never, aiLog as never, jobRecord as never, {} as never, textAi as never, {} as never, {} as never, {} as never, {} as never, {} as never);
 
     await processor.process({ id: 'translate-brand--brand-1', name: JOB_TYPES.TRANSLATE_BRAND, data: { brandId: 'brand-1' }, attemptsMade: 0, opts: { attempts: 1 } } as never);
 
@@ -84,6 +84,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       {} as never,
       storage as never,
       imageProvider as never,
+      {} as never,
     );
     const jobId = 'generate-images--brief-1--request-1';
 
@@ -138,5 +139,170 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(jobRecord.markSucceeded).toHaveBeenCalledWith(jobId, {
       imageIds: ['image-1', 'image-2'],
     });
+  });
+
+  it('승인 문구 기반 이미지 프롬프트에 한국어와 승인된 zh-TW 문구를 포함한다', async () => {
+    const creative = {
+      id: 'creative-copy-1',
+      type: 'COPY',
+      status: 'APPROVED',
+      koreanText: '오늘 밤, 내 이야기에 빠져봐',
+      localizations: [{ kind: 'APPROVED', locale: 'zh-TW', text: '今晚，沉浸在我的故事裡' }],
+      brief: {
+        id: 'brief-1',
+        audienceHypothesis: '스토리 몰입을 원하는 성인',
+        visualFormat: '세로형 캐릭터 클로즈업',
+        hookType: '호기심 자극',
+        desire: '주인공이 되고 싶은 욕구',
+        messageAngle: '나만의 이야기',
+        brand: { name: 'BabeChat', description: 'AI 캐릭터챗' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedImage: { create: jest.fn().mockResolvedValue({ id: 'image-copy-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
+    const imageProvider = {
+      name: 'mock',
+      model: 'mock-image-1',
+      generate: jest.fn().mockResolvedValue({
+        images: [{ buffer: Buffer.from('mock-png'), contentType: 'image/png' }],
+        costEstimateUsd: 0.04,
+      }),
+    };
+    const storage = { putBuffer: jest.fn() };
+    const processor = new (CreativeGenerationProcessor as any)(
+      prisma,
+      aiLog,
+      jobRecord,
+      {},
+      {},
+      {},
+      {},
+      storage,
+      imageProvider,
+      {},
+    );
+    const jobId = 'generate-images--creative-copy-1--request-1';
+
+    await processor.process({
+      id: jobId,
+      name: JOB_TYPES.GENERATE_IMAGES,
+      data: {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+      },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    });
+
+    expect(imageProvider.generate).toHaveBeenCalledWith({
+      prompt: expect.stringMatching(
+        /## 확정 광고 문구[\s\S]*한국어: 오늘 밤, 내 이야기에 빠져봐[\s\S]*zh-TW\(승인본\): 今晚，沉浸在我的故事裡/,
+      ),
+      count: 1,
+      quality: 'low',
+    });
+    expect(prisma.generatedImage.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        promptVersion: 'generate-copy-images@v1',
+      }),
+    });
+  });
+});
+
+describe('CreativeGenerationProcessor video generation', () => {
+  it('mock 영상을 저장하고 비용을 기록한다', async () => {
+    const video = Buffer.from('mock-video');
+    const creative = {
+      id: 'creative-video-1',
+      type: 'VIDEO_SCRIPT',
+      status: 'APPROVED',
+      scenes: [
+        { seconds: 0, visual: '주인공의 놀란 표정 클로즈업', dialogue: '', caption: '누구지?' },
+        { seconds: 3, visual: '채팅 화면을 보는 오버숄더 숏', dialogue: '(VO) 이야기가 시작된다', caption: '' },
+      ],
+      brief: {
+        hookType: '미스터리',
+        desire: '나만의 이야기에 몰입하고 싶은 욕구',
+        brand: { name: 'BabeChat' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedVideo: { create: jest.fn().mockResolvedValue({ id: 'video-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
+    const storage = { putBuffer: jest.fn() };
+    const videoProvider = {
+      name: 'mock',
+      model: 'mock-video-1',
+      generate: jest.fn().mockResolvedValue({
+        video: { buffer: video, contentType: 'video/mp4' },
+        costEstimateUsd: 1.2,
+      }),
+    };
+    const processor = new (CreativeGenerationProcessor as any)(
+      prisma,
+      aiLog,
+      jobRecord,
+      {},
+      {},
+      {},
+      {},
+      storage,
+      {},
+      videoProvider,
+    );
+    const jobId = 'generate-video--creative-video-1--request-1';
+
+    await processor.process({
+      id: jobId,
+      name: 'generate-video',
+      data: { creativeId: 'creative-video-1', seconds: 12, instructions: '영화적인 조명' },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    });
+
+    expect(videoProvider.generate).toHaveBeenCalledWith({
+      prompt: expect.stringMatching(
+        /0-3초: \[연출\] 주인공의 놀란 표정 클로즈업[\s\S]*미스터리[\s\S]*나만의 이야기에 몰입하고 싶은 욕구[\s\S]*세로 9:16 숏폼 광고[\s\S]*영화적인 조명/,
+      ),
+      seconds: 12,
+      size: '720x1280',
+    });
+    expect(storage.putBuffer).toHaveBeenCalledWith(
+      expect.stringMatching(/^generated-videos\/creative-video-1\/[0-9a-f-]+\.mp4$/),
+      video,
+      'video/mp4',
+    );
+    expect(prisma.generatedVideo.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        creativeId: 'creative-video-1',
+        seconds: 12,
+        size: '720x1280',
+        promptVersion: 'generate-video@v1',
+        costEstimateUsd: 1.2,
+      }),
+    });
+    expect(aiLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'mock',
+        model: 'mock-video-1',
+        promptVersion: 'generate-video@v1',
+        inputRef: 'creative:creative-video-1',
+        costEstimateUsd: 1.2,
+      }),
+      expect.any(Function),
+    );
+    expect(jobRecord.markSucceeded).toHaveBeenCalledWith(jobId, { videoId: 'video-1' });
   });
 });

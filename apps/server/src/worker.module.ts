@@ -13,6 +13,7 @@ import { ImageModule } from './providers/image/image.module';
 import { OcrModule } from './providers/ocr/ocr.module';
 import { SttModule } from './providers/stt/stt.module';
 import { TextModule } from './providers/text/text.module';
+import { VideoModule } from './providers/video/video.module';
 import { CreativeGenerationProcessor } from './queues/creative-generation.processor';
 import { MediaProcessingProcessor } from './queues/media-processing.processor';
 import { LocalizationProcessor } from './queues/localization.processor';
@@ -54,6 +55,7 @@ import {
     OcrModule,
     SttModule,
     TextModule,
+    VideoModule,
   ],
   providers: [
     CreativeAnalysisProcessor,

@@ -40,6 +40,7 @@ export async function createTestApp(): Promise<TestApp> {
     process.env.TEXT_AI_PROVIDER = 'mock';
     process.env.EMBEDDING_PROVIDER = 'mock';
     process.env.IMAGE_PROVIDER = 'mock';
+    process.env.VIDEO_PROVIDER = 'mock';
     // 테스트는 로컬 MinIO 주소로 서명해야 한다 — 공개 주소(테일스케일 등)는 샌드박스에서 접근 불가.
     // delete 하면 ConfigModule(dotenv)이 .env에서 되채우므로 빈 값으로 고정한다.
     process.env.OBJECT_STORAGE_PUBLIC_ENDPOINT = '';
@@ -47,6 +48,7 @@ export async function createTestApp(): Promise<TestApp> {
     delete process.env.EMBEDDING_API_KEY;
     delete process.env.STT_API_KEY;
     delete process.env.IMAGE_API_KEY;
+    delete process.env.VIDEO_API_KEY;
     process.env.ALLOW_PRIVATE_EXTERNAL_URLS = 'true'; // 테스트 MinIO가 loopback이라 SSRF 관문 우회
     process.env.DATABASE_URL = pg.getConnectionUri();
     process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;

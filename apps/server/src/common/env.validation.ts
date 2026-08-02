@@ -31,6 +31,10 @@ export const envSchema = z.object({
   IMAGE_API_KEY: z.string().optional(),
   IMAGE_PRICE_LOW_USD: z.coerce.number().default(0.04),
   IMAGE_PRICE_HIGH_USD: z.coerce.number().default(0.19),
+  VIDEO_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+  VIDEO_MODEL: z.string().default('sora-2'),
+  VIDEO_API_KEY: z.string().optional(),
+  VIDEO_PRICE_PER_SECOND_USD: z.coerce.number().default(0.1),
 }).superRefine((env, ctx) => {
   if (env.OCR_PROVIDER === 'openai' && !env.OCR_MODEL && !env.TEXT_AI_MODEL) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['OCR_MODEL'], message: 'OCR_PROVIDER=openai이면 OCR_MODEL 또는 TEXT_AI_MODEL이 필요합니다' });
@@ -51,6 +55,9 @@ export const envSchema = z.object({
   }
   if (env.IMAGE_PROVIDER === 'openai' && !env.IMAGE_API_KEY && !env.TEXT_AI_API_KEY) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['IMAGE_API_KEY'], message: 'IMAGE_PROVIDER=openai이면 IMAGE_API_KEY 또는 TEXT_AI_API_KEY가 필요합니다' });
+  }
+  if (env.VIDEO_PROVIDER === 'openai' && !env.VIDEO_API_KEY && !env.TEXT_AI_API_KEY) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['VIDEO_API_KEY'], message: 'VIDEO_PROVIDER=openai이면 VIDEO_API_KEY 또는 TEXT_AI_API_KEY가 필요합니다' });
   }
 });
 

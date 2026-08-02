@@ -12,6 +12,7 @@ interface ManifestRow extends Prisma.InputJsonObject {
   utmContent: string;
   filename: string;
   imageFilenames: string;
+  videoFilenames: string;
 }
 
 @Injectable()
@@ -34,6 +35,8 @@ export class ExportService {
                   include: { images: { orderBy: { createdAt: 'asc' } } },
                 },
                 localizations: { orderBy: { createdAt: 'desc' } },
+                images: { orderBy: { createdAt: 'asc' } },
+                videos: { orderBy: { createdAt: 'asc' } },
               },
             },
           },
@@ -76,7 +79,11 @@ export class ExportService {
       const utmContent = utmContentFor(trackingCode);
       const filename = `${trackingCode}.txt`;
       const imageFiles: Array<{ filename: string; key: string }> = [];
-      for (const [index, image] of creative.brief.images.entries()) {
+      const sourceImages =
+        creative.type === 'COPY' && creative.images.length > 0
+          ? creative.images
+          : creative.brief.images;
+      for (const [index, image] of sourceImages.entries()) {
         const imageFilename = `${trackingCode}-IMG${index + 1}.png`;
         const imageKey = `${storagePrefix}${imageFilename}`;
         const imageBuffer = await this.storage.getBuffer(image.storageKey);
@@ -84,11 +91,21 @@ export class ExportService {
         imageFiles.push({ filename: imageFilename, key: imageKey });
       }
       const imageFilenames = imageFiles.map((image) => image.filename);
+      const videoFiles: Array<{ filename: string; key: string }> = [];
+      for (const [index, video] of creative.videos.entries()) {
+        const videoFilename = `${trackingCode}-VID${index + 1}.mp4`;
+        const videoKey = `${storagePrefix}${videoFilename}`;
+        const videoBuffer = await this.storage.getBuffer(video.storageKey);
+        await this.storage.putBuffer(videoKey, videoBuffer, video.contentType);
+        videoFiles.push({ filename: videoFilename, key: videoKey });
+      }
+      const videoFilenames = videoFiles.map((video) => video.filename);
       const body = [
         `추적코드: ${trackingCode}`,
         `광고명(권장): ${adName}`,
         `UTM: ${utmContent}`,
         `이미지: ${imageFilenames.length > 0 ? imageFilenames.join(' ') : '없음'}`,
+        `영상: ${videoFilenames.length > 0 ? videoFilenames.join(' ') : '없음'}`,
         '규칙: 광고 1개에 소재 1개만 연결할 것 (Dynamic Creative 금지 — 소재 단위 성과 분석 불가)',
         '',
         '--- zh-TW 승인본 ---',
@@ -117,6 +134,7 @@ export class ExportService {
         utmContent,
         filename,
         imageFilenames: imageFilenames.join(';'),
+        videoFilenames: videoFilenames.join(';'),
       });
       files.push({ trackingCode, filename, url: await this.storage.presignGet(key) });
       for (const image of imageFiles) {
@@ -126,13 +144,20 @@ export class ExportService {
           url: await this.storage.presignGet(image.key),
         });
       }
+      for (const video of videoFiles) {
+        files.push({
+          trackingCode,
+          filename: video.filename,
+          url: await this.storage.presignGet(video.key),
+        });
+      }
     }
 
     const manifestBody = [
       '# 규칙: 광고 1개에 소재 1개만 연결할 것 (Dynamic Creative 금지 — 소재 단위 성과 분석 불가)',
-      'trackingCode,adName,utmContent,filename,imageFilenames',
+      'trackingCode,adName,utmContent,filename,imageFilenames,videoFilenames',
       ...manifest.map((row) =>
-        [row.trackingCode, row.adName, row.utmContent, row.filename, row.imageFilenames]
+        [row.trackingCode, row.adName, row.utmContent, row.filename, row.imageFilenames, row.videoFilenames]
           .map((value) => this.csvCell(value))
           .join(','),
       ),

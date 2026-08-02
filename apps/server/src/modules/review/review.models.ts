@@ -1,4 +1,4 @@
-import { Field, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Field, Float, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import {
   CreativeStatus,
   CreativeType,
@@ -39,6 +39,16 @@ export class CreativeExperimentVariantModel {
 }
 
 @ObjectType()
+export class GeneratedVideoModel {
+  @Field(() => ID) id: string;
+  @Field() url: string;
+  @Field(() => Int) seconds: number;
+  @Field() size: string;
+  @Field(() => Float, { nullable: true }) costEstimateUsd: number | null;
+  @Field() createdAt: Date;
+}
+
+@ObjectType()
 export class CreativeDetailModel {
   @Field(() => ID) id: string;
   @Field(() => ID) briefId: string;
@@ -62,6 +72,8 @@ export class CreativeDetailModel {
   @Field() updatedAt: Date;
   @Field(() => [LocalizationVersionModel]) localizations: LocalizationVersionModel[];
   @Field(() => [GeneratedImageModel]) briefImages: GeneratedImageModel[];
+  @Field(() => [GeneratedImageModel]) images: GeneratedImageModel[];
+  @Field(() => [GeneratedVideoModel]) videos: GeneratedVideoModel[];
   @Field(() => [PolicyCheckModel]) policyChecks: PolicyCheckModel[];
   @Field(() => [ReviewEventModel]) reviewEvents: ReviewEventModel[];
   @Field(() => [CreativeExperimentVariantModel])

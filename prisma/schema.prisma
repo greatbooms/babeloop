@@ -33,18 +33,18 @@ model User {
 }
 
 model Brand {
-  id          String           @id @default(cuid())
-  name        String
-  serviceUrl  String?
-  description String?
-  zhTw        Json? // 번체중문 번역본 { description, features:[{name,description}], guidelines:[{title,content}] }
+  id               String           @id @default(cuid())
+  name             String
+  serviceUrl       String?
+  description      String?
+  zhTw             Json? // 번체중문 번역본 { description, features:[{name,description}], guidelines:[{title,content}] }
   koFields         Json? // 한국어 정리본 — 원문이 중문일 때 한국 작업자용 (번역 생성이 양언어를 함께 채운다)
   zhTwTranslatedAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  features    BrandFeature[]
-  guidelines  BrandGuideline[]
-  briefs      CreativeBrief[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  features         BrandFeature[]
+  guidelines       BrandGuideline[]
+  briefs           CreativeBrief[]
 
   @@map("brands")
 }
@@ -75,7 +75,7 @@ model Market {
   id            String   @id @default(cuid())
   code          String   @unique // 예: TW
   name          String
-  defaultLocale String   // 예: zh-TW
+  defaultLocale String // 예: zh-TW
   locales       String[]
   createdAt     DateTime @default(now())
 
@@ -114,8 +114,8 @@ enum MediaAssetKind {
 }
 
 enum MediaAssetStatus {
-  PENDING     // Presigned URL 발급됨, 업로드 미완료
-  UPLOADED    // 업로드 확인됨, 처리 대기
+  PENDING // Presigned URL 발급됨, 업로드 미완료
+  UPLOADED // 업로드 확인됨, 처리 대기
   PROCESSING
   READY
   FAILED
@@ -127,21 +127,21 @@ enum MediaAssetOrigin {
 }
 
 model MediaAsset {
-  id               String           @id @default(cuid())
+  id               String                @id @default(cuid())
   kind             MediaAssetKind
-  status           MediaAssetStatus @default(PENDING)
-  origin           MediaAssetOrigin @default(MANUAL)
+  status           MediaAssetStatus      @default(PENDING)
+  origin           MediaAssetOrigin      @default(MANUAL)
   originalFilename String
   contentType      String
   sizeBytes        Int?
   contentHash      String? // sha256 — 중복 감지용
   duplicateOfId    String? // 같은 해시의 기존 자산
-  storageKey       String           @unique
+  storageKey       String                @unique
   thumbnailKey     String?
   uploadedById     String?
-  uploadedBy       User?            @relation(fields: [uploadedById], references: [id])
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  uploadedBy       User?                 @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   ocrResults       OcrResult[]
   transcriptions   Transcription[]
   sourceAds        SourceAd[]
@@ -175,13 +175,13 @@ model MediaInsight {
 }
 
 model MediaAssetEmbedding {
-  id           String                       @id @default(cuid())
+  id           String                      @id @default(cuid())
   mediaAssetId String
-  mediaAsset   MediaAsset                   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset                  @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
   model        String
   dimension    Int
   embedding    Unsupported("vector(1536)")
-  createdAt    DateTime                     @default(now())
+  createdAt    DateTime                    @default(now())
 
   @@unique([mediaAssetId, model])
   @@map("media_asset_embeddings")
@@ -334,13 +334,13 @@ model CreativeAnalysis {
 }
 
 model CreativeEmbedding {
-  id         String                       @id @default(cuid())
+  id         String                      @id @default(cuid())
   sourceAdId String
-  sourceAd   SourceAd                     @relation(fields: [sourceAdId], references: [id], onDelete: Cascade)
+  sourceAd   SourceAd                    @relation(fields: [sourceAdId], references: [id], onDelete: Cascade)
   model      String
   dimension  Int
   embedding  Unsupported("vector(1536)")
-  createdAt  DateTime                     @default(now())
+  createdAt  DateTime                    @default(now())
 
   @@unique([sourceAdId, model])
   @@map("creative_embeddings")
@@ -378,9 +378,11 @@ model CreativeBrief {
 }
 
 model GeneratedImage {
-  id              String        @id @default(cuid())
+  id              String             @id @default(cuid())
   briefId         String
-  brief           CreativeBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  brief           CreativeBrief      @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  creativeId      String?
+  creative        GeneratedCreative? @relation(fields: [creativeId], references: [id], onDelete: SetNull)
   storageKey      String
   contentType     String
   quality         String
@@ -390,9 +392,10 @@ model GeneratedImage {
   model           String
   promptVersion   String
   costEstimateUsd Float?
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime           @default(now())
 
   @@index([briefId])
+  @@index([creativeId])
   @@map("generated_images")
 }
 
@@ -435,34 +438,56 @@ enum CreativeStatus {
 }
 
 model GeneratedCreative {
-  id            String                @id @default(cuid())
-  briefId       String
-  brief         CreativeBrief         @relation(fields: [briefId], references: [id], onDelete: Cascade)
-  type          CreativeType
-  status        CreativeStatus        @default(DRAFT)
-  variantIndex  Int
-  hookType      String?
-  koreanText    String
-  scenes        Json?
-  raw           Json
-  provider      String
-  model         String
-  promptVersion String
-  revision      Int                   @default(1)
-  createdById   String?
-  lastEditedById String?
-  minorFlagged  Boolean               @default(false)
-  minorFlagNote String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  localizations LocalizationVersion[]
+  id                 String                @id @default(cuid())
+  briefId            String
+  brief              CreativeBrief         @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  type               CreativeType
+  status             CreativeStatus        @default(DRAFT)
+  variantIndex       Int
+  hookType           String?
+  koreanText         String
+  scenes             Json?
+  raw                Json
+  provider           String
+  model              String
+  promptVersion      String
+  revision           Int                   @default(1)
+  createdById        String?
+  lastEditedById     String?
+  minorFlagged       Boolean               @default(false)
+  minorFlagNote      String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  localizations      LocalizationVersion[]
   experimentVariants ExperimentVariant[]
-  policyChecks PolicyCheck[]
-  reviewEvents ReviewRequest[]
+  policyChecks       PolicyCheck[]
+  reviewEvents       ReviewRequest[]
+  images             GeneratedImage[]
+  videos             GeneratedVideo[]
 
   @@index([briefId])
   @@index([status])
   @@map("generated_creatives")
+}
+
+model GeneratedVideo {
+  id              String            @id @default(cuid())
+  creativeId      String
+  creative        GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  storageKey      String
+  contentType     String            @default("video/mp4")
+  seconds         Int
+  size            String
+  prompt          String
+  instructions    String?
+  provider        String
+  model           String
+  promptVersion   String
+  costEstimateUsd Decimal?          @db.Decimal(10, 6)
+  createdAt       DateTime          @default(now())
+
+  @@index([creativeId])
+  @@map("generated_videos")
 }
 
 enum LocalizationKind {
@@ -472,19 +497,19 @@ enum LocalizationKind {
 }
 
 model LocalizationVersion {
-  id         String            @id @default(cuid())
-  creativeId String
-  creative   GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
-  locale     String            @default("zh-TW")
-  kind       LocalizationKind
-  text       String
-  notes      String?
+  id                String            @id @default(cuid())
+  creativeId        String
+  creative          GeneratedCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  locale            String            @default("zh-TW")
+  kind              LocalizationKind
+  text              String
+  notes             String?
   koBackTranslation String? // 검수자 수정본의 한국어 참고 역번역 (표시용)
-  reviewerId String?
-  reviewer   User?             @relation(fields: [reviewerId], references: [id])
-  provider   String?
-  model      String?
-  createdAt  DateTime          @default(now())
+  reviewerId        String?
+  reviewer          User?             @relation(fields: [reviewerId], references: [id])
+  provider          String?
+  model             String?
+  createdAt         DateTime          @default(now())
 
   @@index([creativeId])
   @@map("localization_versions")
@@ -541,11 +566,11 @@ model ReviewRequest {
 }
 
 model Experiment {
-  id         String              @id @default(cuid())
-  code       String              @unique
-  name       String
-  marketCode String              @default("TW")
-  createdAt  DateTime            @default(now())
+  id             String              @id @default(cuid())
+  code           String              @unique
+  name           String
+  marketCode     String              @default("TW")
+  createdAt      DateTime            @default(now())
   variants       ExperimentVariant[]
   exportPackages ExportPackage[]
 
@@ -553,15 +578,15 @@ model Experiment {
 }
 
 model ExperimentVariant {
-  id           String            @id @default(cuid())
+  id           String             @id @default(cuid())
   experimentId String
-  experiment   Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  experiment   Experiment         @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   creativeId   String
-  creative     GeneratedCreative @relation(fields: [creativeId], references: [id])
+  creative     GeneratedCreative  @relation(fields: [creativeId], references: [id])
   variantCode  String
-  trackingCode String            @unique
+  trackingCode String             @unique
   exportedAt   DateTime?
-  createdAt    DateTime          @default(now())
+  createdAt    DateTime           @default(now())
   performance  PerformanceDaily[]
 
   @@unique([experimentId, creativeId])
@@ -570,13 +595,13 @@ model ExperimentVariant {
 }
 
 model ExportPackage {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   experimentId  String
   experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
   storagePrefix String
   manifest      Json
   createdById   String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime   @default(now())
 
   @@map("export_packages")
 }
@@ -588,7 +613,7 @@ model PerformanceImport {
   importedRows           Int
   updatedRows            Int
   errorRows              Int
-  errors                  Json
+  errors                 Json
   unmatchedTrackingCodes String[]
   createdById            String?
   createdAt              DateTime @default(now())

@@ -10,6 +10,8 @@ import { VectorSearchRepository } from '../modules/creative-analysis/vector-sear
 import {
   BRIEF_SYSTEM,
   buildBriefPrompt,
+  buildImagePrompt,
+  buildVideoPrompt,
   buildVariantsPrompt,
   COPY_SYSTEM,
   SCRIPT_SYSTEM,
@@ -31,6 +33,10 @@ import {
 } from '../providers/image/image-generation.provider';
 import { generateJsonWithRepair } from '../providers/text/generate-json-with-repair';
 import { TEXT_GENERATION_PROVIDER, TextGenerationProvider } from '../providers/text/text-generation.provider';
+import {
+  VIDEO_GENERATION_PROVIDER,
+  VideoGenerationProvider,
+} from '../providers/video/video-generation.provider';
 import {
   CREATIVE_GENERATION_QUEUE,
   JOB_TYPES,
@@ -63,9 +69,16 @@ interface GenerateVariantsJobData {
 
 interface GenerateImagesJobData {
   briefId: string;
+  creativeId?: string;
   instructions: string;
   count: number;
   quality: 'low' | 'high';
+}
+
+interface GenerateVideoJobData {
+  creativeId: string;
+  seconds: 4 | 8 | 12;
+  instructions: string;
 }
 
 interface TranslateBrandJobData { brandId: string }
@@ -82,6 +95,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
     @InjectQueue(LOCALIZATION_QUEUE) private readonly localizationQueue: Queue,
     private readonly storage: StorageService,
     @Inject(IMAGE_GENERATION_PROVIDER) private readonly imageAi: ImageGenerationProvider,
+    @Inject(VIDEO_GENERATION_PROVIDER) private readonly videoAi: VideoGenerationProvider,
   ) {
     super();
   }
@@ -95,6 +109,9 @@ export class CreativeGenerationProcessor extends WorkerHost {
     }
     if (job.name === JOB_TYPES.GENERATE_IMAGES) {
       return this.generateImages(job as BullJob<GenerateImagesJobData>);
+    }
+    if (job.name === JOB_TYPES.GENERATE_VIDEO) {
+      return this.generateVideo(job as BullJob<GenerateVideoJobData>);
     }
     if (job.name === JOB_TYPES.TRANSLATE_BRAND) {
       return this.translateBrand(job as BullJob<TranslateBrandJobData>);
@@ -218,46 +235,41 @@ export class CreativeGenerationProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const brief = await this.prisma.creativeBrief.findUniqueOrThrow({
+      const creative = job.data.creativeId
+        ? await this.prisma.generatedCreative.findUniqueOrThrow({
+            where: { id: job.data.creativeId },
+            include: {
+              brief: { include: { brand: { include: { features: true } } } },
+              localizations: {
+                where: { locale: 'zh-TW', kind: 'APPROVED' },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+            },
+          })
+        : null;
+      const brief = creative?.brief ?? await this.prisma.creativeBrief.findUniqueOrThrow({
         where: { id: job.data.briefId },
         include: { brand: { include: { features: true } } },
       });
-      const brandLine = `${brief.brand?.name ?? 'BabeChat'}${brief.brand?.description ? ` — ${brief.brand.description}` : ''}`;
-      const prompt = [
-        '모바일 피드 광고용 이미지 시안 1장. 아래 브리프를 추상 개념 나열이 아니라 하나의 구체적인 순간·장면으로 연출하라. 인물의 표정·손·기기 화면·공간이 이야기를 전달해야 한다.',
-        `## 제품\n브랜드: ${brandLine}`,
-        [
-          '## 광고 전략 (이 감정과 상황이 화면에 드러나야 한다)',
-          brief.audienceHypothesis ? `타깃: ${brief.audienceHypothesis}` : null,
-          `핵심 욕구: ${brief.desire}`,
-          `훅 유형: ${brief.hookType}`,
-          brief.messageAngle ? `메시지 각도: ${brief.messageAngle}` : null,
-          `비주얼 형식: ${brief.visualFormat}`,
-        ]
-          .filter(Boolean)
-          .join('\n'),
-        [
-          '## 연출 지침',
-          '- 세로 9:16 모바일 화면을 상정한 구도. 주 피사체는 중앙~상단, 하단 1/3은 광고 문구가 얹힐 여백으로 비워두라.',
-          '- 조명·색감·질감을 구체적으로 정하라 (예: 새벽의 차가운 블루 톤 + 화면 글로우, 얕은 심도, 필름 그레인).',
-          '- 인물이 등장하면 20대 이상 성인으로, 대만 도시 생활의 맥락이 자연스럽게 느껴지게.',
-          '- 스마트폰 화면을 보여줄 땐 특정 앱을 재현하지 말고 일반화된 채팅 UI 분위기로.',
-        ].join('\n'),
-        [
-          '## 금지',
-          '- 텍스트 오버레이 없음. 이미지 안에 글자, 자막, 로고, 워터마크를 넣지 마세요.',
-          '- 미성년자로 보일 수 있는 인물, 교복·학교 배경 금지.',
-          '- 왜곡된 손가락·기형적 신체 금지.',
-        ].join('\n'),
-        job.data.instructions ? `## 추가 요구사항 (위 지침과 충돌하면 이것을 우선하라)\n${job.data.instructions}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
+      const prompt = buildImagePrompt({
+        brief,
+        brandName: brief.brand?.name ?? 'BabeChat',
+        brandDescription: brief.brand?.description,
+        creative: creative
+          ? {
+              koreanText: creative.koreanText,
+              approvedZhTw: creative.localizations[0]?.text,
+            }
+          : undefined,
+        instructions: job.data.instructions,
+      });
+      const promptVersion = creative ? 'generate-copy-images@v1' : 'generate-images@v2';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
-        promptVersion: 'generate-images@v2',
-        inputRef: `brief:${brief.id}`,
+        promptVersion,
+        inputRef: creative ? `creative:${creative.id}` : `brief:${brief.id}`,
       };
       let generated:
         | Awaited<ReturnType<ImageGenerationProvider['generate']>>
@@ -287,6 +299,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
         const saved = await this.prisma.generatedImage.create({
           data: {
             briefId: brief.id,
+            creativeId: creative?.id,
             storageKey,
             contentType: image.contentType,
             quality: job.data.quality,
@@ -294,13 +307,75 @@ export class CreativeGenerationProcessor extends WorkerHost {
             prompt,
             provider: this.imageAi.name,
             model: this.imageAi.model,
-            promptVersion: 'generate-images@v2',
+            promptVersion,
             costEstimateUsd: costPerImage,
           },
         });
         imageIds.push(saved.id);
       }
       await this.jobRecord.markSucceeded(jobId, { imageIds });
+    } catch (error) {
+      await this.failFinalAttempt(job, error);
+      throw error;
+    }
+  }
+
+  private async generateVideo(job: BullJob<GenerateVideoJobData>): Promise<void> {
+    const jobId = job.id!;
+    await this.jobRecord.markRunning(jobId);
+    try {
+      const creative = await this.prisma.generatedCreative.findUniqueOrThrow({
+        where: { id: job.data.creativeId },
+        include: { brief: { include: { brand: true } } },
+      });
+      const size = '720x1280';
+      const prompt = buildVideoPrompt({
+        scenes: creative.scenes,
+        seconds: job.data.seconds,
+        hookType: creative.brief.hookType,
+        desire: creative.brief.desire,
+        brandName: creative.brief.brand?.name ?? 'BabeChat',
+        instructions: job.data.instructions,
+      });
+      const meta: AiExecutionMeta = {
+        provider: this.videoAi.name,
+        model: this.videoAi.model,
+        promptVersion: 'generate-video@v1',
+        inputRef: `creative:${creative.id}`,
+      };
+      let generated: Awaited<ReturnType<VideoGenerationProvider['generate']>> | undefined;
+      await this.aiLog.record(meta, async () => {
+        generated = await this.videoAi.generate({
+          prompt,
+          seconds: job.data.seconds,
+          size,
+        });
+        meta.costEstimateUsd = generated.costEstimateUsd;
+        return {
+          contentType: generated.video.contentType,
+          byteLength: generated.video.buffer.length,
+        };
+      });
+      if (!generated) throw new Error('영상 생성 결과가 없습니다');
+
+      const storageKey = `generated-videos/${creative.id}/${randomUUID()}.mp4`;
+      await this.storage.putBuffer(storageKey, generated.video.buffer, generated.video.contentType);
+      const saved = await this.prisma.generatedVideo.create({
+        data: {
+          creativeId: creative.id,
+          storageKey,
+          contentType: generated.video.contentType,
+          seconds: job.data.seconds,
+          size,
+          prompt,
+          instructions: job.data.instructions || null,
+          provider: this.videoAi.name,
+          model: this.videoAi.model,
+          promptVersion: 'generate-video@v1',
+          costEstimateUsd: generated.costEstimateUsd,
+        },
+      });
+      await this.jobRecord.markSucceeded(jobId, { videoId: saved.id });
     } catch (error) {
       await this.failFinalAttempt(job, error);
       throw error;

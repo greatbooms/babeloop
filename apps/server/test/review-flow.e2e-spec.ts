@@ -2,6 +2,7 @@ import { INestApplicationContext } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 import { PrismaService } from '../src/common/prisma/prisma.service';
+import { StorageService } from '../src/common/storage/storage.service';
 import { createTestApp, createWorkerContext, stopContainers, TestApp } from './create-test-app';
 
 const RUN_POLICY = `mutation RunPolicy($input: CreativeIdInput!) {
@@ -46,6 +47,7 @@ describe('review flow', () => {
   let t: TestApp;
   let worker: INestApplicationContext;
   let prisma: PrismaService;
+  let storage: StorageService;
   let editor: ReturnType<typeof request.agent>;
   let reviewer: ReturnType<typeof request.agent>;
   let editorId: string;
@@ -55,6 +57,7 @@ describe('review flow', () => {
     t = await createTestApp();
     worker = await createWorkerContext();
     prisma = t.app.get(PrismaService);
+    storage = t.app.get(StorageService);
     editorId = await upsertUser('review-editor@test.local', 'EDITOR');
     reviewerId = await upsertUser('review-reviewer@test.local', 'REVIEWER');
     editor = await login('review-editor@test.local');
@@ -306,6 +309,37 @@ describe('review flow', () => {
       approvedLocalization: true,
       title: '내보내기 두 번째 소재',
     });
+    const sharedImageKey = `review-flow/${happy.id}/shared.png`;
+    const dedicatedImageKey = `review-flow/${happy.id}/dedicated.png`;
+    await storage.putBuffer(sharedImageKey, Buffer.from('shared-brief-image'), 'image/png');
+    await storage.putBuffer(dedicatedImageKey, Buffer.from('dedicated-copy-image'), 'image/png');
+    await prisma.generatedImage.createMany({
+      data: [
+        {
+          briefId: happy.briefId,
+          storageKey: sharedImageKey,
+          contentType: 'image/png',
+          quality: 'low',
+          instructions: '브리프 공용',
+          prompt: 'shared',
+          provider: 'mock',
+          model: 'mock-image-1',
+          promptVersion: 'generate-images@v2',
+        },
+        {
+          briefId: happy.briefId,
+          creativeId: happy.id,
+          storageKey: dedicatedImageKey,
+          contentType: 'image/png',
+          quality: 'low',
+          instructions: '문구 전용',
+          prompt: 'dedicated',
+          provider: 'mock',
+          model: 'mock-image-1',
+          promptVersion: 'generate-copy-images@v1',
+        },
+      ],
+    });
     const experimentResponse = await reviewer.post('/graphql').send({
       query: CREATE_EXPERIMENT,
       variables: { input: { code: 'TW01', name: '검토 흐름 실험' } },
@@ -327,22 +361,37 @@ describe('review flow', () => {
     const exported = exportResponse.body.data.exportExperiment;
     expect(exported.files.map((file: { trackingCode: string }) => file.trackingCode)).toEqual([
       'BL-TW01-V1-R1',
+      'BL-TW01-V1-R1',
       'BL-TW01-V2-R1',
     ]);
-    for (const file of exported.files as Array<{ trackingCode: string; url: string }>) {
+    for (const file of exported.files as Array<{ trackingCode: string; filename: string; url: string }>) {
       const response = await fetch(file.url);
       expect(response.ok).toBe(true);
+      if (file.filename.endsWith('.png')) {
+        expect(Buffer.from(await response.arrayBuffer())).toEqual(Buffer.from('dedicated-copy-image'));
+        continue;
+      }
       const body = await response.text();
       expect(body).toContain(file.trackingCode);
       expect(body).toContain('--- zh-TW 승인본 ---');
-      expect(body).toContain('이미지: 없음');
+      expect(body).toContain('영상: 없음');
     }
+    expect(exported.files.map((file: { filename: string }) => file.filename)).toContain(
+      'BL-TW01-V1-R1-IMG1.png',
+    );
+    const firstInstructionFile = exported.files.find(
+      (file: { filename: string }) => file.filename === 'BL-TW01-V1-R1.txt',
+    );
+    expect(firstInstructionFile).toBeDefined();
+    const firstInstructionBody = await (await fetch(firstInstructionFile!.url)).text();
+    expect(firstInstructionBody).toContain('이미지: BL-TW01-V1-R1-IMG1.png');
     const manifestResponse = await fetch(exported.manifestUrl);
     const manifestBody = await manifestResponse.text();
     expect(manifestBody).toContain('광고 1개에 소재 1개만 연결할 것');
     expect(manifestBody).toContain(
-      'trackingCode,adName,utmContent,filename,imageFilenames',
+      'trackingCode,adName,utmContent,filename,imageFilenames,videoFilenames',
     );
+    expect(manifestBody).toContain('"BL-TW01-V1-R1-IMG1.png"');
     const exportedCreatives = await prisma.generatedCreative.findMany({
       where: { id: { in: [happy.id, secondApproved.id] } },
     });
@@ -364,6 +413,7 @@ describe('review flow', () => {
     const reexported = reexportResponse.body.data.exportExperiment;
     expect(reexported.package.id).not.toBe(exported.package.id);
     expect(reexported.files.map((file: { trackingCode: string }) => file.trackingCode)).toEqual([
+      'BL-TW01-V1-R1',
       'BL-TW01-V1-R1',
       'BL-TW01-V2-R1',
     ]);
