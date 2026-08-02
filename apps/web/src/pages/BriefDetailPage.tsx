@@ -1,10 +1,8 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { FormField } from '../components/FormField';
-import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import { CreativeType, JobStatus, LocalizationKind } from '../generated/graphql';
@@ -28,7 +26,6 @@ const CreativeBriefDocument = graphql(`
   }
 `);
 const GenerateCreativeVariantsDocument = graphql(`mutation GenerateCreativeVariants($input: GenerateCreativeVariantsInput!) { generateCreativeVariants(input: $input) { job { id status } } }`);
-const GenerateBriefImagesDocument = graphql(`mutation GenerateBriefImages($input: GenerateBriefImagesInput!) { generateBriefImages(input: $input) { id status } }`);
 
 type BriefFields = { title: string; audienceHypothesis: string; desire: string; hookType: string; messageAngle: string; visualFormat: string; callToAction: string; rationale: string };
 
@@ -38,29 +35,22 @@ export function BriefDetailPage() {
   const [pollFast, setPollFast] = useState(true);
   const { data, refetch } = useQuery(CreativeBriefDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [generateVariants] = useMutation(GenerateCreativeVariantsDocument);
-  const [generateImages] = useMutation(GenerateBriefImagesDocument);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [imageJobId, setImageJobId] = useState<string | null>(null);
   const [scriptJobId, setScriptJobId] = useState<string | null>(null);
-  const [imageModalOpen, setImageModalOpen] = useState(false);
-  const [imageInstructions, setImageInstructions] = useState('');
-  const [imageCount, setImageCount] = useState(2);
-  const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
-  const imageJob = useJobPolling(imageJobId);
   const scriptJob = useJobPolling(scriptJobId);
   useEffect(() => {
     const creatives = data?.creativeBrief?.creatives ?? [];
     setPollFast(
-      Boolean(jobId || imageJobId || scriptJobId) ||
+      Boolean(jobId || scriptJobId) ||
         creatives.some(
           (creative) =>
             creative.type === CreativeType.Copy &&
             !creative.localizations.some((localization) => localization.kind === LocalizationKind.AiDraft),
         ),
     );
-  }, [data, imageJobId, jobId, scriptJobId]);
+  }, [data, jobId, scriptJobId]);
   useEffect(() => {
     if (job?.status === JobStatus.Failed) { setError(job.error ?? t('briefs.failed')); setJobId(null); return; }
     if (job?.status !== JobStatus.Succeeded) return;
@@ -68,11 +58,6 @@ export function BriefDetailPage() {
     const timer = window.setTimeout(() => void refetch(), 2000);
     return () => window.clearTimeout(timer);
   }, [job?.error, job?.status, refetch, t]);
-  useEffect(() => {
-    if (imageJob?.status === JobStatus.Failed) { setError(imageJob.error ?? t('briefs.failed')); setImageJobId(null); return; }
-    if (imageJob?.status !== JobStatus.Succeeded) return;
-    void refetch(); setImageJobId(null);
-  }, [imageJob?.error, imageJob?.status, refetch, t]);
   useEffect(() => {
     if (scriptJob?.status === JobStatus.Failed) { setError(scriptJob.error ?? t('briefs.failed')); setScriptJobId(null); return; }
     if (scriptJob?.status !== JobStatus.Succeeded) return;
@@ -88,25 +73,6 @@ export function BriefDetailPage() {
     try {
       const result = await generateVariants({ variables: { input: { briefId: id!, type: CreativeType.Copy, count: 3 } } });
       setJobId(result.data!.generateCreativeVariants.job.id);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-  }
-
-  async function onGenerateImages(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    try {
-      const result = await generateImages({
-        variables: {
-          input: {
-            briefId: id!,
-            instructions: imageInstructions || undefined,
-            count: imageCount,
-            quality: imageQuality,
-          },
-        },
-      });
-      setImageJobId(result.data!.generateBriefImages.id);
-      setImageModalOpen(false);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   }
 
@@ -129,7 +95,7 @@ export function BriefDetailPage() {
   const fields: BriefFields = showZh ? zhTw! : brief;
   const copyCreatives = brief.creatives.filter((creative) => creative.type === CreativeType.Copy);
   const videoScripts = brief.creatives.filter((creative) => creative.type === CreativeType.VideoScript);
-  const anyJobActive = Boolean(jobId || imageJobId || scriptJobId);
+  const anyJobActive = Boolean(jobId || scriptJobId);
   return (
     <section className="stage-create brief-detail ad-detail">
       <Link className="back-link" to="/briefs">{t('briefs.back')}</Link>
@@ -139,57 +105,13 @@ export function BriefDetailPage() {
           <p>{t('briefs.detailMeta', { date: formatDate(String(brief.createdAt), lang), count: copyCreatives.length })}</p>
         </div>
         <div className="page-header-actions">
-          <Button data-hint={t('briefs.imageGenerateHint')} variant="secondary" size="sm" disabled={anyJobActive} onClick={() => setImageModalOpen(true)}>{t('briefs.imageGenerate')}</Button>
           <Button data-hint={t('briefs.videoScriptHint')} variant="secondary" size="sm" disabled={anyJobActive} onClick={() => void onGenerateScript()}>{t('briefs.videoScriptGenerate')}</Button>
           <Button data-hint={t('briefs.variantsHint')} variant={copyCreatives.length === 0 ? 'primary' : 'secondary'} size="sm" disabled={anyJobActive} onClick={() => void onGenerateVariants()}>{t('briefs.generateVariants')}</Button>
         </div>
       </header>
       {error && <p className="error" role="alert">{error}</p>}
       {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && <p>{t('briefs.generatingShort', { status: job.status })}</p>}
-      {imageJob && imageJob.status !== JobStatus.Succeeded && imageJob.status !== JobStatus.Failed && <p>{t('briefs.imageGenerating', { status: imageJob.status })}</p>}
       {scriptJob && scriptJob.status !== JobStatus.Succeeded && scriptJob.status !== JobStatus.Failed && <p>{t('briefs.videoScriptGenerating', { status: scriptJob.status })}</p>}
-
-      <Modal title={t('briefs.imageGenerate')} open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
-        <p className="muted">{t('briefs.imageGenerateDescription')}</p>
-        <p className="image-workflow-hint">💡 {t('briefs.imageWorkflowHint')}</p>
-        <form className="page-form" onSubmit={onGenerateImages}>
-          <FormField label={t('briefs.imageInstructions')} htmlFor="image-instructions">
-            <textarea id="image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
-          </FormField>
-          <div className="image-example-block">
-            <span className="facet-label">{t('briefs.imageExamplesTitle')}</span>
-            <div className="tag-row">
-              {[1, 2, 3].map((index) => {
-                const example = t(`briefs.imageExample${index}`);
-                return <button type="button" className="tag image-example-chip" key={index} onClick={() => setImageInstructions(example)}>{example.slice(0, 34)}…</button>;
-              })}
-            </div>
-          </div>
-          <details className="csv-guide">
-            <summary>{t('briefs.imageTipsTitle')}</summary>
-            <ul className="guide-list">
-              {[1, 2, 3, 4, 5].map((index) => <li key={index}>{t(`briefs.imageTip${index}`)}</li>)}
-            </ul>
-          </details>
-          <div className="brief-fields">
-            <FormField label={t('briefs.imageCount')} htmlFor="image-count">
-              <select id="image-count" value={imageCount} onChange={(event) => setImageCount(Number(event.target.value))}>
-                {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{t('briefs.imageCountOption', { count })}</option>)}
-              </select>
-            </FormField>
-            <FormField label={t('briefs.imageQuality')} htmlFor="image-quality">
-              <select id="image-quality" value={imageQuality} onChange={(event) => setImageQuality(event.target.value as 'low' | 'high')}>
-                <option value="low">{t('briefs.imageQualityLow')}</option>
-                <option value="high">{t('briefs.imageQualityHigh')}</option>
-              </select>
-            </FormField>
-          </div>
-          <div className="upload-zone">
-            <span className="form-hint">{t('briefs.imageCostNotice')}</span>
-            <Button variant="primary" type="submit" disabled={anyJobActive}>{t('briefs.startGeneration')}</Button>
-          </div>
-        </form>
-      </Modal>
 
       <Card className="card-stack">
         <h2>{t('briefs.fullContent')}</h2>

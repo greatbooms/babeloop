@@ -31,9 +31,7 @@ export class ExportService {
           include: {
             creative: {
               include: {
-                brief: {
-                  include: { images: { orderBy: { createdAt: 'asc' } } },
-                },
+                brief: true,
                 localizations: { orderBy: { createdAt: 'desc' } },
                 images: { orderBy: { createdAt: 'asc' } },
                 videos: { orderBy: { createdAt: 'asc' } },
@@ -79,11 +77,8 @@ export class ExportService {
       const utmContent = utmContentFor(trackingCode);
       const filename = `${trackingCode}.txt`;
       const imageFiles: Array<{ filename: string; key: string }> = [];
-      const sourceImages =
-        creative.type === 'COPY' && creative.images.length > 0
-          ? creative.images
-          : creative.brief.images;
-      for (const [index, image] of sourceImages.entries()) {
+      // 문구 전용 시안만 포함한다 — 브리프 단독 이미지 생성은 제거됨(승인 후 일원화)
+      for (const [index, image] of creative.images.entries()) {
         const imageFilename = `${trackingCode}-IMG${index + 1}.png`;
         const imageKey = `${storagePrefix}${imageFilename}`;
         const imageBuffer = await this.storage.getBuffer(image.storageKey);

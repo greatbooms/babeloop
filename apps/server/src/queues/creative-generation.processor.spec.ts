@@ -39,16 +39,21 @@ describe('CreativeGenerationProcessor brand translation', () => {
 describe('CreativeGenerationProcessor image generation', () => {
   it('mock 이미지 N장을 저장하고 비용을 포함해 AI 실행을 기록한다', async () => {
     const png = Buffer.from('mock-png');
-    const brief = {
-      id: 'brief-1',
-      visualFormat: '세로형 캐릭터 클로즈업',
-      hookType: '호기심 자극',
-      desire: '주인공이 되고 싶은 욕구',
-      brand: { name: 'BabeChat' },
+    const creativeFixture = {
+      id: 'creative-copy-1',
+      koreanText: '오늘 밤, 내 이야기에 빠져봐',
+      localizations: [],
+      brief: {
+        id: 'brief-1',
+        visualFormat: '세로형 캐릭터 클로즈업',
+        hookType: '호기심 자극',
+        desire: '주인공이 되고 싶은 욕구',
+        brand: { name: 'BabeChat' },
+      },
     };
     const createdImages = [{ id: 'image-1' }, { id: 'image-2' }];
     const prisma = {
-      creativeBrief: { findUniqueOrThrow: jest.fn().mockResolvedValue(brief) },
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creativeFixture) },
       generatedImage: {
         create: jest
           .fn()
@@ -93,6 +98,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       name: JOB_TYPES.GENERATE_IMAGES,
       data: {
         briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
         instructions: '분홍색 네온 조명, 글자 금지',
         count: 2,
         quality: 'low',
@@ -122,7 +128,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-images@v2',
+        promptVersion: 'generate-copy-images@v1',
         costEstimateUsd: 0.04,
       }),
     });
@@ -130,8 +136,8 @@ describe('CreativeGenerationProcessor image generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-images@v2',
-        inputRef: 'brief:brief-1',
+        promptVersion: 'generate-copy-images@v1',
+        inputRef: 'creative:creative-copy-1',
         costEstimateUsd: 0.08,
       }),
       expect.any(Function),

@@ -71,7 +71,6 @@ export class CreativeDetailModel {
   @Field() createdAt: Date;
   @Field() updatedAt: Date;
   @Field(() => [LocalizationVersionModel]) localizations: LocalizationVersionModel[];
-  @Field(() => [GeneratedImageModel]) briefImages: GeneratedImageModel[];
   @Field(() => [GeneratedImageModel]) images: GeneratedImageModel[];
   @Field(() => [GeneratedVideoModel]) videos: GeneratedVideoModel[];
   @Field(() => [PolicyCheckModel]) policyChecks: PolicyCheckModel[];

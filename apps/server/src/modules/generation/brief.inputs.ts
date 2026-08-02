@@ -17,14 +17,6 @@ export class GenerateCreativeVariantsInput {
 }
 
 @InputType()
-export class GenerateBriefImagesInput {
-  @Field(() => ID) briefId: string;
-  @Field(() => String, { nullable: true }) instructions?: string;
-  @Field(() => Int, { nullable: true, defaultValue: 2 }) count: number;
-  @Field(() => String, { nullable: true, defaultValue: 'low' }) quality: string;
-}
-
-@InputType()
 export class GenerateCreativeImagesInput {
   @Field(() => ID) creativeId: string;
   @Field(() => String, { nullable: true }) instructions?: string;

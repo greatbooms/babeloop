@@ -26,9 +26,6 @@ export const REVIEW_INCLUDE = {
 
 export const REVIEW_DETAIL_INCLUDE = {
   ...REVIEW_INCLUDE,
-  brief: {
-    include: { images: { orderBy: { createdAt: 'desc' as const } } },
-  },
   images: { orderBy: { createdAt: 'desc' as const } },
   videos: { orderBy: { createdAt: 'desc' as const } },
 } as const;
@@ -211,17 +208,6 @@ export class ReviewService {
     if (!creative) throw new NotFoundException('생성물을 찾을 수 없습니다');
     return {
       ...this.mapCreative(creative),
-      briefImages: await Promise.all(
-        // 문구 전용 시안은 별도 카드(images)로 보여주므로 브리프 공용 카드에서 제외한다
-        creative.brief.images.filter((image) => !image.creativeId).map(async (image) => ({
-          id: image.id,
-          url: await this.storage.presignGet(image.storageKey),
-          quality: image.quality,
-          instructions: image.instructions,
-          createdAt: image.createdAt,
-          costEstimateUsd: image.costEstimateUsd,
-        })),
-      ),
       images: await Promise.all(
         creative.images.map(async (image) => ({
           id: image.id,
@@ -301,7 +287,6 @@ export class ReviewService {
       ...creative,
       briefTitle: creative.brief.title,
       locale: creative.brief.locale,
-      briefImages: [],
       images: [],
       videos: [],
       scenesJson: creative.scenes ? JSON.stringify(creative.scenes) : null,

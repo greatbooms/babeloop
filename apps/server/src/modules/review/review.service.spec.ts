@@ -1,22 +1,12 @@
 import { ReviewService } from './review.service';
 
 describe('ReviewService visual assets', () => {
-  it('검토 상세에서 브리프·문구 이미지와 영상의 presigned URL을 노출한다', async () => {
+  it('검토 상세에서 문구 전용 이미지와 영상의 presigned URL을 노출한다', async () => {
     const creative = {
       id: 'creative-1',
       brief: {
         title: '브리프',
         locale: 'zh-TW',
-        images: [
-          {
-            id: 'image-1',
-            storageKey: 'generated-images/brief-1/image.png',
-            quality: 'low',
-            instructions: '분홍색 조명',
-            createdAt: new Date('2026-07-30T00:00:00.000Z'),
-            costEstimateUsd: 0.04,
-          },
-        ],
       },
       scenes: null,
       images: [
@@ -63,15 +53,6 @@ describe('ReviewService visual assets', () => {
     );
 
     await expect(service.findById('creative-1')).resolves.toMatchObject({
-      briefImages: [
-        {
-          id: 'image-1',
-          url: 'signed:image',
-          quality: 'low',
-          instructions: '분홍색 조명',
-          costEstimateUsd: 0.04,
-        },
-      ],
       images: [
         {
           id: 'image-copy-1',
@@ -91,7 +72,6 @@ describe('ReviewService visual assets', () => {
         },
       ],
     });
-    expect(storage.presignGet).toHaveBeenCalledWith('generated-images/brief-1/image.png');
     expect(storage.presignGet).toHaveBeenCalledWith('generated-images/brief-1/copy.png');
     expect(storage.presignGet).toHaveBeenCalledWith('generated-videos/creative-1/video.mp4');
   });

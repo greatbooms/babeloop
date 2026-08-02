@@ -69,7 +69,7 @@ interface GenerateVariantsJobData {
 
 interface GenerateImagesJobData {
   briefId: string;
-  creativeId?: string;
+  creativeId: string;
   instructions: string;
   count: number;
   quality: 'low' | 'high';
@@ -235,41 +235,35 @@ export class CreativeGenerationProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const creative = job.data.creativeId
-        ? await this.prisma.generatedCreative.findUniqueOrThrow({
-            where: { id: job.data.creativeId },
-            include: {
-              brief: { include: { brand: { include: { features: true } } } },
-              localizations: {
-                where: { locale: 'zh-TW', kind: 'APPROVED' },
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-              },
-            },
-          })
-        : null;
-      const brief = creative?.brief ?? await this.prisma.creativeBrief.findUniqueOrThrow({
-        where: { id: job.data.briefId },
-        include: { brand: { include: { features: true } } },
+      // 이미지 생성은 승인된 문구에서만 — 브리프 단독 경로는 비용 이중 지출 문제로 제거됨
+      const creative = await this.prisma.generatedCreative.findUniqueOrThrow({
+        where: { id: job.data.creativeId },
+        include: {
+          brief: { include: { brand: { include: { features: true } } } },
+          localizations: {
+            where: { locale: 'zh-TW', kind: 'APPROVED' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
       });
+      const brief = creative.brief;
       const prompt = buildImagePrompt({
         brief,
         brandName: brief.brand?.name ?? 'BabeChat',
         brandDescription: brief.brand?.description,
-        creative: creative
-          ? {
-              koreanText: creative.koreanText,
-              approvedZhTw: creative.localizations[0]?.text,
-            }
-          : undefined,
+        creative: {
+          koreanText: creative.koreanText,
+          approvedZhTw: creative.localizations[0]?.text,
+        },
         instructions: job.data.instructions,
       });
-      const promptVersion = creative ? 'generate-copy-images@v1' : 'generate-images@v2';
+      const promptVersion = 'generate-copy-images@v1';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
         promptVersion,
-        inputRef: creative ? `creative:${creative.id}` : `brief:${brief.id}`,
+        inputRef: `creative:${creative.id}`,
       };
       let generated:
         | Awaited<ReturnType<ImageGenerationProvider['generate']>>
@@ -299,7 +293,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
         const saved = await this.prisma.generatedImage.create({
           data: {
             briefId: brief.id,
-            creativeId: creative?.id,
+            creativeId: creative.id,
             storageKey,
             contentType: image.contentType,
             quality: job.data.quality,

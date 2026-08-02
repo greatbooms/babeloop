@@ -14,14 +14,16 @@ describe('BriefService relationships', () => {
   });
 });
 
-describe('BriefService.requestImages', () => {
+describe('BriefService.requestCreativeImages 검증', () => {
   function setup() {
     const prisma = {
-      creativeBrief: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'brief-1' }) },
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'creative-copy-1', briefId: 'brief-1', type: 'COPY', status: 'APPROVED' }),
+      },
     };
     const queue = { name: 'creative-generation' };
     const jobRecord = {
-      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'generate-images--brief-1--request-1' }),
+      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }),
     };
     const service = new BriefService(
       prisma as never,
@@ -30,14 +32,14 @@ describe('BriefService.requestImages', () => {
       queue as never,
       {} as never,
     );
-    return { service, queue, jobRecord };
+    return { service, jobRecord };
   }
 
   it.each([0, 5])('장수가 %i이면 BAD_USER_INPUT으로 거부한다', async (count) => {
     const { service, jobRecord } = setup();
 
     await expect(
-      service.requestImages({ briefId: 'brief-1', instructions: '', count, quality: 'low' }),
+      service.requestCreativeImages({ creativeId: 'creative-copy-1', instructions: '', count, quality: 'low' }),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
@@ -46,40 +48,14 @@ describe('BriefService.requestImages', () => {
     const { service, jobRecord } = setup();
 
     await expect(
-      service.requestImages({
-        briefId: 'brief-1',
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
         instructions: '',
         count: 2,
         quality: 'ultra',
       }),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
-  });
-
-  it('generate-images--{briefId}--{uuid} 잡을 enqueueOrRetry로 등록한다', async () => {
-    const { service, queue, jobRecord } = setup();
-
-    await expect(
-      service.requestImages({
-        briefId: 'brief-1',
-        instructions: '분홍색 네온 조명',
-        count: 2,
-        quality: 'high',
-      }),
-    ).resolves.toEqual({ id: 'generate-images--brief-1--request-1' });
-
-    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
-      queue,
-      'creative-generation',
-      'generate-images',
-      expect.stringMatching(/^generate-images--brief-1--[0-9a-f-]+$/),
-      {
-        briefId: 'brief-1',
-        instructions: '분홍색 네온 조명',
-        count: 2,
-        quality: 'high',
-      },
-    );
   });
 });
 

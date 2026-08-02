@@ -17,7 +17,6 @@ import {
 import { JobRecordService } from '../jobs/job-record.service';
 import { PerformanceService } from '../performance/performance.service';
 import {
-  GenerateBriefImagesInput,
   GenerateCreativeBriefInput,
   GenerateCreativeImagesInput,
   GenerateCreativeVideoInput,
@@ -99,26 +98,6 @@ export class BriefService {
       payload,
     );
     return { job };
-  }
-
-  async requestImages(input: GenerateBriefImagesInput) {
-    this.validateImageRequest(input.count, input.quality);
-    await this.prisma.creativeBrief.findUniqueOrThrow({ where: { id: input.briefId } }).catch(() => {
-      throw new GraphQLError('브리프를 찾을 수 없습니다', { extensions: { code: 'NOT_FOUND' } });
-    });
-    const payload = {
-      briefId: input.briefId,
-      instructions: input.instructions?.trim() ?? '',
-      count: input.count,
-      quality: input.quality,
-    };
-    return this.jobRecord.enqueueOrRetry(
-      this.queue,
-      CREATIVE_GENERATION_QUEUE,
-      JOB_TYPES.GENERATE_IMAGES,
-      generateImagesJobId(input.briefId, randomUUID()),
-      payload,
-    );
   }
 
   async requestCreativeImages(input: GenerateCreativeImagesInput) {

@@ -1,7 +1,7 @@
 import { ExportService } from './export.service';
 
-describe('ExportService brief images', () => {
-  it('브리프 이미지를 추적코드 파일명으로 복사하고 지시서·manifest·files에 포함한다', async () => {
+describe('ExportService creative images', () => {
+  it('문구 전용 이미지를 추적코드 파일명으로 복사하고 지시서·manifest·files에 포함한다', async () => {
     const imageBuffer = Buffer.from('png-bytes');
     const creative = {
       id: 'creative-1',
@@ -13,14 +13,11 @@ describe('ExportService brief images', () => {
       minorFlagged: false,
       koreanText: '한국어 문구',
       type: 'COPY',
-      images: [],
+      images: [
+        { storageKey: 'generated-images/brief-1/copy-image.png', contentType: 'image/png' },
+      ],
       videos: [],
-      brief: {
-        locale: 'zh-TW',
-        images: [
-          { storageKey: 'generated-images/brief-1/image.png', contentType: 'image/png' },
-        ],
-      },
+      brief: { locale: 'zh-TW' },
       localizations: [{ locale: 'zh-TW', kind: 'APPROVED', text: '核准文案' }],
     };
     const prisma = {
@@ -52,7 +49,7 @@ describe('ExportService brief images', () => {
       'experiment-1',
     );
 
-    expect(storage.getBuffer).toHaveBeenCalledWith('generated-images/brief-1/image.png');
+    expect(storage.getBuffer).toHaveBeenCalledWith('generated-images/brief-1/copy-image.png');
     expect(storage.putBuffer).toHaveBeenCalledWith(
       expect.stringMatching(/^exports\/[0-9a-f-]+\/BL-TW01-V1-R1-IMG1\.png$/),
       imageBuffer,

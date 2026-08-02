@@ -16,7 +16,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote briefImages { id url quality instructions createdAt costEstimateUsd } images { id url quality instructions createdAt costEstimateUsd } videos { id url seconds size costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions createdAt costEstimateUsd } videos { id url seconds size costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -175,7 +175,7 @@ export function ReviewDetailPage() {
 
     <Modal title={t('review.generateCopyImages')} open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
       <p className="muted">{t('review.copyImageModalDescription')}</p>
-      <p className="image-workflow-hint">{t('review.copyImageCostHint')}</p>
+      <p className="image-workflow-hint">💡 {t('briefs.imageWorkflowHint')}</p>
       <form className="page-form" onSubmit={onGenerateImages}>
         <FormField label={t('briefs.imageInstructions')} htmlFor="creative-image-instructions">
           <textarea id="creative-image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
@@ -310,30 +310,6 @@ export function ReviewDetailPage() {
                   <span className="tag">{video.costEstimateUsd == null ? t('review.videoCostUnknown') : t('review.videoCost', { cost: video.costEstimateUsd.toFixed(2) })}</span>
                 </div>
                 <time>{formatDate(String(video.createdAt), lang)}</time>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </Card>
-    )}
-
-    {creative.type !== CreativeType.VideoScript && creative.briefImages.length > 0 && (
-      <Card className="card-stack">
-        <h2>{t('review.briefImages')}</h2>
-        <p className="muted">{t('review.briefImagesGuide')}</p>
-        <div className="brief-image-grid">
-          {creative.briefImages.map((image) => (
-            <figure className="brief-image-item" key={image.id}>
-              <a href={image.url} target="_blank" rel="noreferrer" aria-label={t('review.briefImageOpen')}>
-                <img src={image.url} alt={t('review.briefImageAlt')} />
-              </a>
-              <figcaption>
-                <div className="tag-row">
-                  <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
-                  <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
-                </div>
-                <p>{image.instructions || t('briefs.noImageInstructions')}</p>
-                <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
             </figure>
           ))}
