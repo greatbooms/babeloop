@@ -1,7 +1,7 @@
 import { envSchema } from './env.validation';
 
 const baseEnv = {
-  APP_BASE_URL: 'http://localhost:3000',
+  APP_BASE_URL: 'http://localhost:16000',
   DATABASE_URL: 'postgresql://localhost/test',
   REDIS_URL: 'redis://localhost:6379',
   SESSION_SECRET: '0123456789abcdef',

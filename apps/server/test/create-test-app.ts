@@ -51,7 +51,7 @@ export async function createTestApp(): Promise<TestApp> {
     process.env.DATABASE_URL = pg.getConnectionUri();
     process.env.REDIS_URL = `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`;
     process.env.SESSION_SECRET = 'test-session-secret-0123456789';
-    process.env.APP_BASE_URL = 'http://localhost:3000';
+    process.env.APP_BASE_URL = 'http://localhost:16000';
     process.env.NODE_ENV = 'test';
     execSync('npx prisma migrate deploy', {
       cwd: path.join(__dirname, '../../..'),

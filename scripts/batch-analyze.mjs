@@ -4,7 +4,7 @@
 //        (--yes 없으면 대상 목록·예상 비용만 출력하는 드라이런)
 import { PrismaClient } from '../apps/server/generated/prisma/index.js';
 
-const BASE = process.env.BABELOOP_URL ?? 'http://localhost:3000';
+const BASE = process.env.BABELOOP_URL ?? 'http://localhost:16000';
 const EMAIL = process.env.BABELOOP_ADMIN_EMAIL ?? 'admin@babeloop.local';
 const PASSWORD = process.env.BABELOOP_ADMIN_PASSWORD ?? 'changeme-admin';
 const limit = Number(process.argv[process.argv.indexOf('--limit') + 1] || 100);
