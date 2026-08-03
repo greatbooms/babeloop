@@ -25,6 +25,7 @@
     "argon2": "^0.44.0",
     "dotenv": "^17.4.2",
     "prisma": "^6.3.0",
+    "snowflake-sdk": "^3.1.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   },
