@@ -20,7 +20,7 @@ const CreativeBriefDocument = graphql(`
       brand { id name }
       references { sourceAdId title method similarity deleted }
       provider model promptVersion rawJson
-      images { id url quality instructions createdAt costEstimateUsd }
+      images { id url quality instructions prompt createdAt costEstimateUsd }
       creatives { id variantIndex type koreanText scenesJson status localizations { id kind text } }
     }
   }
@@ -153,6 +153,10 @@ export function BriefDetailPage() {
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
+                <details className="prompt-detail">
+                  <summary>{t('briefs.promptDetail')}</summary>
+                  <pre>{image.prompt}</pre>
+                </details>
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
             </figure>

@@ -52,3 +52,7 @@
 .image-example-block { display: grid; gap: var(--sp-xs); }
 .image-example-chip { cursor: pointer; border: 1px dashed var(--hairline); background: var(--canvas); }
 .image-example-chip:hover { border-color: var(--stage-fg, var(--primary-active)); color: var(--stage-fg, var(--primary-active)); }
+
+/* 생성 프롬프트 추적용 펼침 — 캡션 안에서 작게 */
+.prompt-detail summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.prompt-detail pre { white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--body); background: var(--surface-soft); border-radius: var(--r-sm); padding: var(--sp-sm) var(--sp-md); margin-top: var(--sp-xs); max-height: 260px; overflow-y: auto; }

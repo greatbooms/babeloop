@@ -84,7 +84,7 @@ export const messages = {
       imageTip3: '구도를 지정하세요 — 클로즈업/상반신/부감, 세로(9:16) 느낌 등. 지정 없으면 무작위입니다.',
       imageTip4: '금지 요소를 명시하세요 — 「텍스트·로고 없음」은 항상, 필요 시 「손가락 클로즈업 없음」 같은 것도. 문구는 나중에 얹는 게 품질이 좋습니다.',
       imageTip5: '인물은 「성인」을 명시하세요 — 미성년으로 보이는 인물은 정책 게이트에서 걸립니다. 브리프의 타깃(대만 18-34)과 일치시키세요.', startGeneration: '생성 시작', imageGenerating: '이미지 시안 생성 중… ({status})',
-      imagesTitle: '이미지 시안 {count}장', noImages: '아직 이미지 시안이 없습니다. 문구가 최종 승인되면 검토 상세의 「이 문구로 이미지 시안 생성」에서 만들 수 있고, 생성된 시안이 여기에 모입니다.', imageOpenOriginal: '이미지 원본을 새 탭에서 열기', imageAlt: '생성된 브리프 이미지 시안', qualityLow: '저품질', qualityHigh: '고품질', costUnknown: '비용 미기록', imageCost: '~${cost}', noImageInstructions: '추가 요구사항 없음',
+      imagesTitle: '이미지 시안 {count}장', noImages: '아직 이미지 시안이 없습니다. 문구가 최종 승인되면 검토 상세의 「이 문구로 이미지 시안 생성」에서 만들 수 있고, 생성된 시안이 여기에 모입니다.', promptDetail: '생성 프롬프트 전문 (추적용)', imageOpenOriginal: '이미지 원본을 새 탭에서 열기', imageAlt: '생성된 브리프 이미지 시안', qualityLow: '저품질', qualityHigh: '고품질', costUnknown: '비용 미기록', imageCost: '~${cost}', noImageInstructions: '추가 요구사항 없음',
       videoScriptGenerate: '영상 스크립트 생성', videoScriptHint: '장면표 2개 생성 · 약 1~2센트 (AI 비용 발생)', confirmVideoScript: '영상 스크립트 2개를 생성합니다. AI 비용이 약 1~2센트 발생합니다. 계속할까요?', videoScriptGenerating: '영상 스크립트 생성 중… ({status})', videoScriptsTitle: '영상 스크립트 {count}개', noVideoScripts: '아직 영상 스크립트가 없습니다. 우상단 「영상 스크립트 생성」을 실행하면 촬영·외부 영상 도구에 전달할 장면표가 만들어집니다.', videoScriptVariant: '스크립트 V{index}', noSceneData: '장면 데이터를 표시할 수 없습니다.', sceneSeconds: '초', sceneVisual: '화면', sceneDialogue: '대사', sceneCaption: '자막', secondsValue: '{seconds}초',
     }, brands: {
       title: '브랜드', step: '준비 — 브리프 재료', description: 'BabeChat 제품 소개와 기능 정보를 등록하는 곳입니다. 여기 등록된 내용이 브리프 생성 시 「우리 제품」 재료로 AI에게 전달됩니다.',
@@ -201,7 +201,7 @@ export const messages = {
       imageTip3: '指定構圖 — 特寫／半身／俯視、直式（9:16）感等；不指定就是隨機。',
       imageTip4: '明示禁止元素 — 「不放文字·標誌」務必寫上，必要時也可寫「不要手指特寫」等。文案之後再上，品質更好。',
       imageTip5: '人物請註明「成年」— 看起來未成年的人物會被政策關卡擋下，並與簡報目標（台灣 18-34）保持一致。', startGeneration: '開始生成', imageGenerating: '正在生成圖片提案…（{status}）',
-      imagesTitle: '圖片提案 {count} 張', noImages: '尚無圖片提案。文案核准後，可在審核詳情的「以此文案生成圖片提案」建立；生成的提案會匯集於此。', imageOpenOriginal: '在新分頁開啟圖片原檔', imageAlt: '已生成的簡報圖片提案', qualityLow: '低畫質', qualityHigh: '高畫質', costUnknown: '未記錄費用', imageCost: '約 US${cost}', noImageInstructions: '無額外需求',
+      imagesTitle: '圖片提案 {count} 張', noImages: '尚無圖片提案。文案核准後，可在審核詳情的「以此文案生成圖片提案」建立；生成的提案會匯集於此。', promptDetail: '生成提示詞全文（供追蹤）', imageOpenOriginal: '在新分頁開啟圖片原檔', imageAlt: '已生成的簡報圖片提案', qualityLow: '低畫質', qualityHigh: '高畫質', costUnknown: '未記錄費用', imageCost: '約 US${cost}', noImageInstructions: '無額外需求',
       videoScriptGenerate: '生成影片腳本', videoScriptHint: '生成 2 份分鏡表 · 約 1～2 美分（會產生 AI 費用）', confirmVideoScript: '即將生成 2 份影片腳本，AI 費用約 1～2 美分。是否繼續？', videoScriptGenerating: '正在生成影片腳本…（{status}）', videoScriptsTitle: '影片腳本 {count} 份', noVideoScripts: '尚無影片腳本。執行右上角「生成影片腳本」後，會建立可交付拍攝或外部影片工具的分鏡表。', videoScriptVariant: '腳本 V{index}', noSceneData: '無法顯示分鏡資料。', sceneSeconds: '秒數', sceneVisual: '畫面', sceneDialogue: '台詞', sceneCaption: '字幕', secondsValue: '{seconds} 秒',
     }, brands: {
       title: '品牌', step: '準備 — 簡報素材', description: '在此登錄 BabeChat 產品介紹與功能資訊。生成簡報時，這些內容會以「我們的產品」素材提供給 AI。',

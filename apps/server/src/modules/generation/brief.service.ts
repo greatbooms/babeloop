@@ -250,6 +250,7 @@ export class BriefService {
           url: await this.storage.presignGet(image.storageKey),
           quality: image.quality,
           instructions: image.instructions,
+          prompt: image.prompt,
           createdAt: image.createdAt,
           costEstimateUsd: image.costEstimateUsd,
         })),

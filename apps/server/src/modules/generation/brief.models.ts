@@ -58,6 +58,8 @@ export class GeneratedImageModel {
   @Field() url: string;
   @Field() quality: string;
   @Field() instructions: string;
+  // 생성에 실제 사용된 전체 프롬프트 — 결과물 추적용
+  @Field() prompt: string;
   @Field() createdAt: Date;
   @Field(() => Float, { nullable: true }) costEstimateUsd: number | null;
 }

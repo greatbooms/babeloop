@@ -16,7 +16,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions createdAt costEstimateUsd } videos { id url seconds size costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt createdAt costEstimateUsd } videos { id url seconds size prompt costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -288,6 +288,10 @@ export function ReviewDetailPage() {
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
+                <details className="prompt-detail">
+                  <summary>{t('briefs.promptDetail')}</summary>
+                  <pre>{image.prompt}</pre>
+                </details>
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
             </figure>
@@ -309,6 +313,10 @@ export function ReviewDetailPage() {
                   <span className="tag">{t('review.videoResolution', { size: video.size })}</span>
                   <span className="tag">{video.costEstimateUsd == null ? t('review.videoCostUnknown') : t('review.videoCost', { cost: video.costEstimateUsd.toFixed(2) })}</span>
                 </div>
+                <details className="prompt-detail">
+                  <summary>{t('briefs.promptDetail')}</summary>
+                  <pre>{video.prompt}</pre>
+                </details>
                 <time>{formatDate(String(video.createdAt), lang)}</time>
               </figcaption>
             </figure>
