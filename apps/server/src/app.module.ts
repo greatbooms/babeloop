@@ -26,6 +26,7 @@ import { SourceAdModule } from './modules/source-ad/source-ad.module';
 import { EmbeddingModule } from './providers/embedding/embedding.module';
 import { ImageModule } from './providers/image/image.module';
 import { OcrModule } from './providers/ocr/ocr.module';
+import { PerfSourceModule } from './providers/perf-source/perf-source.module';
 import { SttModule } from './providers/stt/stt.module';
 import { TextModule } from './providers/text/text.module';
 import { VideoModule } from './providers/video/video.module';
@@ -50,6 +51,7 @@ import { redisConnectionFromUrl } from './queues/queue.constants';
     EmbeddingModule,
     ImageModule,
     OcrModule,
+    PerfSourceModule,
     SttModule,
     TextModule,
     VideoModule,

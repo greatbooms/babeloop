@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().default(3000),
+  PORT: z.coerce.number().default(16000),
   APP_BASE_URL: z.string().url(),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
@@ -35,6 +35,16 @@ export const envSchema = z.object({
   VIDEO_MODEL: z.string().default('sora-2'),
   VIDEO_API_KEY: z.string().optional(),
   VIDEO_PRICE_PER_SECOND_USD: z.coerce.number().default(0.1),
+  PERF_SOURCE_PROVIDER: z.enum(['snowflake', 'mock']).default('snowflake'),
+  PERF_SYNC_CRON: z.string().optional(),
+  SNOWFLAKE_ACCOUNT: z.string().optional(),
+  SNOWFLAKE_USERNAME: z.string().optional(),
+  SNOWFLAKE_PASSWORD: z.string().optional(),
+  SNOWFLAKE_PRIVATE_KEY_PATH: z.string().optional(),
+  SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: z.string().optional(),
+  SNOWFLAKE_ROLE: z.string().optional(),
+  SNOWFLAKE_WAREHOUSE: z.string().optional(),
+  SNOWFLAKE_DATABASE: z.string().default('BABECHAT_TW'),
 }).superRefine((env, ctx) => {
   if (env.OCR_PROVIDER === 'openai' && !env.OCR_MODEL && !env.TEXT_AI_MODEL) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['OCR_MODEL'], message: 'OCR_PROVIDER=openai이면 OCR_MODEL 또는 TEXT_AI_MODEL이 필요합니다' });

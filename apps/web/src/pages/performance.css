@@ -1,0 +1,34 @@
+.performance-sync-card {
+  display: grid;
+  gap: var(--sp-md);
+}
+
+.performance-sync-card h2 {
+  margin-bottom: 0;
+}
+
+.performance-sync-card.is-dormant {
+  background: var(--surface-soft);
+}
+
+.performance-sync-description,
+.performance-sync-guidance {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.performance-sync-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-sm) var(--sp-lg);
+  color: var(--body);
+  font-size: 14px;
+}
+
+.performance-sync-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}

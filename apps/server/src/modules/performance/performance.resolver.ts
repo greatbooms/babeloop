@@ -5,10 +5,12 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { ImportPerformanceCsvInput } from './performance.inputs';
+import { JobModel } from '../jobs/job.model';
+import { ImportPerformanceCsvInput, SyncPerformanceFromSnowflakeInput } from './performance.inputs';
 import {
   PerformanceImportModel,
   PerformanceImportResultModel,
+  PerformanceSyncStatusModel,
   VariantPerformanceModel,
 } from './performance.models';
 import { PerformanceService } from './performance.service';
@@ -25,6 +27,20 @@ export class PerformanceResolver {
     @Args('input') input: ImportPerformanceCsvInput,
   ) {
     return this.performanceService.importCsv(user, input.fileBase64, input.filename);
+  }
+
+  @Mutation(() => JobModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  syncPerformanceFromSnowflake(
+    @CurrentUser() user: User,
+    @Args('input', { nullable: true }) input?: SyncPerformanceFromSnowflakeInput,
+  ) {
+    return this.performanceService.syncFromSnowflake(user, input);
+  }
+
+  @Query(() => PerformanceSyncStatusModel)
+  performanceSyncStatus() {
+    return this.performanceService.performanceSyncStatus();
   }
 
   @Query(() => [VariantPerformanceModel])

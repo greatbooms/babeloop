@@ -1,13 +1,67 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { createHash, randomUUID } from 'crypto';
+import { Queue } from 'bullmq';
+import { GraphQLError } from 'graphql';
 import { Prisma, User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { JobRecordService } from '../jobs/job-record.service';
+import {
+  PERF_SOURCE_PROVIDER,
+  PerfSourceProvider,
+} from '../../providers/perf-source/perf-source.provider';
+import {
+  JOB_TYPES,
+  PERFORMANCE_SYNC_QUEUE,
+  performanceSyncCron,
+  recentPerformanceSyncRange,
+  syncPerformanceJobId,
+} from '../../queues/queue.constants';
 import { parsePerformanceCsv } from './performance-csv.parser';
+import { SyncPerformanceFromSnowflakeInput } from './performance.inputs';
 import { PerformanceCoverage } from './performance.models';
 
 @Injectable()
 export class PerformanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(PERFORMANCE_SYNC_QUEUE) private readonly syncQueue: Queue,
+    private readonly jobRecord: JobRecordService,
+    @Inject(PERF_SOURCE_PROVIDER) private readonly perfSource: PerfSourceProvider,
+  ) {}
+
+  async syncFromSnowflake(user: User, input?: SyncPerformanceFromSnowflakeInput) {
+    if (!this.perfSource.configured) {
+      throw new GraphQLError('Snowflake 자격증명이 설정되지 않았습니다', {
+        extensions: { code: 'NOT_CONFIGURED' },
+      });
+    }
+
+    const range = this.resolveSyncRange(input);
+    const jobId = syncPerformanceJobId(randomUUID());
+    const payload = { ...range, requestedById: user.id };
+    return this.jobRecord.enqueueOrRetry(
+      this.syncQueue,
+      PERFORMANCE_SYNC_QUEUE,
+      JOB_TYPES.SYNC_PERFORMANCE,
+      jobId,
+      payload,
+    );
+  }
+
+  async performanceSyncStatus() {
+    const latest = await this.prisma.performanceImport.findFirst({
+      where: { filename: { startsWith: 'snowflake-sync-' } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    return {
+      configured: this.perfSource.configured,
+      provider: this.perfSource.name,
+      cron: performanceSyncCron(),
+      lastSyncedAt: latest?.createdAt ?? null,
+    };
+  }
 
   async importCsv(user: User, fileBase64: string, filename: string) {
     const buffer = Buffer.from(fileBase64, 'base64');
@@ -186,5 +240,23 @@ export class PerformanceService {
       }
       return String(item);
     });
+  }
+
+  private resolveSyncRange(input?: SyncPerformanceFromSnowflakeInput): { from: string; to: string } {
+    const recent = recentPerformanceSyncRange();
+    const to = input?.to ?? recent.to;
+    const from = input?.from ?? (input?.to ? this.daysBefore(to, 13) : recent.from);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+      throw new GraphQLError('동기화 날짜 범위가 올바르지 않습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    return { from, to };
+  }
+
+  private daysBefore(date: string, days: number): string {
+    const value = new Date(`${date}T00:00:00.000Z`);
+    value.setUTCDate(value.getUTCDate() - days);
+    return value.toISOString().slice(0, 10);
   }
 }

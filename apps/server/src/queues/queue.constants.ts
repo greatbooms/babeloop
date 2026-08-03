@@ -4,6 +4,9 @@ export const EMBEDDING_QUEUE = 'embedding';
 export const CREATIVE_GENERATION_QUEUE = 'creative-generation';
 export const LOCALIZATION_QUEUE = 'localization';
 export const POLICY_CHECK_QUEUE = 'policy-check';
+export const PERFORMANCE_SYNC_QUEUE = 'performance-sync';
+export const DEFAULT_PERF_SYNC_CRON = '0 7 * * *';
+export const PERFORMANCE_SYNC_TIMEZONE = 'Asia/Taipei';
 
 export const JOB_TYPES = {
   PROCESS_MEDIA: 'process-media',
@@ -20,6 +23,7 @@ export const JOB_TYPES = {
   LOCALIZE_ZH_TW: 'localize-zh-tw',
   BACK_TRANSLATE_KO: 'back-translate-ko',
   RUN_POLICY_CHECK: 'run-policy-check',
+  SYNC_PERFORMANCE: 'sync-performance',
 } as const;
 
 // BullMQ 커스텀 jobId에는 ':'를 쓸 수 없다 (Redis 키 구분자로 예약) — 구분자는 '--'
@@ -73,6 +77,25 @@ export function localizeZhTwJobId(creativeId: string): string {
 
 export function runPolicyCheckJobId(creativeId: string): string {
   return `${JOB_TYPES.RUN_POLICY_CHECK}--${creativeId}`;
+}
+
+export function syncPerformanceJobId(requestId: string): string {
+  return `${JOB_TYPES.SYNC_PERFORMANCE}--${requestId}`;
+}
+
+export function performanceSyncCron(env: NodeJS.ProcessEnv = process.env): string | null {
+  if (env.PERF_SYNC_CRON === undefined) return DEFAULT_PERF_SYNC_CRON;
+  return env.PERF_SYNC_CRON.trim() || null;
+}
+
+export function recentPerformanceSyncRange(now = new Date()): { from: string; to: string } {
+  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const from = new Date(to);
+  from.setUTCDate(from.getUTCDate() - 13);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
 }
 
 /** BullMQ connection 옵션 — ioredis는 옵션 객체에서 url을 파싱하지 않으므로 직접 분해한다 */

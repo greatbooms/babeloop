@@ -10,3 +10,9 @@ export class ImportPerformanceCsvInput {
 export class PerformanceExperimentInput {
   @Field() experimentId: string;
 }
+
+@InputType()
+export class SyncPerformanceFromSnowflakeInput {
+  @Field({ nullable: true }) from?: string;
+  @Field({ nullable: true }) to?: string;
+}

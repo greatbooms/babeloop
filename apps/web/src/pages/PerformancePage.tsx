@@ -11,6 +11,7 @@ import { HelpPanel } from '../components/HelpPanel';
 import { useT } from '../i18n/lang-context';
 import './source-ads.css';
 import './media.css';
+import './performance.css';
 
 const PerformanceExperimentsDocument = graphql(`
   query PerformanceExperiments {
@@ -54,6 +55,26 @@ const ImportPerformanceCsvDocument = graphql(`
   }
 `);
 
+const PerformanceSyncStatusDocument = graphql(`
+  query PerformanceSyncStatus {
+    performanceSyncStatus {
+      configured
+      provider
+      cron
+      lastSyncedAt
+    }
+  }
+`);
+
+const SyncPerformanceFromSnowflakeDocument = graphql(`
+  mutation SyncPerformanceFromSnowflake {
+    syncPerformanceFromSnowflake {
+      id
+      status
+    }
+  }
+`);
+
 const GenerateBriefFromPerformanceDocument = graphql(`
   mutation GenerateBriefFromPerformance($input: GenerateBriefFromPerformanceInput!) {
     generateBriefFromPerformance(input: $input) { job { id status } }
@@ -81,22 +102,49 @@ type ImportSummary = {
   duplicateFile: boolean;
 };
 
+type SyncSummary = {
+  rows: number;
+  importedRows: number;
+  updatedRows: number;
+  unmatched: number;
+};
+
+function parseSyncSummary(resultJson: string | null | undefined): SyncSummary {
+  if (!resultJson) return { rows: 0, importedRows: 0, updatedRows: 0, unmatched: 0 };
+  try {
+    const result = JSON.parse(resultJson) as Partial<SyncSummary>;
+    return {
+      rows: Number(result.rows ?? 0),
+      importedRows: Number(result.importedRows ?? 0),
+      updatedRows: Number(result.updatedRows ?? 0),
+      unmatched: Number(result.unmatched ?? 0),
+    };
+  } catch {
+    return { rows: 0, importedRows: 0, updatedRows: 0, unmatched: 0 };
+  }
+}
+
 export function PerformancePage() {
   const { lang, t } = useT();
   const { data: experimentsData } = useQuery(PerformanceExperimentsDocument);
   const [experimentId, setExperimentId] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [syncJobId, setSyncJobId] = useState<string | null>(null);
   const [importCsv, { loading: importing }] = useMutation(ImportPerformanceCsvDocument);
   const [generateBrief] = useMutation(GenerateBriefFromPerformanceDocument);
+  const [syncPerformance, { loading: enqueueingSync }] = useMutation(SyncPerformanceFromSnowflakeDocument);
+  const { data: syncStatusData, refetch: refetchSyncStatus } = useQuery(PerformanceSyncStatusDocument);
   const { data: performanceData, refetch: refetchPerformance } = useQuery(
     VariantPerformanceDocument,
     { variables: { experimentId }, skip: !experimentId },
   );
   const job = useJobPolling(jobId);
+  const syncJob = useJobPolling(syncJobId);
 
   useEffect(() => {
     if (job?.status === JobStatus.Failed) {
@@ -108,6 +156,20 @@ export function PerformancePage() {
     setMessage(t('performance.briefCreated'));
     setJobId(null);
   }, [job?.error, job?.status, t]);
+
+  useEffect(() => {
+    if (!syncJobId) return;
+    if (syncJob?.status === JobStatus.Failed) {
+      setError(t('performance.syncFailed'));
+      setSyncJobId(null);
+      return;
+    }
+    if (syncJob?.status !== JobStatus.Succeeded) return;
+    setSyncSummary(parseSyncSummary(syncJob.resultJson));
+    void refetchSyncStatus();
+    if (experimentId) void refetchPerformance();
+    setSyncJobId(null);
+  }, [experimentId, refetchPerformance, refetchSyncStatus, syncJob?.error, syncJob?.resultJson, syncJob?.status, syncJobId, t]);
 
   async function onUpload() {
     if (!file) return;
@@ -138,11 +200,41 @@ export function PerformancePage() {
     }
   }
 
+  async function onSyncPerformance() {
+    setError(null);
+    setMessage(null);
+    setSyncSummary(null);
+    try {
+      const result = await syncPerformance();
+      setSyncJobId(result.data!.syncPerformanceFromSnowflake.id);
+    } catch (cause) {
+      const code = (cause as { graphQLErrors?: Array<{ extensions?: { code?: string } }> })
+        .graphQLErrors?.[0]?.extensions?.code;
+      setError(code === 'NOT_CONFIGURED'
+        ? t('performance.snowflakeNotConfigured')
+        : t('performance.syncFailed'));
+    }
+  }
+
   const rows = performanceData?.variantPerformance ?? [];
   const numberText = (value: number | null | undefined) => value == null ? '—' : value.toLocaleString(lang === 'zhTw' ? 'zh-TW' : 'ko-KR');
   const funnelText = (value: number | null | undefined, coverage: PerformanceCoverage) => coverage === PerformanceCoverage.Missing
     ? <span className="warn-text" title={t('performance.missingTitle')}>{t('performance.missing')}</span>
     : <>{numberText(value)}{coverage === PerformanceCoverage.Partial ? t('performance.partial') : ''}</>;
+  const syncStatus = syncStatusData?.performanceSyncStatus;
+  const syncDateTime = (value: string) => new Intl.DateTimeFormat(
+    lang === 'zhTw' ? 'zh-TW' : 'ko-KR',
+    { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Taipei' },
+  ).format(new Date(value));
+  const syncSchedule = (cron: string | null | undefined) => {
+    if (!cron) return t('performance.autoSyncOff');
+    const parts = cron.trim().split(/\s+/);
+    if (parts.length === 5 && /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1]) && parts.slice(2).every((part) => part === '*')) {
+      const time = `${parts[1].padStart(2, '0')}:${parts[0].padStart(2, '0')}`;
+      return t('performance.dailySync', { time });
+    }
+    return t('performance.customSyncCron', { cron });
+  };
 
   return (
     <section className="stage-performance">
@@ -181,6 +273,47 @@ export function PerformancePage() {
               </p>
             )}
           </div>
+        )}
+      </Card>
+
+      <Card className={`page-form-card performance-sync-card${syncStatus && !syncStatus.configured ? ' is-dormant' : ''}`}>
+        <h2>{t('performance.snowflakeTitle')}</h2>
+        <p className="performance-sync-description">{t('performance.snowflakeDescription')}</p>
+        <div className="performance-sync-meta">
+          <span>
+            {syncStatus
+              ? syncStatus.lastSyncedAt
+                ? t('performance.lastSynced', { date: syncDateTime(syncStatus.lastSyncedAt) })
+                : t('performance.neverSynced')
+              : t('common.loading')}
+          </span>
+          <span>{syncStatus ? syncSchedule(syncStatus.cron) : t('common.loading')}</span>
+        </div>
+        {syncStatus && !syncStatus.configured && (
+          <p className="performance-sync-guidance">{t('performance.snowflakeNotConfigured')}</p>
+        )}
+        <div className="performance-sync-actions">
+          <Button
+            data-hint={t('performance.syncHint')}
+            variant="primary"
+            size="sm"
+            type="button"
+            disabled={!syncStatus?.configured || enqueueingSync || Boolean(syncJobId)}
+            onClick={() => void onSyncPerformance()}
+          >
+            {syncJobId
+              ? t('performance.syncing', { status: syncJob?.status ?? JobStatus.Queued })
+              : t('performance.syncNow')}
+          </Button>
+        </div>
+        {syncSummary && (
+          <p className="notice">
+            {t('performance.syncSummary', {
+              imported: syncSummary.importedRows,
+              updated: syncSummary.updatedRows,
+              unmatched: syncSummary.unmatched,
+            })}
+          </p>
         )}
       </Card>
 

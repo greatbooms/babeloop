@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { formatDate } from '../src/i18n/format-date';
+import { getMessage } from '../src/i18n/lang-context';
+import { messages } from '../src/i18n/messages';
 import { STATUS_LABELS } from '../src/lib/status-labels';
 import { pageGuides } from '../src/lib/page-guides';
 
@@ -27,4 +29,30 @@ test('routes the app loading label through the global language dictionary', () =
   const source = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(source, />로딩 중…</);
   assert.match(source, /t\('common\.loading'\)/);
+});
+
+test('provides independent Korean and Traditional Chinese copy for every Snowflake sync state', () => {
+  const keys = [
+    'performance.snowflakeTitle',
+    'performance.snowflakeDescription',
+    'performance.snowflakeNotConfigured',
+    'performance.syncNow',
+    'performance.syncHint',
+    'performance.syncing',
+    'performance.syncFailed',
+    'performance.lastSynced',
+    'performance.neverSynced',
+    'performance.dailySync',
+    'performance.customSyncCron',
+    'performance.autoSyncOff',
+    'performance.syncSummary',
+  ];
+
+  for (const key of keys) {
+    const ko = getMessage(messages, 'ko', key);
+    const zhTw = getMessage(messages, 'zhTw', key);
+    assert.notEqual(ko, key);
+    assert.notEqual(zhTw, key);
+    assert.notEqual(zhTw, ko);
+  }
 });

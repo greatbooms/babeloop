@@ -35,6 +35,14 @@ export class PerformanceImportModel {
 }
 
 @ObjectType()
+export class PerformanceSyncStatusModel {
+  @Field() configured: boolean;
+  @Field() provider: string;
+  @Field(() => String, { nullable: true }) cron: string | null;
+  @Field(() => Date, { nullable: true }) lastSyncedAt: Date | null;
+}
+
+@ObjectType()
 export class VariantPerformanceModel {
   @Field(() => ID) experimentVariantId: string;
   @Field(() => ID) creativeId: string;
