@@ -226,6 +226,7 @@ export class ReviewService {
           seconds: video.seconds,
           size: video.size,
           prompt: video.prompt,
+          instructions: video.instructions,
           createdAt: video.createdAt,
           costEstimateUsd: video.costEstimateUsd?.toNumber() ?? null,
         })),

@@ -16,7 +16,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt createdAt costEstimateUsd } videos { id url seconds size prompt costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt createdAt costEstimateUsd } videos { id url seconds size prompt instructions costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -292,6 +292,9 @@ export function ReviewDetailPage() {
                   <summary>{t('briefs.promptDetail')}</summary>
                   <pre>{image.prompt}</pre>
                 </details>
+                {creative.status === CreativeStatus.Approved && (
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
             </figure>
@@ -317,6 +320,9 @@ export function ReviewDetailPage() {
                   <summary>{t('briefs.promptDetail')}</summary>
                   <pre>{video.prompt}</pre>
                 </details>
+                {creative.status === CreativeStatus.Approved && (
+                  <button type="button" className="tag image-example-chip" onClick={() => { setVideoInstructions(video.instructions ?? ''); setVideoModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                )}
                 <time>{formatDate(String(video.createdAt), lang)}</time>
               </figcaption>
             </figure>
