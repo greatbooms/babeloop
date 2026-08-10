@@ -1,0 +1,792 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AdRefModel {
+  id: ID!
+  title: String
+}
+
+input AddCreativeToExperimentInput {
+  creativeId: ID!
+  experimentId: ID!
+}
+
+input AnalyzeSourceAdInput {
+  sourceAdId: ID!
+}
+
+input BrandFeatureInput {
+  description: String!
+  name: String!
+}
+
+type BrandFeatureModel {
+  description: String!
+  id: ID!
+  name: String!
+}
+
+type BrandGuidelineModel {
+  content: String!
+  id: ID!
+  title: String!
+}
+
+type BrandModel {
+  description: String
+  features: [BrandFeatureModel!]!
+  guidelines: [BrandGuidelineModel!]!
+  id: ID!
+  koJson: String
+  name: String!
+  serviceUrl: String
+  updatedAt: DateTime!
+  zhTwJson: String
+  zhTwTranslatedAt: DateTime
+}
+
+type BriefRefModel {
+  id: ID!
+  title: String!
+}
+
+enum BriefReferenceMethod {
+  MANUAL
+  SIMILARITY
+  UNKNOWN
+}
+
+type BriefReferenceModel {
+  deleted: Boolean!
+  method: BriefReferenceMethod!
+  similarity: Float
+  sourceAdId: ID
+  title: String
+}
+
+type CompetitorModel {
+  category: ReferenceCategory!
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+  notes: String
+}
+
+input CompleteMediaUploadInput {
+  mediaAssetId: ID!
+}
+
+type CompleteUploadModel {
+  job: JobModel!
+  mediaAsset: MediaAssetModel!
+}
+
+enum Confidence {
+  HIGH
+  LOW
+  MEDIUM
+}
+
+input CreateBrandInput {
+  description: String
+  features: [BrandFeatureInput!]! = []
+  name: String!
+  serviceUrl: String
+}
+
+input CreateCompetitorInput {
+  category: ReferenceCategory!
+  name: String!
+  notes: String
+}
+
+input CreateExperimentInput {
+  code: String!
+  name: String!
+}
+
+input CreateSourceAdInput {
+  adText: String
+  competitorId: ID
+  sourceUrl: String
+  title: String
+}
+
+type CreateSourceAdPayload {
+  job: JobModel
+  sourceAd: SourceAdModel!
+}
+
+type CreativeAnalysisModel {
+  createdAt: DateTime!
+  ctaText: String
+  ctaType: String
+  emotionalTriggers: [String!]!
+  genres: [String!]!
+  hookText: String
+  hookType: String!
+  id: ID!
+  language: String!
+  summary: String!
+  targetAudience: [String!]!
+  zhTwJson: String
+}
+
+type CreativeBriefModel {
+  audienceHypothesis: String!
+  brand: BrandModel
+  brandId: ID
+  callToAction: String!
+  createdAt: DateTime!
+  createdById: ID
+  creatives: [GeneratedCreativeModel!]!
+  desire: String!
+  focusText: String
+  hookType: String!
+  id: ID!
+  images: [GeneratedImageModel!]!
+  locale: String!
+  marketCode: String!
+  messageAngle: String!
+  model: String!
+  promptVersion: String!
+  provider: String!
+  rationale: String!
+  rawJson: String!
+  references: [BriefReferenceModel!]!
+  sourceAdIds: [ID!]!
+  title: String!
+  visualFormat: String!
+  zhTwJson: String
+}
+
+type CreativeDetailModel {
+  briefId: ID!
+  briefTitle: String!
+  createdAt: DateTime!
+  createdById: ID
+  experimentVariants: [CreativeExperimentVariantModel!]!
+  hookType: String
+  id: ID!
+  images: [GeneratedImageModel!]!
+  koreanText: String!
+  lastEditedById: ID
+  locale: String!
+  localizations: [LocalizationVersionModel!]!
+  minorFlagNote: String
+  minorFlagged: Boolean!
+  model: String!
+  policyChecks: [PolicyCheckModel!]!
+  promptVersion: String!
+  provider: String!
+  reviewEvents: [ReviewEventModel!]!
+  revision: Int!
+  scenesJson: String
+  status: CreativeStatus!
+  type: CreativeType!
+  updatedAt: DateTime!
+  variantIndex: Int!
+  videos: [GeneratedVideoModel!]!
+}
+
+type CreativeExperimentVariantModel {
+  exportedAt: DateTime
+  id: ID!
+  trackingCode: String!
+  variantCode: String!
+}
+
+input CreativeIdInput {
+  creativeId: ID!
+}
+
+input CreativeNoteInput {
+  creativeId: ID!
+  note: String
+}
+
+input CreativeReasonInput {
+  creativeId: ID!
+  reason: String!
+}
+
+enum CreativeStatus {
+  APPROVED
+  DRAFT
+  IN_REVIEW
+  LOCALIZATION_APPROVED
+  POLICY_CHECKED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+enum CreativeType {
+  COPY
+  VIDEO_SCRIPT
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type ExperimentCreativeModel {
+  hookType: String
+  id: ID!
+  koreanText: String!
+  revision: Int!
+  status: CreativeStatus!
+}
+
+type ExperimentModel {
+  code: String!
+  createdAt: DateTime!
+  hasExports: Boolean!
+  id: ID!
+  marketCode: String!
+  name: String!
+  variants: [ExperimentVariantModel!]!
+}
+
+type ExperimentVariantModel {
+  createdAt: DateTime!
+  creative: ExperimentCreativeModel!
+  creativeId: ID!
+  experimentId: ID!
+  exportedAt: DateTime
+  id: ID!
+  trackingCode: String!
+  variantCode: String!
+}
+
+input ExportExperimentInput {
+  experimentId: ID!
+}
+
+type ExportFileModel {
+  filename: String!
+  trackingCode: String!
+  url: String!
+}
+
+type ExportPackageModel {
+  createdAt: DateTime!
+  createdById: ID
+  experimentId: ID!
+  id: ID!
+  manifestJson: String!
+  storagePrefix: String!
+}
+
+type ExportResultModel {
+  files: [ExportFileModel!]!
+  manifestUrl: String!
+  package: ExportPackageModel!
+}
+
+input GenerateBriefFromPerformanceInput {
+  experimentId: ID!
+}
+
+input GenerateCreativeBriefInput {
+  brandId: ID
+  focusText: String
+  sourceAdIds: [ID!]
+  title: String
+}
+
+input GenerateCreativeImagesInput {
+  count: Int = 2
+  creativeId: ID!
+  instructions: String
+  quality: String = "low"
+}
+
+input GenerateCreativeVariantsInput {
+  briefId: ID!
+  count: Int = 3
+  type: CreativeType!
+}
+
+input GenerateCreativeVideoInput {
+  creativeId: ID!
+  instructions: String
+  seconds: Int = 12
+}
+
+type GenerateJobPayload {
+  job: JobModel!
+}
+
+type GenerateVideoThumbnailsPayload {
+  enqueued: Int!
+}
+
+type GeneratedCreativeModel {
+  briefId: ID!
+  createdAt: DateTime!
+  hookType: String
+  id: ID!
+  koreanText: String!
+  localizations: [LocalizationVersionModel!]!
+  model: String!
+  promptVersion: String!
+  provider: String!
+  scenesJson: String
+  status: CreativeStatus!
+  type: CreativeType!
+  updatedAt: DateTime!
+  variantIndex: Int!
+}
+
+type GeneratedImageModel {
+  costEstimateUsd: Float
+  createdAt: DateTime!
+  id: ID!
+  instructions: String!
+  prompt: String!
+  quality: String!
+  url: String!
+}
+
+type GeneratedVideoModel {
+  costEstimateUsd: Float
+  createdAt: DateTime!
+  id: ID!
+  instructions: String
+  prompt: String!
+  seconds: Int!
+  size: String!
+  url: String!
+}
+
+input ImportPerformanceCsvInput {
+  fileBase64: String!
+  filename: String!
+}
+
+type ImportResultModel {
+  duplicateCount: Int!
+  errors: [String!]!
+  importedCount: Int!
+}
+
+input ImportSensorTowerCsvInput {
+  competitorId: ID
+  fileBase64: String!
+}
+
+type JobModel {
+  createdAt: DateTime!
+  error: String
+  finishedAt: DateTime
+  id: ID!
+  queue: String!
+  resultJson: String
+  startedAt: DateTime
+  status: JobStatus!
+  type: String!
+}
+
+enum JobStatus {
+  FAILED
+  QUEUED
+  RUNNING
+  SUCCEEDED
+}
+
+enum LocalizationKind {
+  AI_DRAFT
+  APPROVED
+  HUMAN_REVISED
+}
+
+type LocalizationVersionModel {
+  createdAt: DateTime!
+  id: ID!
+  kind: LocalizationKind!
+  koBackTranslation: String
+  locale: String!
+  notes: String
+  text: String!
+}
+
+type MarketModel {
+  code: String!
+  defaultLocale: String!
+  id: ID!
+  locales: [String!]!
+  name: String!
+}
+
+input MediaAssetFilterInput {
+  kind: MediaAssetKind
+  limit: Int! = 24
+  offset: Int! = 0
+  origin: MediaAssetOrigin
+  search: String
+}
+
+enum MediaAssetKind {
+  IMAGE
+  VIDEO
+}
+
+type MediaAssetModel {
+  contentType: String!
+  createdAt: DateTime!
+  duplicateOfId: String
+  id: ID!
+  insights: [MediaInsightModel!]!
+  kind: MediaAssetKind!
+  linkedSourceAds: [AdRefModel!]!
+  mediaUrl: String!
+  ocrResults: [OcrResultModel!]!
+  origin: MediaAssetOrigin!
+  originalFilename: String!
+  sizeBytes: Int
+  status: MediaAssetStatus!
+  storageKey: String!
+  thumbnailKey: String
+  thumbnailUrl: String
+  transcriptions: [TranscriptionModel!]!
+}
+
+enum MediaAssetOrigin {
+  AD_IMPORT
+  MANUAL
+}
+
+type MediaAssetPageModel {
+  items: [MediaAssetModel!]!
+  totalCount: Int!
+}
+
+enum MediaAssetStatus {
+  FAILED
+  PENDING
+  PROCESSING
+  READY
+  UPLOADED
+}
+
+type MediaInsightModel {
+  createdAt: DateTime!
+  emotionalTriggers: [String!]!
+  genres: [String!]!
+  hookType: String!
+  id: ID!
+  model: String!
+  promptVersion: String!
+  provider: String!
+  summary: String!
+  targetAudience: [String!]!
+  zhTwJson: String
+}
+
+type Mutation {
+  addBrandFeature(brandId: ID!, description: String!, name: String!): BrandFeatureModel!
+  addBrandGuideline(brandId: ID!, content: String!, title: String!): BrandGuidelineModel!
+  addCreativeToExperiment(input: AddCreativeToExperimentInput!): ExperimentVariantModel!
+  analyzeMediaAsset(mediaAssetId: ID!): JobModel!
+  analyzeSourceAd(input: AnalyzeSourceAdInput!): JobModel!
+  approveCreative(input: CreativeNoteInput!): CreativeDetailModel!
+  approveLocalization(input: CreativeNoteInput!): CreativeDetailModel!
+  completeMediaUpload(input: CompleteMediaUploadInput!): CompleteUploadModel!
+  createBrand(input: CreateBrandInput!): BrandModel!
+  createCompetitor(input: CreateCompetitorInput!): CompetitorModel!
+  createExperiment(input: CreateExperimentInput!): ExperimentModel!
+  createSourceAd(input: CreateSourceAdInput!): CreateSourceAdPayload!
+  deleteBrandFeature(id: ID!): Boolean!
+  deleteBrandGuideline(id: ID!): Boolean!
+  exportExperiment(input: ExportExperimentInput!): ExportResultModel!
+  generateBriefFromPerformance(input: GenerateBriefFromPerformanceInput!): GenerateJobPayload!
+  generateCreativeBrief(input: GenerateCreativeBriefInput!): GenerateJobPayload!
+  generateCreativeImages(input: GenerateCreativeImagesInput!): JobModel!
+  generateCreativeVariants(input: GenerateCreativeVariantsInput!): GenerateJobPayload!
+  generateCreativeVideo(input: GenerateCreativeVideoInput!): JobModel!
+  generateVideoThumbnails: GenerateVideoThumbnailsPayload!
+  importPerformanceCsv(input: ImportPerformanceCsvInput!): PerformanceImportResultModel!
+  importSensorTowerCsv(input: ImportSensorTowerCsvInput!): ImportResultModel!
+  login(email: String!, password: String!): UserModel!
+  logout: Boolean!
+  processMediaAsset(mediaAssetId: ID!): JobModel!
+  redownloadSourceAdMedia(sourceAdId: ID!): JobModel!
+  reembedSourceAds: ReembedSourceAdsPayload!
+  rejectCreative(input: CreativeReasonInput!): CreativeDetailModel!
+  releaseMinorFlag(input: CreativeReasonInput!): CreativeDetailModel!
+  requestCreativeReview(input: CreativeIdInput!): CreativeDetailModel!
+  requestCreativeRevision(input: CreativeReasonInput!): CreativeDetailModel!
+  requestMediaUpload(input: RequestMediaUploadInput!): UploadRequestModel!
+  reviseLocalization(input: ReviseLocalizationInput!): CreativeDetailModel!
+  runPolicyCheck(input: CreativeIdInput!): JobModel!
+  syncPerformanceFromSnowflake(input: SyncPerformanceFromSnowflakeInput): JobModel!
+  translateBrandZhTw(brandId: ID!): JobModel!
+  updateBrand(input: UpdateBrandInput!): BrandModel!
+  updateCreativeText(input: UpdateCreativeTextInput!): CreativeDetailModel!
+}
+
+type OcrResultModel {
+  id: ID!
+  model: String!
+  provider: String!
+  text: String!
+}
+
+enum PerformanceCoverage {
+  FULL
+  MISSING
+  PARTIAL
+}
+
+type PerformanceImportModel {
+  createdAt: DateTime!
+  createdById: ID
+  errorRows: Int!
+  errors: [String!]!
+  fileHash: String!
+  filename: String!
+  id: ID!
+  importedRows: Int!
+  unmatchedTrackingCodes: [String!]!
+  updatedRows: Int!
+}
+
+type PerformanceImportResultModel {
+  duplicateFile: Boolean!
+  errorRows: Int!
+  errors: [String!]!
+  id: ID!
+  importedRows: Int!
+  unmatchedTrackingCodes: [String!]!
+  updatedRows: Int!
+}
+
+type PerformanceSyncStatusModel {
+  configured: Boolean!
+  cron: String
+  lastSyncedAt: DateTime
+  provider: String!
+}
+
+type PolicyCheckModel {
+  checkType: PolicyCheckType!
+  createdAt: DateTime!
+  detailJson: String!
+  id: ID!
+  status: PolicyCheckStatus!
+}
+
+enum PolicyCheckStatus {
+  FLAGGED
+  PASS
+  WARN
+}
+
+enum PolicyCheckType {
+  BANNED_TERM
+  MINOR_SIGNAL
+  SIMILARITY
+}
+
+type Query {
+  brand(id: ID!): BrandModel!
+  brands: [BrandModel!]!
+  competitors: [CompetitorModel!]!
+  creative(id: ID!): CreativeDetailModel!
+  creativeBrief(id: ID!): CreativeBriefModel!
+  creativeBriefs(brandId: ID, search: String): [CreativeBriefModel!]!
+  creatives(search: String, status: CreativeStatus, type: CreativeType): [CreativeDetailModel!]!
+  experiment(id: ID!): ExperimentModel!
+  experiments: [ExperimentModel!]!
+  exportPackages(experimentId: ID!): [ExportPackageModel!]!
+  job(id: ID!): JobModel
+  markets: [MarketModel!]!
+  me: UserModel!
+  mediaAsset(id: ID!): MediaAssetModel!
+  mediaAssets(origin: MediaAssetOrigin): [MediaAssetModel!]!
+  mediaAssetsPage(input: MediaAssetFilterInput!): MediaAssetPageModel!
+  performanceImports: [PerformanceImportModel!]!
+  performanceSyncStatus: PerformanceSyncStatusModel!
+  similarAdsForMediaAsset(limit: Int! = 5, mediaAssetId: ID!): [SimilarSourceAdModel!]!
+  similarSourceAds(input: SimilarSourceAdsInput!): [SimilarSourceAdModel!]!
+  sourceAd(id: ID!): SourceAdModel!
+  sourceAds: [SourceAdModel!]!
+  sourceAdsPage(input: SourceAdFilterInput!): SourceAdPage!
+  variantPerformance(experimentId: ID!): [VariantPerformanceModel!]!
+}
+
+type ReembedSourceAdsPayload {
+  enqueued: Int!
+}
+
+enum ReferenceCategory {
+  CREATIVE_REFERENCE
+  CREATOR_ECOSYSTEM_REFERENCE
+  DIRECT_COMPETITOR
+  FEATURE_REFERENCE
+  LOCAL_MARKET_REFERENCE
+  MONETIZATION_REFERENCE
+  ONBOARDING_REFERENCE
+}
+
+input RequestMediaUploadInput {
+  contentType: String!
+  filename: String!
+  kind: MediaAssetKind!
+}
+
+enum ReviewEventKind {
+  APPROVED
+  EXPORTED
+  LOCALIZATION_APPROVED
+  LOCALIZATION_REVISED
+  MINOR_FLAG_RELEASED
+  POLICY_CHECKED
+  REJECTED
+  REVIEW_REQUESTED
+  REVISION_REQUESTED
+}
+
+type ReviewEventModel {
+  actorId: ID!
+  createdAt: DateTime!
+  id: ID!
+  kind: ReviewEventKind!
+  note: String
+}
+
+input ReviseLocalizationInput {
+  creativeId: ID!
+  note: String
+  text: String!
+}
+
+type SimilarSourceAdModel {
+  similarity: Float!
+  sourceAd: SourceAdModel!
+}
+
+input SimilarSourceAdsInput {
+  limit: Int
+  sourceAdId: ID!
+}
+
+input SourceAdFilterInput {
+  competitorId: ID
+  kind: MediaAssetKind
+  limit: Int! = 24
+  offset: Int! = 0
+  search: String
+  status: SourceAdStatus
+}
+
+type SourceAdModel {
+  adText: String
+  competitor: CompetitorModel
+  confidence: Confidence!
+  countries: [String!]!
+  createdAt: DateTime!
+  externalId: String
+  firstSeenAt: DateTime
+  id: ID!
+  impressionShare: Float
+  isEstimated: Boolean!
+  lastSeenAt: DateTime
+  latestAnalysis: CreativeAnalysisModel
+  mediaAsset: MediaAssetModel
+  networks: [String!]!
+  origin: SourceAdOrigin!
+  provider: String!
+  referencingBriefs: [BriefRefModel!]!
+  sourceUrl: String
+  status: SourceAdStatus!
+  title: String
+}
+
+enum SourceAdOrigin {
+  MANUAL_FILE
+  MANUAL_URL
+  SENSOR_TOWER_CSV
+}
+
+type SourceAdPage {
+  items: [SourceAdModel!]!
+  totalCount: Int!
+}
+
+enum SourceAdStatus {
+  ANALYZED
+  ANALYZING
+  FAILED
+  REGISTERED
+}
+
+input SyncPerformanceFromSnowflakeInput {
+  from: String
+  to: String
+}
+
+type TranscriptionModel {
+  id: ID!
+  language: String
+  model: String!
+  provider: String!
+  text: String!
+}
+
+input UpdateBrandInput {
+  description: String
+  id: ID!
+  name: String
+  serviceUrl: String
+}
+
+input UpdateCreativeTextInput {
+  creativeId: ID!
+  koreanText: String!
+}
+
+type UploadRequestModel {
+  mediaAsset: MediaAssetModel!
+  uploadUrl: String!
+}
+
+type UserModel {
+  displayName: String!
+  email: String!
+  id: ID!
+  role: UserRole!
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+type VariantPerformanceModel {
+  clicks: Int
+  cost: Float
+  costPerSignup: Float
+  cpi: Float
+  creativeId: ID!
+  ctr: Float
+  currency: String!
+  experimentVariantId: ID!
+  firstMessages: Int
+  firstMessagesCoverage: PerformanceCoverage!
+  hookType: String
+  impressions: Int
+  installToSignupRate: Float
+  installs: Int
+  koreanTextSummary: String!
+  signupToFirstMessageRate: Float
+  signups: Int
+  signupsCoverage: PerformanceCoverage!
+  status: CreativeStatus!
+  trackingCode: String!
+  variantCode: String!
+}

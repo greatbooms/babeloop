@@ -3,6 +3,7 @@ dist/
 .env
 apps/server/public/
 apps/server/src/generated/
+!apps/server/src/generated/schema.gql
 apps/server/generated/
 apps/web/src/generated/
 apps/web/dist/
@@ -13,3 +14,4 @@ e2e/playwright-report/
 test-results/
 .idea/
 .playwright-mcp/
+secrets/

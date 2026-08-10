@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const envSchema = z.object({
+  // 프론트 분리 배포 시 허용 오리진(콤마 구분) — 미설정이면 같은 도메인 모드
+  WEB_ORIGINS: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(16000),
   APP_BASE_URL: z.string().url(),
