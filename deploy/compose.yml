@@ -90,6 +90,17 @@ services:
       driver: "json-file"
       options: { max-size: "100m", max-file: "5" }
 
+  # Cloudflare Tunnel — 대시보드에서 만든 터널의 토큰을 .env의 TUNNEL_TOKEN에 넣는다.
+  # 라우팅(공개 호스트명 → 내부 주소)은 Cloudflare 대시보드에서 관리:
+  #   babeloop.eric-nas.com → http://app:16000
+  #   files.eric-nas.com    → http://minio:9000
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run --token ${TUNNEL_TOKEN}
+    depends_on:
+      app: { condition: service_healthy }
+
 volumes:
   pgdata:
   redisdata:

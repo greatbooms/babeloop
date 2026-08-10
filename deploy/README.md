@@ -29,17 +29,24 @@ docker compose up -d       # 마이그레이션은 app 기동 시 자동 적용
 docker compose exec app npx tsx prisma/seed.ts
 ```
 
-## 4. 공개 접속 (Cloudflare Tunnel 권장)
+## 4. 공개 접속 — Cloudflare Tunnel (도메인: eric-nas.com)
 
-나스에 cloudflared 컨테이너를 하나 추가하고 두 호스트를 라우팅한다:
+compose에 cloudflared가 포함돼 있다. 최초 1회 대시보드 설정:
 
-| 호스트 | 대상 | 용도 |
+1. [one.dash.cloudflare.com](https://one.dash.cloudflare.com) → **Networks → Tunnels → Create a tunnel**
+   → Cloudflared 선택 → 이름 `eric-nas` → 생성
+2. 커넥터 설치 화면에서 Docker를 선택하면 명령어 안에 긴 토큰(`eyJ…`)이 보인다
+   → 그 토큰을 나스 `.env`의 `TUNNEL_TOKEN=`에 붙여넣는다 (명령 자체는 실행하지 않아도 됨)
+3. 터널 상세의 **Public Hostname** 탭에서 두 개 추가:
+
+| Subdomain | Domain | Service |
 |---|---|---|
-| `babeloop.도메인` | `http://app:16000` | 화면 + API |
-| `files.도메인` | `http://minio:9000` | 이미지·영상 presign 링크 |
+| `babeloop` | eric-nas.com | `HTTP://app:16000` |
+| `files` | eric-nas.com | `HTTP://minio:9000` |
 
-라우팅 후 `.env`의 APP_BASE_URL / OBJECT_STORAGE_PUBLIC_ENDPOINT를 해당 주소로 맞추고
-`docker compose up -d` 로 재적용한다.
+`docker compose up -d` 하면 cloudflared가 토큰으로 접속해 라우팅이 살아난다.
+(프론트를 버셀로 분리하는 경우 `WEB_ORIGINS`에 버셀 도메인을 넣는다 — 화면을 나스에서
+같이 서빙하는 경우 babeloop.eric-nas.com 하나로 충분하고 WEB_ORIGINS는 비워둔다)
 
 ## 5. 업데이트 배포
 
