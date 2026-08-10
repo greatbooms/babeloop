@@ -1,13 +1,13 @@
-# BabeLoop 나스 배포 — 같은 폴더의 .env 에서 시크릿·주소를 읽는다 (.env.example 참조)
-# 실행: docker compose up -d   (이미지는 IMAGE 변수 또는 로컬 빌드 태그)
+# BabeLoop 나스 배포 — 같은 폴더의 .env.prod 에서 시크릿·주소를 읽는다 (kis-trader와 동일 방식)
+# 변수 치환 없이 전부 env_file 직행이라, 수동 재기동은 `sudo docker compose up -d` 만으로 동작한다.
+# (IMAGE만 예외 — 깃 액션 배포 스크립트가 .deploy.env로 주입, 수동 시 기본 babeloop:latest)
 services:
   minio:
     image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: babeloop
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    # MINIO_ROOT_USER/PASSWORD를 .env.prod에서 읽는다
+    env_file: [.env.prod]
     # 나스 호스트 포트 규칙(2000번대) — 터널은 내부 네트워크로 직접 붙으므로 이 매핑은 나스 안 관리용
     ports: ["20003:9000", "20004:9001"]
     volumes: [miniodata:/data]
@@ -21,15 +21,13 @@ services:
     image: ${IMAGE:-babeloop:latest}
     container_name: babeloop-app
     restart: unless-stopped
-    env_file: [.env]
+    env_file: [.env.prod]
     environment:
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
-      OBJECT_STORAGE_ACCESS_KEY: babeloop
-      OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
       PORT: "16000"
     ports: ["20002:16000"]
     # 나스에 이미 있는 pgvector(15432)·redis(16379)를 재사용한다 —
-    # DATABASE_URL/REDIS_URL은 .env에서 host.docker.internal 주소로 지정
+    # DATABASE_URL/REDIS_URL은 .env.prod에서 host.docker.internal 주소로 지정
     extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       minio: { condition: service_healthy }
@@ -51,11 +49,9 @@ services:
     container_name: babeloop-worker
     restart: unless-stopped
     command: ["node", "apps/server/dist/worker.js"]
-    env_file: [.env]
+    env_file: [.env.prod]
     environment:
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
-      OBJECT_STORAGE_ACCESS_KEY: babeloop
-      OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
       WORKER_PORT: "16001"
     extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
@@ -66,14 +62,15 @@ services:
       driver: "json-file"
       options: { max-size: "100m", max-file: "5" }
 
-  # Cloudflare Tunnel — 대시보드에서 만든 터널의 토큰을 .env의 TUNNEL_TOKEN에 넣는다.
+  # Cloudflare Tunnel — cloudflared는 TUNNEL_TOKEN 환경변수를 네이티브로 읽는다(.env.prod에 포함).
   # 라우팅(공개 호스트명 → 내부 주소)은 Cloudflare 대시보드에서 관리:
   #   babeloop.eric-nas.com → http://app:16000
   #   files.eric-nas.com    → http://minio:9000
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel run --token ${TUNNEL_TOKEN}
+    command: tunnel run
+    env_file: [.env.prod]
     depends_on:
       app: { condition: service_healthy }
 

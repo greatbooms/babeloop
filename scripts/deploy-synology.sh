@@ -9,7 +9,7 @@ IMAGE="${IMAGE:?IMAGE is required}"
 DOCKER_BIN="${DOCKER_BIN:-/usr/local/bin/docker}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
 # 런타임 시크릿은 나스에 상주하는 .env (최초 1회 수동 배치 — deploy/.env.example 참조)
-RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-.env}"
+RUNTIME_ENV_FILE="${RUNTIME_ENV_FILE:-.env.prod}"
 DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-.deploy.env}"
 USE_SUDO_DOCKER="${USE_SUDO_DOCKER:-true}"
 
@@ -24,16 +24,16 @@ docker_cmd() {
 cd "$DEPLOY_PATH"
 
 if [ ! -f "$RUNTIME_ENV_FILE" ]; then
-  echo "[error] Missing runtime env file: ${DEPLOY_PATH}/${RUNTIME_ENV_FILE} (deploy/.env.example 참조해 최초 1회 생성)"
+  echo "[error] Missing runtime env file: ${DEPLOY_PATH}/${RUNTIME_ENV_FILE} (로컬 .env.prod 채워서 복사)"
   exit 1
 fi
 
 printf 'IMAGE=%s\n' "$IMAGE" > "$DEPLOY_ENV_FILE"
 chmod 600 "$DEPLOY_ENV_FILE"
 
-# --env-file을 넘기면 compose의 .env 자동 로딩이 꺼지므로 둘 다 명시한다 (뒤가 우선)
+# 컨테이너 env는 compose.yml의 env_file(.env.prod)이 처리 — 여기서는 IMAGE 치환용 파일만 넘긴다
 compose() {
-  docker_cmd compose --env-file "$RUNTIME_ENV_FILE" --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  docker_cmd compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 echo "[info] Pulling ${IMAGE}"

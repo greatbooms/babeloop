@@ -66,7 +66,7 @@ compose에 cloudflared가 포함돼 있다. 최초 1회 대시보드 설정:
 
 ## 주의
 
-- `.env`의 시크릿(POSTGRES_PASSWORD, MINIO_PASSWORD, SESSION_SECRET, ADMIN_PASSWORD)은
+- `.env.prod`의 시크릿(POSTGRES_PASSWORD, MINIO_PASSWORD, SESSION_SECRET, ADMIN_PASSWORD)은
   전부 새로 생성한다 — dev 기본값(changeme-*, babeloop-secret) 금지.
 - Snowflake 개인키(`secrets/snowflake_babeloop_rsa.p8`)는 git에 없다 — 개발 머신의
   `BabeLoop/secrets/`에서 직접 복사한다.
