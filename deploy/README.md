@@ -17,10 +17,7 @@ docker save babeloop:latest | gzip > babeloop-image.tar.gz
 기존 pgvector 컨테이너에 babeloop 전용 DB·계정을 만든다 (관리자 계정으로):
 
 ```bash
-sudo docker exec -it pgvector psql -U postgres <<'SQL'
-CREATE USER babeloop WITH PASSWORD '여기에_새_비밀번호';
-CREATE DATABASE babeloop OWNER babeloop;
-SQL
+sudo docker exec -it pgvector psql -U postgres -c 'CREATE DATABASE babeloop;'
 sudo docker exec -it pgvector psql -U postgres -d babeloop -c 'CREATE EXTENSION IF NOT EXISTS vector;'
 ```
 
