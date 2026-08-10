@@ -48,6 +48,17 @@ while [ "$i" -le 90 ]; do
   status="$(docker_cmd inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$APP_NAME" 2>/dev/null || true)"
   if [ "$status" = "healthy" ]; then
     echo "[info] ${APP_NAME} is healthy"
+    # 배포 누적으로 쌓인 옛 babeloop 이미지 정리 (kis 패턴 — 현재 사용 중인 것만 남긴다)
+    echo "[info] Pruning dangling images"
+    docker_cmd image prune -f >/dev/null 2>&1 || true
+    repository="${IMAGE%%@*}"; repository="${repository%:*}"
+    current_id="$(docker_cmd image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null || true)"
+    docker_cmd images "$repository" --format '{{.ID}}' | while IFS= read -r image_id; do
+      [ -z "$image_id" ] && continue
+      full_id="$(docker_cmd image inspect -f '{{.Id}}' "$image_id" 2>/dev/null || true)"
+      [ "$full_id" = "$current_id" ] && continue
+      docker_cmd rmi "$image_id" >/dev/null 2>&1 && echo "[info] Removed old image ${image_id}" || true
+    done
     exit 0
   fi
   echo "[info] ${APP_NAME} status=${status:-unknown}; waiting (${i}/90)"
