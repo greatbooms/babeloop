@@ -1,30 +1,6 @@
 # BabeLoop 나스 배포 — 같은 폴더의 .env 에서 시크릿·주소를 읽는다 (.env.example 참조)
 # 실행: docker compose up -d   (이미지는 IMAGE 변수 또는 로컬 빌드 태그)
 services:
-  postgres:
-    image: pgvector/pgvector:pg17
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: babeloop
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: babeloop
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U babeloop"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes: [redisdata:/data]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   minio:
     image: minio/minio:latest
     restart: unless-stopped
@@ -47,16 +23,15 @@ services:
     restart: unless-stopped
     env_file: [.env]
     environment:
-      DATABASE_URL: postgresql://babeloop:${POSTGRES_PASSWORD}@postgres:5432/babeloop
-      REDIS_URL: redis://redis:6379
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
       OBJECT_STORAGE_ACCESS_KEY: babeloop
       OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
       PORT: "16000"
     ports: ["20002:16000"]
+    # 나스에 이미 있는 pgvector(15432)·redis(16379)를 재사용한다 —
+    # DATABASE_URL/REDIS_URL은 .env에서 host.docker.internal 주소로 지정
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       minio: { condition: service_healthy }
     volumes:
       # Snowflake 키페어 — 나스의 이 경로에 개인키를 복사해 둔다
@@ -78,12 +53,11 @@ services:
     command: ["node", "apps/server/dist/worker.js"]
     env_file: [.env]
     environment:
-      DATABASE_URL: postgresql://babeloop:${POSTGRES_PASSWORD}@postgres:5432/babeloop
-      REDIS_URL: redis://redis:6379
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
       OBJECT_STORAGE_ACCESS_KEY: babeloop
       OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
       WORKER_PORT: "16001"
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       app: { condition: service_healthy }
     volumes:
@@ -104,6 +78,4 @@ services:
       app: { condition: service_healthy }
 
 volumes:
-  pgdata:
-  redisdata:
   miniodata:

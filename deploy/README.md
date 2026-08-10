@@ -12,7 +12,22 @@ docker save babeloop:latest | gzip > babeloop-image.tar.gz
 # 레지스트리를 쓰는 경우(ghcr 등)는 tag & push로 대체
 ```
 
-## 2. 나스 준비
+## 2. 나스 준비 — 기존 pgvector·redis 재사용 사전 작업 (최초 1회)
+
+기존 pgvector 컨테이너에 babeloop 전용 DB·계정을 만든다 (관리자 계정으로):
+
+```bash
+sudo docker exec -it pgvector psql -U postgres <<'SQL'
+CREATE USER babeloop WITH PASSWORD '여기에_새_비밀번호';
+CREATE DATABASE babeloop OWNER babeloop;
+SQL
+sudo docker exec -it pgvector psql -U postgres -d babeloop -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+```
+
+redis는 빈 논리 DB 인덱스 하나를 배정한다 (`sudo docker exec redis redis-cli info keyspace`로
+사용 중인 번호 확인 → .env의 REDIS_URL 끝 `/번호`에 반영, 예: /4).
+
+## 2-1. 배포 폴더 준비
 
 ```bash
 mkdir -p /volume1/docker/babeloop/secrets && cd /volume1/docker/babeloop
