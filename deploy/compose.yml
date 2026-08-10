@@ -32,8 +32,8 @@ services:
     environment:
       MINIO_ROOT_USER: babeloop
       MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
-    # presign 링크가 브라우저에서 열려야 하므로 9000은 터널/리버스프록시로도 노출한다
-    ports: ["9000:9000", "9001:9001"]
+    # 나스 호스트 포트 규칙(2000번대) — 터널은 내부 네트워크로 직접 붙으므로 이 매핑은 나스 안 관리용
+    ports: ["20003:9000", "20004:9001"]
     volumes: [miniodata:/data]
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
@@ -52,7 +52,7 @@ services:
       OBJECT_STORAGE_ACCESS_KEY: babeloop
       OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
       PORT: "16000"
-    ports: ["16000:16000"]
+    ports: ["20002:16000"]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
