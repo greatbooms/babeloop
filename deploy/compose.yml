@@ -43,6 +43,7 @@ services:
 
   app:
     image: ${IMAGE:-babeloop:latest}
+    container_name: babeloop-app
     restart: unless-stopped
     env_file: [.env]
     environment:
@@ -72,6 +73,7 @@ services:
 
   worker:
     image: ${IMAGE:-babeloop:latest}
+    container_name: babeloop-worker
     restart: unless-stopped
     command: ["node", "apps/server/dist/worker.js"]
     env_file: [.env]
