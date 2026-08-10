@@ -1,0 +1,96 @@
+# BabeLoop 나스 배포 — 같은 폴더의 .env 에서 시크릿·주소를 읽는다 (.env.example 참조)
+# 실행: docker compose up -d   (이미지는 IMAGE 변수 또는 로컬 빌드 태그)
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: babeloop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: babeloop
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U babeloop"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: babeloop
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    # presign 링크가 브라우저에서 열려야 하므로 9000은 터널/리버스프록시로도 노출한다
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${IMAGE:-babeloop:latest}
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://babeloop:${POSTGRES_PASSWORD}@postgres:5432/babeloop
+      REDIS_URL: redis://redis:6379
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_ACCESS_KEY: babeloop
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
+      PORT: "16000"
+    ports: ["16000:16000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    volumes:
+      # Snowflake 키페어 — 나스의 이 경로에 개인키를 복사해 둔다
+      - ./secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:16000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options: { max-size: "100m", max-file: "5" }
+
+  worker:
+    image: ${IMAGE:-babeloop:latest}
+    restart: unless-stopped
+    command: ["node", "apps/server/dist/worker.js"]
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://babeloop:${POSTGRES_PASSWORD}@postgres:5432/babeloop
+      REDIS_URL: redis://redis:6379
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_ACCESS_KEY: babeloop
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
+      WORKER_PORT: "16001"
+    depends_on:
+      app: { condition: service_healthy }
+    volumes:
+      - ./secrets:/secrets:ro
+    logging:
+      driver: "json-file"
+      options: { max-size: "100m", max-file: "5" }
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

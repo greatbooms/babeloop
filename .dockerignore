@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+apps/server/public
+.env
+.env.*
+secrets
+test-results
+playwright-report
+e2e/.auth
+.git
+docs
+*.log
+perf-snowflake-*.csv
