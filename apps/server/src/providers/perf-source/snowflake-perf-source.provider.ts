@@ -92,12 +92,14 @@ export class SnowflakePerfSourceProvider implements PerfSourceProvider {
 
   private extractSql(database: string, input: FetchPerfSignupsInput): string {
     return `
-WITH touches AS (
+WITH raw_events AS (
   SELECT ${coalesceFields(UID_FIELDS, 'string')} uid,
          REGEXP_SUBSTR(TO_JSON(RAW_DATA), '${CODE_REGEX}') code,
          ${coalesceFields(TS_FIELDS, 'timestamp')} ts
   FROM ${database}.AIRBRIDGE.WEB_EVENTS
-  QUALIFY code IS NOT NULL AND uid IS NOT NULL
+),
+touches AS (
+  SELECT uid, code, ts FROM raw_events WHERE code IS NOT NULL AND uid IS NOT NULL
 ),
 first_touch AS (
   SELECT uid, code

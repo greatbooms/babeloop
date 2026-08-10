@@ -102,7 +102,11 @@ const conn = snowflake.createConnection(connOpts);
 await new Promise((res, rej) => conn.connect((e) => (e ? rej(e) : res())));
 const q = (sqlText) => new Promise((res, rej) =>
   conn.execute({ sqlText, complete: (e, _s, rows) => (e ? rej(e) : res(rows)) }));
-const done = (code = 0) => conn.destroy(() => process.exit(code));
+// 종료는 비동기(conn.destroy 콜백) — 이후 코드로 흘러내리지 않게 영원히 대기하는 프로미스를 반환한다
+const done = (code = 0) => {
+  conn.destroy(() => process.exit(code));
+  return new Promise(() => {});
+};
 
 // ============================================================
 // inspect — 매칭 가능 여부 확정용 진단
@@ -134,7 +138,7 @@ if (command === 'inspect') {
   } catch (e) { console.error('  실패:', e.message); }
 
   console.log('\n②의 키 목록에 UTM/Campaign 계열 필드가 보이면 그 이름을 이 스크립트 상단 후보 배열에 반영하세요.');
-  done();
+  await done();
 }
 
 // ============================================================
@@ -144,23 +148,25 @@ const from = flag('from');
 const to = flag('to');
 if (!/^\d{4}-\d{2}-\d{2}$/.test(from ?? '') || !/^\d{4}-\d{2}-\d{2}$/.test(to ?? '')) {
   console.error('extract에는 --from YYYY-MM-DD --to YYYY-MM-DD 가 필요합니다.');
-  done(1);
+  await done(1);
 }
 const platform = String(flag('platform') ?? 'OTHER').toUpperCase();
 if (!['META', 'TIKTOK', 'OTHER'].includes(platform)) {
   console.error('--platform 은 META|TIKTOK|OTHER 중 하나여야 합니다.');
-  done(1);
+  await done(1);
 }
 
 // 유저별 최초 터치(first-touch)의 추적코드 1개에 가입을 귀속한다.
 // 필드명이 확정되기 전에도 동작하도록 TO_JSON 문자열에서 BL- 패턴을 직접 추출한다.
 const sql = `
-WITH touches AS (
+WITH raw_events AS (
   SELECT ${coalesceFields(UID_FIELDS, 'string')} uid,
          REGEXP_SUBSTR(TO_JSON(RAW_DATA), '${CODE_REGEX}') code,
          ${coalesceFields(TS_FIELDS, 'timestamp')} ts
   FROM ${DB}.AIRBRIDGE.WEB_EVENTS
-  QUALIFY code IS NOT NULL AND uid IS NOT NULL
+),
+touches AS (
+  SELECT uid, code, ts FROM raw_events WHERE code IS NOT NULL AND uid IS NOT NULL
 ),
 first_touch AS (
   SELECT uid, code
@@ -183,12 +189,12 @@ try {
 } catch (e) {
   console.error('[extract] 쿼리 실패:', e.message);
   console.error('필드명 문제라면 inspect 결과를 보고 스크립트 상단 TS_FIELDS/UID_FIELDS를 조정하세요.');
-  done(1);
+  await done(1);
 }
 
 if (rows.length === 0) {
   console.log('[extract] 해당 기간에 BL- 코드로 귀속된 가입이 없습니다. CSV를 만들지 않습니다.');
-  done();
+  await done();
 }
 
 const header = 'date,platform,tracking_code,impressions,clicks,installs,signups,first_messages,cost,currency';
@@ -236,4 +242,4 @@ if (has('upload')) {
   if (r.errors?.length) for (const err of r.errors.slice(0, 5)) console.log('  -', err);
 }
 
-done();
+await done();
