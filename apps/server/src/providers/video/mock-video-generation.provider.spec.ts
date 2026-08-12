@@ -17,6 +17,7 @@ describe('MockVideoGenerationProvider', () => {
       prompt: '다른 장면표',
       seconds: 4,
       size: '720x1280',
+      inputReference: { buffer: Buffer.from('reference'), contentType: 'image/jpeg' },
     });
 
     expect(provider.name).toBe('mock');

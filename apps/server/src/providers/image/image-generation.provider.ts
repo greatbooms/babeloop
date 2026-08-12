@@ -4,6 +4,7 @@ export interface ImageGenerationInput {
   prompt: string;
   count: number;
   quality: ImageQuality;
+  referenceImages?: Array<{ buffer: Buffer; contentType: string }>;
 }
 
 export interface GeneratedImageData {

@@ -26,6 +26,22 @@ export const REVIEW_INCLUDE = {
 
 export const REVIEW_DETAIL_INCLUDE = {
   ...REVIEW_INCLUDE,
+  brief: {
+    include: {
+      references: {
+        orderBy: { rank: 'asc' as const },
+        include: {
+          sourceAd: {
+            include: {
+              mediaAsset: {
+                select: { kind: true, storageKey: true, thumbnailKey: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   images: { orderBy: { createdAt: 'desc' as const } },
   videos: { orderBy: { createdAt: 'desc' as const } },
 } as const;
@@ -215,6 +231,7 @@ export class ReviewService {
           quality: image.quality,
           instructions: image.instructions,
           prompt: image.prompt,
+          referenceKeys: image.referenceKeys,
           createdAt: image.createdAt,
           costEstimateUsd: image.costEstimateUsd,
         })),
@@ -227,11 +244,44 @@ export class ReviewService {
           size: video.size,
           prompt: video.prompt,
           instructions: video.instructions,
+          referenceKeys: video.referenceKeys,
           createdAt: video.createdAt,
           costEstimateUsd: video.costEstimateUsd?.toNumber() ?? null,
         })),
       ),
+      briefReferenceAds: await this.mapBriefReferenceAds(creative.brief.references),
     };
+  }
+
+  private mapBriefReferenceAds(
+    references: Array<{
+      sourceAd: {
+        id: string;
+        title: string | null;
+        mediaAsset: {
+          kind: string;
+          storageKey: string;
+          thumbnailKey: string | null;
+        } | null;
+      } | null;
+    }>,
+  ) {
+    const ads = references.flatMap((reference) => {
+      const sourceAd = reference.sourceAd;
+      const mediaAsset = sourceAd?.mediaAsset;
+      if (!sourceAd || !mediaAsset) return [];
+      const thumbnailKey =
+        mediaAsset.kind === 'IMAGE' ? mediaAsset.storageKey : mediaAsset.thumbnailKey;
+      if (!thumbnailKey) return [];
+      return [{ sourceAdId: sourceAd.id, title: sourceAd.title, thumbnailKey }];
+    });
+    return Promise.all(
+      ads.map(async (ad) => ({
+        sourceAdId: ad.sourceAdId,
+        title: ad.title,
+        thumbnailUrl: await this.storage.presignGet(ad.thumbnailKey),
+      })),
+    );
   }
 
   private async transition(

@@ -51,6 +51,12 @@ type BriefRefModel {
   title: String!
 }
 
+type BriefReferenceAdModel {
+  sourceAdId: ID!
+  thumbnailUrl: String!
+  title: String
+}
+
 enum BriefReferenceMethod {
   MANUAL
   SIMILARITY
@@ -163,6 +169,7 @@ type CreativeBriefModel {
 
 type CreativeDetailModel {
   briefId: ID!
+  briefReferenceAds: [BriefReferenceAdModel!]!
   briefTitle: String!
   createdAt: DateTime!
   createdById: ID
@@ -301,6 +308,7 @@ input GenerateCreativeImagesInput {
   creativeId: ID!
   instructions: String
   quality: String = "low"
+  references: [GenerationReferenceInput!]
 }
 
 input GenerateCreativeVariantsInput {
@@ -312,6 +320,7 @@ input GenerateCreativeVariantsInput {
 input GenerateCreativeVideoInput {
   creativeId: ID!
   instructions: String
+  referenceImageId: ID
   seconds: Int = 12
 }
 
@@ -347,6 +356,7 @@ type GeneratedImageModel {
   instructions: String!
   prompt: String!
   quality: String!
+  referenceKeys: [String!]!
   url: String!
 }
 
@@ -356,9 +366,21 @@ type GeneratedVideoModel {
   id: ID!
   instructions: String
   prompt: String!
+  referenceKeys: [String!]!
   seconds: Int!
   size: String!
   url: String!
+}
+
+input GenerationReferenceInput {
+  id: ID!
+  kind: GenerationReferenceKind!
+}
+
+enum GenerationReferenceKind {
+  GENERATED_IMAGE
+  MEDIA_ASSET
+  SOURCE_AD
 }
 
 input ImportPerformanceCsvInput {

@@ -2,6 +2,7 @@ export interface VideoGenerationInput {
   prompt: string;
   seconds: 4 | 8 | 12;
   size?: string;
+  inputReference?: { buffer: Buffer; contentType: string };
 }
 
 export interface GeneratedVideoData {

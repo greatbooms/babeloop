@@ -7,7 +7,13 @@ import { FormField } from '../components/FormField';
 import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
-import { CreativeStatus, CreativeType, JobStatus, UserRole } from '../generated/graphql';
+import {
+  CreativeStatus,
+  CreativeType,
+  GenerationReferenceKind,
+  JobStatus,
+  UserRole,
+} from '../generated/graphql';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { formatDate } from '../i18n/format-date';
 import { useT } from '../i18n/lang-context';
@@ -16,7 +22,9 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt createdAt costEstimateUsd } videos { id url seconds size prompt instructions costEstimateUsd createdAt } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
+const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
 const ReviewMeDocument = graphql(`query ReviewMe { me { id role } }`);
 const RunPolicyCheckDocument = graphql(`mutation ReviewRunPolicyCheck($input: CreativeIdInput!) { runPolicyCheck(input: $input) { id status } }`);
@@ -30,6 +38,17 @@ const ReleaseMinorFlagDocument = graphql(`mutation ReviewReleaseMinorFlag($input
 const AddCreativeToExperimentDocument = graphql(`mutation ReviewAddCreativeToExperiment($input: AddCreativeToExperimentInput!) { addCreativeToExperiment(input: $input) { id trackingCode } }`);
 const GenerateCreativeImagesDocument = graphql(`mutation ReviewGenerateCreativeImages($input: GenerateCreativeImagesInput!) { generateCreativeImages(input: $input) { id status } }`);
 const GenerateCreativeVideoDocument = graphql(`mutation ReviewGenerateCreativeVideo($input: GenerateCreativeVideoInput!) { generateCreativeVideo(input: $input) { id status } }`);
+
+type ReferenceOption = {
+  kind: GenerationReferenceKind;
+  id: string;
+  url: string;
+  label: string;
+};
+
+function referenceOptionKey(option: Pick<ReferenceOption, 'kind' | 'id'>) {
+  return `${option.kind}:${option.id}`;
+}
 
 export function ReviewDetailPage() {
   const { lang, t } = useT();
@@ -52,10 +71,12 @@ export function ReviewDetailPage() {
   const [imageInstructions, setImageInstructions] = useState('');
   const [imageCount, setImageCount] = useState(2);
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
+  const [imageReferences, setImageReferences] = useState<ReferenceOption[]>([]);
   const [imageJobId, setImageJobId] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoInstructions, setVideoInstructions] = useState('');
   const [videoSeconds, setVideoSeconds] = useState<4 | 8 | 12>(12);
+  const [videoReferenceImageId, setVideoReferenceImageId] = useState<string | null>(null);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   // 정책 검사도 비동기 잡 — 잡 완료를 추적해야 30초 폴링 주기를 기다리지 않고 상태 전이가 보인다
   const [policyJobId, setPolicyJobId] = useState<string | null>(null);
@@ -63,6 +84,11 @@ export function ReviewDetailPage() {
   const videoJob = useJobPolling(videoJobId);
   const policyJob = useJobPolling(policyJobId);
   const creative = data?.creative; const latestLocalization = creative?.localizations[0];
+  const { data: briefImagesData } = useQuery(ReviewBriefImagesDocument, {
+    variables: { id: creative?.briefId ?? '' },
+    skip: !creative?.briefId,
+  });
+  const { data: referenceMediaData } = useQuery(ReviewReferenceMediaDocument);
   const role = meData?.me.role; const canApprove = role === UserRole.Admin || role === UserRole.Reviewer;
   const selectedExperiment = experimentSelection || experimentsData?.experiments[0]?.id || '';
   async function act(operation: () => Promise<unknown>, alsoExperiments = false) { setError(null); try { await operation(); await refetch(); if (alsoExperiments) await refetchExperiments(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } }
@@ -112,6 +138,9 @@ export function ReviewDetailPage() {
             instructions: imageInstructions || undefined,
             count: imageCount,
             quality: imageQuality,
+            references: imageReferences.length
+              ? imageReferences.map(({ kind, id: referenceId }) => ({ kind, id: referenceId }))
+              : undefined,
           },
         },
       });
@@ -132,6 +161,7 @@ export function ReviewDetailPage() {
             creativeId: id!,
             seconds: videoSeconds,
             instructions: videoInstructions || undefined,
+            referenceImageId: videoReferenceImageId || undefined,
           },
         },
       });
@@ -142,7 +172,49 @@ export function ReviewDetailPage() {
     }
   }
 
+  function toggleImageReference(option: ReferenceOption) {
+    const key = referenceOptionKey(option);
+    setImageReferences((current) => {
+      const selected = current.some((item) => referenceOptionKey(item) === key);
+      if (selected) return current.filter((item) => referenceOptionKey(item) !== key);
+      if (current.length >= 16) return current;
+      return [...current, option];
+    });
+  }
+
   if (!creative) return <section><p className="muted">{t('review.loading')}</p></section>;
+  const briefImageOptions = Array.from(
+    new Map(
+      [...creative.images, ...(briefImagesData?.creativeBrief.images ?? [])].map((image, index) => {
+        const option: ReferenceOption = {
+          kind: GenerationReferenceKind.GeneratedImage,
+          id: image.id,
+          url: image.url,
+          label: image.instructions || t('review.briefImageReference', { index: index + 1 }),
+        };
+        return [referenceOptionKey(option), option];
+      }),
+    ).values(),
+  );
+  const sourceAdOptions: ReferenceOption[] = creative.briefReferenceAds.map((ad) => ({
+    kind: GenerationReferenceKind.SourceAd,
+    id: ad.sourceAdId,
+    url: ad.thumbnailUrl,
+    label: ad.title || t('review.untitledReferenceAd'),
+  }));
+  const mediaAssetOptions: ReferenceOption[] = (referenceMediaData?.mediaAssetsPage.items ?? [])
+    .filter((asset) => Boolean(asset.thumbnailUrl))
+    .map((asset) => ({
+      kind: GenerationReferenceKind.MediaAsset,
+      id: asset.id,
+      url: asset.thumbnailUrl!,
+      label: asset.originalFilename,
+    }));
+  const referenceGroups = [
+    { label: t('review.referenceBriefImages'), options: briefImageOptions },
+    { label: t('review.referenceAds'), options: sourceAdOptions },
+    { label: t('review.referenceMediaAssets'), options: mediaAssetOptions },
+  ];
   const visualJobActive = Boolean(imageJobId || videoJobId);
   return <section className="review-page stage-review ad-detail">
     <Link className="back-link" to="/review">{t('review.back')}</Link>
@@ -157,13 +229,13 @@ export function ReviewDetailPage() {
         {creative.status === CreativeStatus.LocalizationApproved && canApprove && <Button variant="primary" size="sm" data-hint={t('review.finalApproveHint')} onClick={() => void act(() => approveCreative({ variables: { input: { creativeId: creative.id } } }))}>{t('review.finalApprove')}</Button>}
         {creative.status === CreativeStatus.Approved && creative.type === CreativeType.Copy && (
           <div className="creative-generation-action">
-            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => setImageModalOpen(true)}>{t('review.generateCopyImages')}</Button>
+            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => { setImageReferences([]); setImageModalOpen(true); }}>{t('review.generateCopyImages')}</Button>
             <small>{t('review.copyImageCostHint')}</small>
           </div>
         )}
         {creative.status === CreativeStatus.Approved && creative.type === CreativeType.VideoScript && (
           <div className="creative-generation-action">
-            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.videoCostHint')} onClick={() => setVideoModalOpen(true)}>{t('review.generateVideo')}</Button>
+            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.videoCostHint')} onClick={() => { setVideoReferenceImageId(null); setVideoModalOpen(true); }}>{t('review.generateVideo')}</Button>
             <small>{t('review.videoCostHint')}</small>
           </div>
         )}
@@ -177,6 +249,42 @@ export function ReviewDetailPage() {
       <p className="muted">{t('review.copyImageModalDescription')}</p>
       <p className="image-workflow-hint">💡 {t('briefs.imageWorkflowHint')}</p>
       <form className="page-form" onSubmit={onGenerateImages}>
+        <section className="reference-picker" aria-labelledby="image-reference-title">
+          <div className="reference-picker-header">
+            <h3 id="image-reference-title">{t('review.referenceImages')}</h3>
+            <strong>{t('review.referenceSelectionCount', { count: imageReferences.length })}</strong>
+          </div>
+          <p className="muted">{t('review.referenceImagesGuide')}</p>
+          {referenceGroups.map((group) => (
+            <div className="reference-group" key={group.label}>
+              <span className="facet-label">{group.label}</span>
+              {group.options.length > 0 ? (
+                <div className="reference-thumbnail-row">
+                  {group.options.map((option) => {
+                    const selected = imageReferences.some(
+                      (item) => referenceOptionKey(item) === referenceOptionKey(option),
+                    );
+                    return (
+                      <button
+                        type="button"
+                        className={`reference-thumbnail${selected ? ' is-selected' : ''}`}
+                        key={referenceOptionKey(option)}
+                        aria-label={t('review.toggleReferenceImage', { name: option.label })}
+                        aria-pressed={selected}
+                        disabled={!selected && imageReferences.length >= 16}
+                        onClick={() => toggleImageReference(option)}
+                      >
+                        <img src={option.url} alt={option.label} />
+                        <span className="reference-check" aria-hidden="true">✓</span>
+                        <span className="reference-thumbnail-label">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : <p className="muted reference-empty">{t('review.noReferenceImages')}</p>}
+            </div>
+          ))}
+        </section>
         <FormField label={t('briefs.imageInstructions')} htmlFor="creative-image-instructions">
           <textarea id="creative-image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
         </FormField>
@@ -219,6 +327,26 @@ export function ReviewDetailPage() {
       <p className="muted">{t('review.videoModalDescription')}</p>
       <p className="image-workflow-hint">{t('review.videoCostHint')}</p>
       <form className="page-form" onSubmit={onGenerateVideo}>
+        <section className="reference-picker" aria-labelledby="video-reference-title">
+          <div className="reference-picker-header">
+            <h3 id="video-reference-title">{t('review.videoFirstFrame')}</h3>
+          </div>
+          <p className="muted">{t('review.videoFirstFrameGuide')}</p>
+          <div className="reference-thumbnail-row reference-radio-row">
+            <label className={`reference-thumbnail reference-none${videoReferenceImageId === null ? ' is-selected' : ''}`}>
+              <input type="radio" name="video-reference-image" checked={videoReferenceImageId === null} onChange={() => setVideoReferenceImageId(null)} />
+              <span className="reference-none-label">{t('review.noFirstFrame')}</span>
+            </label>
+            {briefImageOptions.map((option) => (
+              <label className={`reference-thumbnail${videoReferenceImageId === option.id ? ' is-selected' : ''}`} key={option.id}>
+                <input type="radio" name="video-reference-image" value={option.id} checked={videoReferenceImageId === option.id} onChange={() => setVideoReferenceImageId(option.id)} />
+                <img src={option.url} alt={option.label} />
+                <span className="reference-check" aria-hidden="true">✓</span>
+                <span className="reference-thumbnail-label">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
         <FormField label={t('review.videoSeconds')} htmlFor="creative-video-seconds">
           <select id="creative-video-seconds" value={videoSeconds} onChange={(event) => setVideoSeconds(Number(event.target.value) as 4 | 8 | 12)}>
             {([4, 8, 12] as const).map((seconds) => <option key={seconds} value={seconds}>{t('review.videoSecondsOption', { seconds, cost: (seconds * 0.1).toFixed(2) })}</option>)}
@@ -286,6 +414,7 @@ export function ReviewDetailPage() {
                 <div className="tag-row">
                   <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
+                  {image.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
                 <details className="prompt-detail">
@@ -293,7 +422,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
@@ -315,13 +444,14 @@ export function ReviewDetailPage() {
                   <span className="tag tag-accent">{t('review.videoDuration', { seconds: video.seconds })}</span>
                   <span className="tag">{t('review.videoResolution', { size: video.size })}</span>
                   <span className="tag">{video.costEstimateUsd == null ? t('review.videoCostUnknown') : t('review.videoCost', { cost: video.costEstimateUsd.toFixed(2) })}</span>
+                  {video.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: video.referenceKeys.length })}</span>}
                 </div>
                 <details className="prompt-detail">
                   <summary>{t('briefs.promptDetail')}</summary>
                   <pre>{video.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setVideoInstructions(video.instructions ?? ''); setVideoModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setVideoInstructions(video.instructions ?? ''); setVideoReferenceImageId(null); setVideoModalOpen(true); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(video.createdAt), lang)}</time>
               </figcaption>

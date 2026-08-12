@@ -205,3 +205,10 @@ export function buildVideoPrompt(params: {
     .filter(Boolean)
     .join('\n\n');
 }
+
+export function appendReferenceImages(prompt: string, referenceKeys: string[]): string {
+  if (referenceKeys.length === 0) return prompt;
+  return `${prompt}\n\n## 참고 이미지: ${referenceKeys.length}장\n${referenceKeys
+    .map((key) => `- ${key}`)
+    .join('\n')}`;
+}

@@ -1,5 +1,19 @@
-import { Field, ID, InputType, Int } from '@nestjs/graphql';
+import { Field, ID, InputType, Int, registerEnumType } from '@nestjs/graphql';
 import { CreativeType } from '../../../generated/prisma';
+
+export enum GenerationReferenceKind {
+  GENERATED_IMAGE = 'GENERATED_IMAGE',
+  SOURCE_AD = 'SOURCE_AD',
+  MEDIA_ASSET = 'MEDIA_ASSET',
+}
+
+registerEnumType(GenerationReferenceKind, { name: 'GenerationReferenceKind' });
+
+@InputType()
+export class GenerationReferenceInput {
+  @Field(() => GenerationReferenceKind) kind: GenerationReferenceKind;
+  @Field(() => ID) id: string;
+}
 
 @InputType()
 export class GenerateCreativeBriefInput {
@@ -22,6 +36,8 @@ export class GenerateCreativeImagesInput {
   @Field(() => String, { nullable: true }) instructions?: string;
   @Field(() => Int, { nullable: true, defaultValue: 2 }) count: number;
   @Field(() => String, { nullable: true, defaultValue: 'low' }) quality: string;
+  @Field(() => [GenerationReferenceInput], { nullable: true })
+  references?: GenerationReferenceInput[];
 }
 
 @InputType()
@@ -29,6 +45,7 @@ export class GenerateCreativeVideoInput {
   @Field(() => ID) creativeId: string;
   @Field(() => Int, { nullable: true, defaultValue: 12 }) seconds: number;
   @Field(() => String, { nullable: true }) instructions?: string;
+  @Field(() => ID, { nullable: true }) referenceImageId?: string;
 }
 
 @InputType()

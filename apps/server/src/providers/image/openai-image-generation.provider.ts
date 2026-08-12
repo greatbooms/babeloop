@@ -1,3 +1,5 @@
+import { toFile } from 'openai';
+
 import {
   ImageGenerationInput,
   ImageGenerationOutput,
@@ -12,6 +14,15 @@ export interface OpenAIImageGenerationClient {
       n: number;
       quality: 'low' | 'high';
       size: '1024x1024';
+    }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
+    edit(input: {
+      model: string;
+      image: Awaited<ReturnType<typeof toFile>>[];
+      prompt: string;
+      n: number;
+      quality: 'low' | 'high';
+      size: '1024x1024';
+      input_fidelity: 'high';
     }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
   };
 }
@@ -35,13 +46,27 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
   }
 
   async generate(input: ImageGenerationInput): Promise<ImageGenerationOutput> {
-    const response = await this.client.images.generate({
-      model: this.model,
-      prompt: input.prompt,
-      n: input.count,
-      quality: input.quality,
-      size: '1024x1024',
-    });
+    const response = input.referenceImages?.length
+      ? await this.client.images.edit({
+          model: this.model,
+          image: await Promise.all(
+            input.referenceImages.map((reference, index) =>
+              toFile(reference.buffer, `ref-${index + 1}.png`, { type: reference.contentType }),
+            ),
+          ),
+          prompt: input.prompt,
+          n: input.count,
+          quality: input.quality,
+          size: '1024x1024',
+          input_fidelity: 'high',
+        })
+      : await this.client.images.generate({
+          model: this.model,
+          prompt: input.prompt,
+          n: input.count,
+          quality: input.quality,
+          size: '1024x1024',
+        });
     const images = (response.data ?? []).map((image, index) => {
       if (!image.b64_json) {
         throw new Error(`이미지 생성 응답 ${index + 1}에 b64_json이 없습니다`);

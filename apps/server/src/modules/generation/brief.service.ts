@@ -21,6 +21,8 @@ import {
   GenerateCreativeImagesInput,
   GenerateCreativeVideoInput,
   GenerateCreativeVariantsInput,
+  GenerationReferenceInput,
+  GenerationReferenceKind,
 } from './brief.inputs';
 
 export const BRIEF_INCLUDE = {
@@ -101,7 +103,7 @@ export class BriefService {
   }
 
   async requestCreativeImages(input: GenerateCreativeImagesInput) {
-    this.validateImageRequest(input.count, input.quality);
+    this.validateImageRequest(input.count, input.quality, input.references?.length ?? 0);
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id: input.creativeId },
       select: { id: true, briefId: true, type: true, status: true },
@@ -111,12 +113,14 @@ export class BriefService {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
+    const referenceKeys = await this.resolveGenerationReferences(input.references ?? []);
     const payload = {
       briefId: creative.briefId,
       creativeId: creative.id,
       instructions: input.instructions?.trim() ?? '',
       count: input.count,
       quality: input.quality,
+      referenceKeys,
     };
     return this.jobRecord.enqueueOrRetry(
       this.queue,
@@ -135,17 +139,28 @@ export class BriefService {
     }
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id: input.creativeId },
-      select: { id: true, type: true, status: true },
+      select: { id: true, briefId: true, type: true, status: true },
     });
     if (!creative || creative.type !== 'VIDEO_SCRIPT' || creative.status !== 'APPROVED') {
       throw new GraphQLError('APPROVED 장면표에서만 생성할 수 있습니다', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
+    const referenceKey = input.referenceImageId
+      ? (
+          await this.resolveGenerationReferences([
+            {
+              kind: GenerationReferenceKind.GENERATED_IMAGE,
+              id: input.referenceImageId,
+            },
+          ], creative.briefId)
+        )[0]
+      : null;
     const payload = {
       creativeId: creative.id,
       seconds: input.seconds,
       instructions: input.instructions?.trim() ?? '',
+      referenceKey,
     };
     return this.jobRecord.enqueueOrRetry(
       this.queue,
@@ -156,7 +171,7 @@ export class BriefService {
     );
   }
 
-  private validateImageRequest(count: number, quality: string): void {
+  private validateImageRequest(count: number, quality: string, referenceCount: number): void {
     if (!Number.isInteger(count) || count < 1 || count > 4) {
       throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
         extensions: { code: 'BAD_USER_INPUT' },
@@ -167,6 +182,74 @@ export class BriefService {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
+    if (referenceCount > 16) {
+      throw new GraphQLError('참고 이미지는 최대 16장까지 선택할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+  }
+
+  private async resolveGenerationReferences(
+    references: GenerationReferenceInput[],
+    expectedBriefId?: string,
+  ): Promise<string[]> {
+    return Promise.all(
+      references.map(async (reference) => {
+        if (reference.kind === GenerationReferenceKind.GENERATED_IMAGE) {
+          const image = await this.prisma.generatedImage.findUnique({
+            where: { id: reference.id },
+            select: { briefId: true, storageKey: true },
+          });
+          if (!image || (expectedBriefId && image.briefId !== expectedBriefId)) {
+            this.invalidReference(reference);
+          }
+          return image.storageKey;
+        }
+
+        if (reference.kind === GenerationReferenceKind.SOURCE_AD) {
+          const sourceAd = await this.prisma.sourceAd.findUnique({
+            where: { id: reference.id },
+            select: {
+              mediaAsset: {
+                select: { kind: true, storageKey: true, thumbnailKey: true },
+              },
+            },
+          });
+          const key = sourceAd?.mediaAsset
+            ? this.imageKeyForMediaAsset(sourceAd.mediaAsset)
+            : null;
+          if (!key) this.invalidReference(reference);
+          return key;
+        }
+
+        if (reference.kind === GenerationReferenceKind.MEDIA_ASSET) {
+          const mediaAsset = await this.prisma.mediaAsset.findUnique({
+            where: { id: reference.id },
+            select: { kind: true, storageKey: true, thumbnailKey: true },
+          });
+          const key = mediaAsset ? this.imageKeyForMediaAsset(mediaAsset) : null;
+          if (!key) this.invalidReference(reference);
+          return key;
+        }
+
+        return this.invalidReference(reference);
+      }),
+    );
+  }
+
+  private imageKeyForMediaAsset(asset: {
+    kind: string;
+    storageKey: string;
+    thumbnailKey: string | null;
+  }): string | null {
+    return asset.kind === 'IMAGE' ? asset.storageKey : asset.thumbnailKey;
+  }
+
+  private invalidReference(reference: GenerationReferenceInput): never {
+    throw new GraphQLError(
+      `참고 항목 ${reference.kind}:${reference.id}에서 사용할 이미지 파일을 찾을 수 없습니다`,
+      { extensions: { code: 'BAD_USER_INPUT' } },
+    );
   }
 
   async requestBriefFromPerformance(user: User, experimentId: string) {
@@ -251,6 +334,7 @@ export class BriefService {
           quality: image.quality,
           instructions: image.instructions,
           prompt: image.prompt,
+          referenceKeys: image.referenceKeys,
           createdAt: image.createdAt,
           costEstimateUsd: image.costEstimateUsd,
         })),

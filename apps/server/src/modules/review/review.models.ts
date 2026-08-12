@@ -46,9 +46,17 @@ export class GeneratedVideoModel {
   @Field() size: string;
   // 생성에 실제 사용된 전체 프롬프트 — 결과물 추적용
   @Field() prompt: string;
+  @Field(() => [String]) referenceKeys: string[];
   @Field(() => String, { nullable: true }) instructions: string | null;
   @Field(() => Float, { nullable: true }) costEstimateUsd: number | null;
   @Field() createdAt: Date;
+}
+
+@ObjectType()
+export class BriefReferenceAdModel {
+  @Field(() => ID) sourceAdId: string;
+  @Field(() => String, { nullable: true }) title: string | null;
+  @Field() thumbnailUrl: string;
 }
 
 @ObjectType()
@@ -76,6 +84,7 @@ export class CreativeDetailModel {
   @Field(() => [LocalizationVersionModel]) localizations: LocalizationVersionModel[];
   @Field(() => [GeneratedImageModel]) images: GeneratedImageModel[];
   @Field(() => [GeneratedVideoModel]) videos: GeneratedVideoModel[];
+  @Field(() => [BriefReferenceAdModel]) briefReferenceAds: BriefReferenceAdModel[];
   @Field(() => [PolicyCheckModel]) policyChecks: PolicyCheckModel[];
   @Field(() => [ReviewEventModel]) reviewEvents: ReviewEventModel[];
   @Field(() => [CreativeExperimentVariantModel])

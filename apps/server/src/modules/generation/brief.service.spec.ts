@@ -1,4 +1,5 @@
 import { BriefService } from './brief.service';
+import { GenerationReferenceKind } from './brief.inputs';
 
 describe('BriefService relationships', () => {
   it('삭제된 광고는 titleSnapshot과 deleted를 매핑한다', async () => {
@@ -57,6 +58,62 @@ describe('BriefService.requestCreativeImages 검증', () => {
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
+
+  it('참고 이미지가 16장을 초과하면 BAD_USER_INPUT으로 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        references: Array.from({ length: 17 }, (_, index) => ({
+          kind: GenerationReferenceKind.GENERATED_IMAGE,
+          id: `image-${index}`,
+        })),
+      }),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('존재하지 않는 참고 항목은 해당 종류와 ID를 명시해 거부한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-copy-1',
+          briefId: 'brief-1',
+          type: 'COPY',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const jobRecord = { enqueueOrRetry: jest.fn() };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      { name: 'creative-generation' } as never,
+      {} as never,
+    );
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        references: [
+          { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'missing-image' },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/GENERATED_IMAGE.*missing-image/),
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
 });
 
 describe('BriefService approved creative generation', () => {
@@ -104,7 +161,77 @@ describe('BriefService approved creative generation', () => {
         instructions: '따뜻한 조명',
         count: 2,
         quality: 'high',
+        referenceKeys: [],
       },
+    );
+  });
+
+  it('세 종류의 참고 항목을 입력 순서대로 storage key로 해석한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-copy-1',
+          briefId: 'brief-1',
+          type: 'COPY',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: {
+        findUnique: jest.fn().mockResolvedValue({ storageKey: 'generated-images/brief-1/ref.png' }),
+      },
+      sourceAd: {
+        findUnique: jest.fn().mockResolvedValue({
+          mediaAsset: {
+            kind: 'VIDEO',
+            storageKey: 'source-ads/ad-1/original.mp4',
+            thumbnailKey: 'source-ads/ad-1/thumb.jpg',
+          },
+        }),
+      },
+      mediaAsset: {
+        findUnique: jest.fn().mockResolvedValue({
+          kind: 'IMAGE',
+          storageKey: 'media/asset-1/original.webp',
+          thumbnailKey: null,
+        }),
+      },
+    };
+    const queue = { name: 'creative-generation' };
+    const jobRecord = {
+      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }),
+    };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      queue as never,
+      {} as never,
+    );
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      references: [
+        { kind: GenerationReferenceKind.MEDIA_ASSET, id: 'asset-1' },
+        { kind: GenerationReferenceKind.SOURCE_AD, id: 'ad-1' },
+        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'image-1' },
+      ],
+    });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      queue,
+      'creative-generation',
+      'generate-images',
+      expect.any(String),
+      expect.objectContaining({
+        referenceKeys: [
+          'media/asset-1/original.webp',
+          'source-ads/ad-1/thumb.jpg',
+          'generated-images/brief-1/ref.png',
+        ],
+      }),
     );
   });
 
@@ -148,8 +275,91 @@ describe('BriefService approved creative generation', () => {
         creativeId: 'creative-video-1',
         seconds: 12,
         instructions: '영화적인 조명',
+        referenceKey: null,
       },
     );
+  });
+
+  it('영상 첫 프레임 GeneratedImage를 referenceKey로 등록한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-video-1',
+          briefId: 'brief-1',
+          type: 'VIDEO_SCRIPT',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: {
+        findUnique: jest.fn().mockResolvedValue({
+          briefId: 'brief-1',
+          storageKey: 'generated-images/brief-1/first.jpg',
+        }),
+      },
+    };
+    const queue = { name: 'creative-generation' };
+    const jobRecord = {
+      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }),
+    };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      queue as never,
+      {} as never,
+    );
+
+    await service.requestCreativeVideo({
+      creativeId: 'creative-video-1',
+      seconds: 8,
+      instructions: '',
+      referenceImageId: 'image-first',
+    });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      queue,
+      'creative-generation',
+      'generate-video',
+      expect.any(String),
+      expect.objectContaining({ referenceKey: 'generated-images/brief-1/first.jpg' }),
+    );
+  });
+
+  it('다른 브리프의 GeneratedImage는 영상 첫 프레임으로 거부한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-video-1',
+          briefId: 'brief-1',
+          type: 'VIDEO_SCRIPT',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: {
+        findUnique: jest.fn().mockResolvedValue({
+          briefId: 'brief-other',
+          storageKey: 'generated-images/brief-other/first.jpg',
+        }),
+      },
+    };
+    const jobRecord = { enqueueOrRetry: jest.fn() };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      { name: 'creative-generation' } as never,
+      {} as never,
+    );
+
+    await expect(
+      service.requestCreativeVideo({
+        creativeId: 'creative-video-1',
+        seconds: 8,
+        instructions: '',
+        referenceImageId: 'image-other',
+      }),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
 
   it('4/8/12초 외 영상 길이를 거부한다', async () => {

@@ -5,7 +5,12 @@ describe('MockImageGenerationProvider', () => {
     const provider = new MockImageGenerationProvider();
 
     const first = await provider.generate({ prompt: '광고 이미지', count: 2, quality: 'low' });
-    const second = await provider.generate({ prompt: '다른 프롬프트', count: 1, quality: 'high' });
+    const second = await provider.generate({
+      prompt: '다른 프롬프트',
+      count: 1,
+      quality: 'high',
+      referenceImages: [{ buffer: Buffer.from('reference'), contentType: 'image/png' }],
+    });
 
     expect(provider.name).toBe('mock');
     expect(provider.model).toBe('mock-image-1');

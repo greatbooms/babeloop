@@ -26,23 +26,15 @@ export class OpenAIVideoGenerationProvider implements VideoGenerationProvider {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS);
-    const headers = {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    };
+    const headers = { Authorization: `Bearer ${apiKey}` };
 
     try {
+      const createRequest = this.createRequest(input, headers);
       const created = await this.requestJson<OpenAIVideoJob>(
         `${OPENAI_VIDEO_BASE_URL}/videos`,
         {
           method: 'POST',
-          headers,
-          body: JSON.stringify({
-            model: this.model,
-            prompt: input.prompt,
-            seconds: String(input.seconds),
-            size: input.size ?? '720x1280',
-          }),
+          ...createRequest,
           signal: controller.signal,
         },
       );
@@ -69,6 +61,42 @@ export class OpenAIVideoGenerationProvider implements VideoGenerationProvider {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private createRequest(
+    input: VideoGenerationInput,
+    headers: Record<string, string>,
+  ): Pick<RequestInit, 'headers' | 'body'> {
+    const values = {
+      model: this.model,
+      prompt: input.prompt,
+      seconds: String(input.seconds),
+      size: input.size ?? '720x1280',
+    };
+    if (!input.inputReference) {
+      return {
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      };
+    }
+
+    const form = new FormData();
+    Object.entries(values).forEach(([key, value]) => form.append(key, value));
+    const extension = this.imageExtension(input.inputReference.contentType);
+    form.append(
+      'input_reference',
+      new Blob([new Uint8Array(input.inputReference.buffer)], {
+        type: input.inputReference.contentType,
+      }),
+      `input-reference.${extension}`,
+    );
+    return { headers, body: form };
+  }
+
+  private imageExtension(contentType: string): string {
+    if (contentType === 'image/jpeg') return 'jpg';
+    if (contentType === 'image/webp') return 'webp';
+    return 'png';
   }
 
   private async waitUntilCompleted(

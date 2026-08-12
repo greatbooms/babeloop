@@ -37,7 +37,7 @@ describe('CreativeGenerationProcessor brand translation', () => {
 });
 
 describe('CreativeGenerationProcessor image generation', () => {
-  it('mock 이미지 N장을 저장하고 비용을 포함해 AI 실행을 기록한다', async () => {
+  it('참고 버퍼를 mock 이미지 provider에 전달하고 키와 비용을 저장한다', async () => {
     const png = Buffer.from('mock-png');
     const creativeFixture = {
       id: 'creative-copy-1',
@@ -78,7 +78,14 @@ describe('CreativeGenerationProcessor image generation', () => {
         costEstimateUsd: 0.08,
       }),
     };
-    const storage = { putBuffer: jest.fn() };
+    const referenceJpeg = Buffer.from('reference-jpeg');
+    const referencePng = Buffer.from('reference-png');
+    const storage = {
+      getBuffer: jest.fn(async (key: string) =>
+        key.endsWith('.jpg') ? referenceJpeg : referencePng,
+      ),
+      putBuffer: jest.fn(),
+    };
     const processor = new CreativeGenerationProcessor(
       prisma as never,
       aiLog as never,
@@ -102,6 +109,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         count: 2,
         quality: 'low',
+        referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
       },
       attemptsMade: 0,
       opts: { attempts: 1 },
@@ -109,11 +117,17 @@ describe('CreativeGenerationProcessor image generation', () => {
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지/,
+        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
       ),
       count: 2,
       quality: 'low',
+      referenceImages: [
+        { buffer: referenceJpeg, contentType: 'image/jpeg' },
+        { buffer: referencePng, contentType: 'image/png' },
+      ],
     });
+    expect(storage.getBuffer).toHaveBeenNthCalledWith(1, 'generated-images/ref-1.jpg');
+    expect(storage.getBuffer).toHaveBeenNthCalledWith(2, 'media/ref-2.png');
     expect(storage.putBuffer).toHaveBeenCalledTimes(2);
     expect(storage.putBuffer).toHaveBeenCalledWith(
       expect.stringMatching(/^generated-images\/brief-1\/[0-9a-f-]+\.png$/),
@@ -128,7 +142,8 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v1',
+        promptVersion: 'generate-copy-images@v2',
+        referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
         costEstimateUsd: 0.04,
       }),
     });
@@ -136,7 +151,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v1',
+        promptVersion: 'generate-copy-images@v2',
         inputRef: 'creative:creative-copy-1',
         costEstimateUsd: 0.08,
       }),
@@ -178,7 +193,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         costEstimateUsd: 0.04,
       }),
     };
-    const storage = { putBuffer: jest.fn() };
+    const storage = { getBuffer: jest.fn(), putBuffer: jest.fn() };
     const processor = new (CreativeGenerationProcessor as any)(
       prisma,
       aiLog,
@@ -225,7 +240,7 @@ describe('CreativeGenerationProcessor image generation', () => {
 });
 
 describe('CreativeGenerationProcessor video generation', () => {
-  it('mock 영상을 저장하고 비용을 기록한다', async () => {
+  it('첫 프레임 버퍼를 mock 영상 provider에 전달하고 키와 비용을 저장한다', async () => {
     const video = Buffer.from('mock-video');
     const creative = {
       id: 'creative-video-1',
@@ -247,7 +262,8 @@ describe('CreativeGenerationProcessor video generation', () => {
     };
     const aiLog = { record: jest.fn(async (_meta, run) => run()) };
     const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
-    const storage = { putBuffer: jest.fn() };
+    const firstFrame = Buffer.from('first-frame-jpeg');
+    const storage = { getBuffer: jest.fn().mockResolvedValue(firstFrame), putBuffer: jest.fn() };
     const videoProvider = {
       name: 'mock',
       model: 'mock-video-1',
@@ -273,18 +289,25 @@ describe('CreativeGenerationProcessor video generation', () => {
     await processor.process({
       id: jobId,
       name: 'generate-video',
-      data: { creativeId: 'creative-video-1', seconds: 12, instructions: '영화적인 조명' },
+      data: {
+        creativeId: 'creative-video-1',
+        seconds: 12,
+        instructions: '영화적인 조명',
+        referenceKey: 'generated-images/brief-1/first.jpeg',
+      },
       attemptsMade: 0,
       opts: { attempts: 1 },
     });
 
     expect(videoProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /0-3초: \[연출\] 주인공의 놀란 표정 클로즈업[\s\S]*미스터리[\s\S]*나만의 이야기에 몰입하고 싶은 욕구[\s\S]*세로 9:16 숏폼 광고[\s\S]*영화적인 조명/,
+        /0-3초: \[연출\] 주인공의 놀란 표정 클로즈업[\s\S]*미스터리[\s\S]*나만의 이야기에 몰입하고 싶은 욕구[\s\S]*세로 9:16 숏폼 광고[\s\S]*영화적인 조명[\s\S]*## 참고 이미지: 1장\n- generated-images\/brief-1\/first\.jpeg$/,
       ),
       seconds: 12,
       size: '720x1280',
+      inputReference: { buffer: firstFrame, contentType: 'image/jpeg' },
     });
+    expect(storage.getBuffer).toHaveBeenCalledWith('generated-images/brief-1/first.jpeg');
     expect(storage.putBuffer).toHaveBeenCalledWith(
       expect.stringMatching(/^generated-videos\/creative-video-1\/[0-9a-f-]+\.mp4$/),
       video,
@@ -295,7 +318,8 @@ describe('CreativeGenerationProcessor video generation', () => {
         creativeId: 'creative-video-1',
         seconds: 12,
         size: '720x1280',
-        promptVersion: 'generate-video@v1',
+        promptVersion: 'generate-video@v2',
+        referenceKeys: ['generated-images/brief-1/first.jpeg'],
         costEstimateUsd: 1.2,
       }),
     });
@@ -303,7 +327,7 @@ describe('CreativeGenerationProcessor video generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-video-1',
-        promptVersion: 'generate-video@v1',
+        promptVersion: 'generate-video@v2',
         inputRef: 'creative:creative-video-1',
         costEstimateUsd: 1.2,
       }),

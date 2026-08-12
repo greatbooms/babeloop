@@ -7,6 +7,32 @@ describe('ReviewService visual assets', () => {
       brief: {
         title: '브리프',
         locale: 'zh-TW',
+        references: [
+          {
+            sourceAdId: 'ad-image-1',
+            sourceAd: {
+              id: 'ad-image-1',
+              title: '참고 광고',
+              mediaAsset: {
+                kind: 'IMAGE',
+                storageKey: 'source-ads/ad-image-1/original.png',
+                thumbnailKey: null,
+              },
+            },
+          },
+          {
+            sourceAdId: 'ad-video-no-thumbnail',
+            sourceAd: {
+              id: 'ad-video-no-thumbnail',
+              title: '썸네일 없는 영상',
+              mediaAsset: {
+                kind: 'VIDEO',
+                storageKey: 'source-ads/ad-video-no-thumbnail/original.mp4',
+                thumbnailKey: null,
+              },
+            },
+          },
+        ],
       },
       scenes: null,
       images: [
@@ -15,6 +41,8 @@ describe('ReviewService visual assets', () => {
           storageKey: 'generated-images/brief-1/copy.png',
           quality: 'high',
           instructions: '확정 문구 전용',
+          prompt: '이미지 프롬프트',
+          referenceKeys: ['generated-images/reference.png'],
           createdAt: new Date('2026-08-02T00:00:00.000Z'),
           costEstimateUsd: 0.19,
         },
@@ -25,6 +53,9 @@ describe('ReviewService visual assets', () => {
           storageKey: 'generated-videos/creative-1/video.mp4',
           seconds: 12,
           size: '720x1280',
+          prompt: '영상 프롬프트',
+          instructions: null,
+          referenceKeys: ['generated-images/first-frame.png'],
           createdAt: new Date('2026-08-02T00:00:00.000Z'),
           costEstimateUsd: { toNumber: () => 1.2 },
         },
@@ -41,6 +72,7 @@ describe('ReviewService visual assets', () => {
       presignGet: jest.fn(async (key: string) => {
         if (key.endsWith('copy.png')) return 'signed:copy-image';
         if (key.endsWith('video.mp4')) return 'signed:video';
+        if (key.includes('ad-image-1')) return 'signed:reference-ad';
         return 'signed:image';
       }),
     };
@@ -59,6 +91,7 @@ describe('ReviewService visual assets', () => {
           url: 'signed:copy-image',
           quality: 'high',
           instructions: '확정 문구 전용',
+          referenceKeys: ['generated-images/reference.png'],
           costEstimateUsd: 0.19,
         },
       ],
@@ -68,11 +101,20 @@ describe('ReviewService visual assets', () => {
           url: 'signed:video',
           seconds: 12,
           size: '720x1280',
+          referenceKeys: ['generated-images/first-frame.png'],
           costEstimateUsd: 1.2,
+        },
+      ],
+      briefReferenceAds: [
+        {
+          sourceAdId: 'ad-image-1',
+          title: '참고 광고',
+          thumbnailUrl: 'signed:reference-ad',
         },
       ],
     });
     expect(storage.presignGet).toHaveBeenCalledWith('generated-images/brief-1/copy.png');
     expect(storage.presignGet).toHaveBeenCalledWith('generated-videos/creative-1/video.mp4');
+    expect(storage.presignGet).toHaveBeenCalledWith('source-ads/ad-image-1/original.png');
   });
 });

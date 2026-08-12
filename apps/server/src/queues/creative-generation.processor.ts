@@ -9,6 +9,7 @@ import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-exe
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
   BRIEF_SYSTEM,
+  appendReferenceImages,
   buildBriefPrompt,
   buildImagePrompt,
   buildVideoPrompt,
@@ -73,12 +74,14 @@ interface GenerateImagesJobData {
   instructions: string;
   count: number;
   quality: 'low' | 'high';
+  referenceKeys: string[];
 }
 
 interface GenerateVideoJobData {
   creativeId: string;
   seconds: 4 | 8 | 12;
   instructions: string;
+  referenceKey: string | null;
 }
 
 interface TranslateBrandJobData { brandId: string }
@@ -248,17 +251,24 @@ export class CreativeGenerationProcessor extends WorkerHost {
         },
       });
       const brief = creative.brief;
-      const prompt = buildImagePrompt({
-        brief,
-        brandName: brief.brand?.name ?? 'BabeChat',
-        brandDescription: brief.brand?.description,
-        creative: {
-          koreanText: creative.koreanText,
-          approvedZhTw: creative.localizations[0]?.text,
-        },
-        instructions: job.data.instructions,
-      });
-      const promptVersion = 'generate-copy-images@v1';
+      const referenceKeys = job.data.referenceKeys ?? [];
+      const referenceImages = await this.loadReferenceImages(referenceKeys);
+      const prompt = appendReferenceImages(
+        buildImagePrompt({
+          brief,
+          brandName: brief.brand?.name ?? 'BabeChat',
+          brandDescription: brief.brand?.description,
+          creative: {
+            koreanText: creative.koreanText,
+            approvedZhTw: creative.localizations[0]?.text,
+          },
+          instructions: job.data.instructions,
+        }),
+        referenceKeys,
+      );
+      const promptVersion = referenceKeys.length
+        ? 'generate-copy-images@v2'
+        : 'generate-copy-images@v1';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
@@ -273,6 +283,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           prompt,
           count: job.data.count,
           quality: job.data.quality,
+          ...(referenceImages.length ? { referenceImages } : {}),
         });
         meta.costEstimateUsd = generated.costEstimateUsd;
         return {
@@ -302,6 +313,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
             provider: this.imageAi.name,
             model: this.imageAi.model,
             promptVersion,
+            referenceKeys,
             costEstimateUsd: costPerImage,
           },
         });
@@ -323,18 +335,24 @@ export class CreativeGenerationProcessor extends WorkerHost {
         include: { brief: { include: { brand: true } } },
       });
       const size = '720x1280';
-      const prompt = buildVideoPrompt({
-        scenes: creative.scenes,
-        seconds: job.data.seconds,
-        hookType: creative.brief.hookType,
-        desire: creative.brief.desire,
-        brandName: creative.brief.brand?.name ?? 'BabeChat',
-        instructions: job.data.instructions,
-      });
+      const referenceKeys = job.data.referenceKey ? [job.data.referenceKey] : [];
+      const [inputReference] = await this.loadReferenceImages(referenceKeys);
+      const prompt = appendReferenceImages(
+        buildVideoPrompt({
+          scenes: creative.scenes,
+          seconds: job.data.seconds,
+          hookType: creative.brief.hookType,
+          desire: creative.brief.desire,
+          brandName: creative.brief.brand?.name ?? 'BabeChat',
+          instructions: job.data.instructions,
+        }),
+        referenceKeys,
+      );
+      const promptVersion = referenceKeys.length ? 'generate-video@v2' : 'generate-video@v1';
       const meta: AiExecutionMeta = {
         provider: this.videoAi.name,
         model: this.videoAi.model,
-        promptVersion: 'generate-video@v1',
+        promptVersion,
         inputRef: `creative:${creative.id}`,
       };
       let generated: Awaited<ReturnType<VideoGenerationProvider['generate']>> | undefined;
@@ -343,6 +361,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           prompt,
           seconds: job.data.seconds,
           size,
+          ...(inputReference ? { inputReference } : {}),
         });
         meta.costEstimateUsd = generated.costEstimateUsd;
         return {
@@ -365,7 +384,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
           instructions: job.data.instructions || null,
           provider: this.videoAi.name,
           model: this.videoAi.model,
-          promptVersion: 'generate-video@v1',
+          promptVersion,
+          referenceKeys,
           costEstimateUsd: generated.costEstimateUsd,
         },
       });
@@ -530,6 +550,24 @@ export class CreativeGenerationProcessor extends WorkerHost {
     ]
       .filter(Boolean)
       .join('\n');
+  }
+
+  private loadReferenceImages(
+    referenceKeys: string[],
+  ): Promise<Array<{ buffer: Buffer; contentType: string }>> {
+    return Promise.all(
+      referenceKeys.map(async (key) => ({
+        buffer: await this.storage.getBuffer(key),
+        contentType: this.referenceContentType(key),
+      })),
+    );
+  }
+
+  private referenceContentType(storageKey: string): string {
+    const normalized = storageKey.toLowerCase();
+    if (/\.jpe?g$/.test(normalized)) return 'image/jpeg';
+    if (normalized.endsWith('.webp')) return 'image/webp';
+    return 'image/png';
   }
 
   private async enqueueLocalization(creativeId: string): Promise<void> {

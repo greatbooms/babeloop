@@ -17,6 +17,29 @@
 .generated-video-item figcaption { display: grid; gap: var(--sp-xs); }
 .generated-video-item time { color: var(--muted); font-size: 12px; }
 
+/* 참고 이미지 선택 — 세 그룹을 같은 가로 스크롤 패턴으로 유지한다 */
+.reference-picker { display: grid; gap: var(--sp-md); padding: var(--sp-md); border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); }
+.reference-picker-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-md); }
+.reference-picker-header h3 { margin: 0; font-size: 16px; }
+.reference-picker-header strong { color: var(--primary-active); font-size: 13px; white-space: nowrap; }
+.reference-picker > .muted { margin: calc(var(--sp-sm) * -1) 0 0; }
+.reference-group { display: grid; gap: var(--sp-xs); min-width: 0; }
+.reference-thumbnail-row { display: flex; gap: var(--sp-sm); overflow-x: auto; padding: 2px 2px var(--sp-sm); scroll-snap-type: x proximity; }
+.reference-thumbnail { position: relative; flex: 0 0 112px; display: grid; grid-template-rows: 96px auto; gap: 6px; margin: 0; padding: 5px; border: 2px solid transparent; border-radius: var(--r-sm); background: var(--surface-soft); color: var(--body); font: inherit; text-align: left; cursor: pointer; scroll-snap-align: start; }
+.reference-thumbnail:hover { border-color: var(--hairline); }
+.reference-thumbnail:focus-within, .reference-thumbnail:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.reference-thumbnail.is-selected { border-color: var(--primary); background: var(--step-review-bg); }
+.reference-thumbnail:disabled { cursor: not-allowed; opacity: .45; }
+.reference-thumbnail img { width: 100%; height: 96px; border-radius: calc(var(--r-sm) - 3px); object-fit: cover; background: var(--hairline-soft); }
+.reference-thumbnail input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.reference-check { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-full); color: var(--on-primary); background: var(--primary); font-size: 13px; font-weight: 700; opacity: 0; box-shadow: 0 1px 4px rgb(0 0 0 / 24%); }
+.reference-thumbnail.is-selected .reference-check { opacity: 1; }
+.reference-thumbnail-label { min-width: 0; overflow: hidden; color: var(--body); font-size: 11px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.reference-empty { margin: 0; font-size: 12px; }
+.reference-radio-row { padding-top: 2px; }
+.reference-none { grid-template-rows: 1fr; min-height: 131px; place-items: center; text-align: center; }
+.reference-none-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+
 /* 상세: 액션 영역 */
 .review-edit-area { display: grid; gap: var(--sp-sm); }
 .review-edit-area textarea { width: 100%; min-height: 120px; padding: var(--sp-md); border: 1px solid var(--hairline); border-radius: var(--r-sm); resize: vertical; }
