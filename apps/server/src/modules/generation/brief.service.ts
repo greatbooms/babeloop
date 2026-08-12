@@ -189,6 +189,12 @@ export class BriefService {
     }
   }
 
+  // [보안 결정 2026-08-12] 참조 조회에 소유자 스코프를 걸지 않는 이유:
+  // BabeLoop은 단일 팀 내부 도구로 테넌트·소유권 모델이 없고, 여기서 참조 가능한
+  // 세 자원(시안·경쟁 광고·미디어 자산)은 로그인한 모든 팀원이 기존 목록/상세 쿼리로
+  // 이미 열람·다운로드할 수 있는 공유 자산이다(같은 GqlAuthGuard+Roles 관문).
+  // 경쟁 광고·미디어 자산을 브리프 경계 밖에서 참조하는 것은 의도된 설계(스타일 레퍼런스).
+  // 멀티 테넌트로 확장하는 날, 이 함수의 각 분기에 테넌트 스코프 조건을 추가할 것.
   private async resolveGenerationReferences(
     references: GenerationReferenceInput[],
     expectedBriefId?: string,
