@@ -18,7 +18,7 @@ const CreateExperimentDocument = graphql(`mutation ExperimentsCreate($input: Cre
 export function ExperimentsPage() {
   const { t } = useT();
   const { data, refetch } = useQuery(ExperimentsPageDocument);
-  const [createExperiment] = useMutation(CreateExperimentDocument);
+  const [createExperiment, { loading: creating }] = useMutation(CreateExperimentDocument);
   const [showCreate, setShowCreate] = useState(false); const [code, setCode] = useState(''); const [name, setName] = useState(''); const [error, setError] = useState<string | null>(null);
   async function onCreate(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setError(null); try { await createExperiment({ variables: { input: { code, name } } }); setCode(''); setName(''); setShowCreate(false); await refetch(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } }
   const experiments = data?.experiments ?? [];
@@ -30,7 +30,7 @@ export function ExperimentsPage() {
       <form className="page-form" onSubmit={onCreate}>
         <FormField label={t('experiments.code')} htmlFor="experiment-code"><input id="experiment-code" required value={code} onChange={(event) => setCode(event.target.value)} /></FormField>
         <FormField label={t('experiments.name')} htmlFor="experiment-name"><input id="experiment-name" required value={name} onChange={(event) => setName(event.target.value)} /></FormField>
-        <Button variant="primary" type="submit">{t('experiments.create')}</Button>
+        <Button variant="primary" type="submit" disabled={creating}>{t('experiments.create')}</Button>
       </form>
     </Modal>
     {error && <p className="error" role="alert">{error}</p>}

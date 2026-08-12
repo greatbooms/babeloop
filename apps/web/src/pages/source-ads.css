@@ -1,6 +1,6 @@
 .file-button { display: inline-flex; align-items: center; cursor: pointer; }
 .file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.filter-bar { display: grid; grid-template-columns: 1fr 1fr 2fr auto; align-items: end; gap: var(--sp-md); margin-bottom: var(--sp-lg); }
+.filter-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr auto; align-items: end; gap: var(--sp-md); margin-bottom: var(--sp-lg); }
 .result-count { color: var(--muted); font-size: 14px; padding-bottom: var(--sp-md); white-space: nowrap; }
 .notice { color: var(--body); margin-bottom: var(--sp-base); }
 .error { color: var(--error-text); white-space: pre-wrap; margin-bottom: var(--sp-base); }

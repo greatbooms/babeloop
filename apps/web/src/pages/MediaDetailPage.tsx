@@ -31,6 +31,7 @@ export function MediaDetailPage() {
   const [similarOpen, setSimilarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [fixedMediaUrl, setFixedMediaUrl] = useState<string | null>(null);
   const job = useJobPolling(jobId);
   useEffect(() => {
@@ -44,12 +45,15 @@ export function MediaDetailPage() {
 
   async function run(action: () => Promise<string | null>) {
     setError(null);
-    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    setBusy(true);
+    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); }
   }
 
   const kindLabel = asset.kind === MediaAssetKind.Video ? t('media.video') : t('media.image');
   const hasText = asset.ocrResults.length > 0 || asset.transcriptions.length > 0 || asset.visualDescriptions.length > 0;
   const hasInsight = asset.insights.length > 0;
+  // 클릭 직후(뮤테이션 대기)와 첫 폴링 응답 전에도 잠겨야 연타를 막는다
+  const jobActive = busy || (Boolean(jobId) && (!job || (job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed)));
   return <section className="stage-prep ad-detail">
     <Link className="back-link" to="/media">{t('media.back')}</Link>
     <header className="page-header">
@@ -57,7 +61,7 @@ export function MediaDetailPage() {
         <div className="page-header-title-row"><h1>{asset.originalFilename}</h1><StatusBadge status={asset.status} /></div>
         <p>{t('media.detailMeta', { kind: kindLabel, date: formatDate(String(asset.createdAt), lang), count: asset.insights.length })}</p>
       </div>
-      <div className={`page-header-actions detail-actions${job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed ? ' actions-locked' : ''}`}>
+      <div className={`page-header-actions detail-actions${jobActive ? ' actions-locked' : ''}`}>
         <div className="action-steps">
         <span className="action-step">
           <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
@@ -75,8 +79,8 @@ export function MediaDetailPage() {
     </header>
     <p className="action-flow-hint">{t('media.flow')}</p>
     {error && <p className="error" role="alert">{error}</p>}
-    {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && (
-      <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('ads.jobBanner', { status: job.status })}</span></div>
+    {jobActive && (
+      <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('ads.jobBanner', { status: job?.status ?? '' })}</span></div>
     )}
     {job?.status === JobStatus.Failed && <p className="error" role="alert">{t('ads.jobFailed', { error: job.error ?? '' })}</p>}
     {fixedMediaUrl && (

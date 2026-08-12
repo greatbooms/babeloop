@@ -68,6 +68,7 @@ export function SourceAdsPage() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
   useEffect(() => {
@@ -80,7 +81,8 @@ export function SourceAdsPage() {
 
   async function run(action: () => Promise<string | null>) {
     setError(null);
-    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    setBusy(true);
+    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); }
   }
 
   async function onCreate() {
@@ -95,6 +97,7 @@ export function SourceAdsPage() {
   async function onImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; if (!file) return;
     setError(null); setMessage(null);
+    setBusy(true);
     try {
       const fileBase64 = (await fileAsDataUrl(file, t('ads.fileReadFailed'))).split(',', 2)[1] ?? '';
       const result = await importCsv({ variables: { input: { fileBase64 } } });
@@ -103,7 +106,7 @@ export function SourceAdsPage() {
       if (imported.errors.length) setError(imported.errors.join('\n'));
       setOffset(0); await refetch();
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-    finally { event.target.value = ''; }
+    finally { event.target.value = ''; setBusy(false); }
   }
 
   const page = data?.sourceAdsPage;
@@ -114,7 +117,7 @@ export function SourceAdsPage() {
   return (
     <section className="stage-collect">
       <PageHeader title={t('ads.title')} step={t('ads.step')} description={t('ads.description')} actions={<>
-        <label className="file-button button button-secondary button-sm">{t('ads.csvImport')}<input type="file" accept=".csv" onChange={onImport} aria-label="Sensor Tower CSV" /></label>
+        <label className={`file-button button button-secondary button-sm${busy ? ' actions-locked' : ''}`}>{busy ? t('ads.importing') : t('ads.csvImport')}<input type="file" accept=".csv" disabled={busy} onChange={onImport} aria-label="Sensor Tower CSV" /></label>
         <Button variant="primary" size="sm" onClick={() => setRegisterOpen(true)}>{t('ads.newAd')}</Button>
       </>} />
       <HelpPanel page="ads" />
@@ -122,7 +125,7 @@ export function SourceAdsPage() {
         <FormField label={t('ads.adTitle')} htmlFor="source-ad-title"><input id="source-ad-title" value={title} onChange={(event) => setTitle(event.target.value)} /></FormField>
         <FormField label={t('ads.adCopy')} htmlFor="source-ad-text"><textarea id="source-ad-text" value={adText} onChange={(event) => setAdText(event.target.value)} /></FormField>
         <FormField label={t('ads.sourceUrl')} htmlFor="source-ad-url"><input id="source-ad-url" type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></FormField>
-        <Button variant="primary" onClick={() => void onCreate()}>{t('ads.register')}</Button>
+        <Button variant="primary" disabled={busy} onClick={() => void onCreate()}>{t('ads.register')}</Button>
       </Modal>
       <div className="ads-content">
           <div className="filter-bar">

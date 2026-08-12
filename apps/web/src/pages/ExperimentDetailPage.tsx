@@ -31,7 +31,7 @@ function manifestFileCount(manifestJson: string): number | null {
 export function ExperimentDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>(); const { data, refetch } = useQuery(ExperimentDocument, { variables: { id: id! }, skip: !id });
-  const [exportExperiment] = useMutation(ExportExperimentDocument); const [exported, setExported] = useState<ExportView | null>(null); const [error, setError] = useState<string | null>(null);
+  const [exportExperiment, { loading: exporting }] = useMutation(ExportExperimentDocument); const [exported, setExported] = useState<ExportView | null>(null); const [error, setError] = useState<string | null>(null);
   const { data: addableData, refetch: refetchAddable } = useQuery(AddableCreativesDocument);
   const [addCreative] = useMutation(ExperimentAddCreativeDocument);
   const [creativeSelection, setCreativeSelection] = useState('');
@@ -57,7 +57,7 @@ export function ExperimentDetailPage() {
         <div className="page-header-title-row"><h1>{experiment.name}</h1><span className="tag tag-accent">{experiment.code}</span></div>
         <p>{t('experiments.detailMeta', { market: experiment.marketCode, count: experiment.variants.length, exports: exportCount })}</p>
       </div>
-      <div className="page-header-actions"><Button data-hint={t('experiments.exportHint')} variant="primary" size="sm" onClick={() => void onExport()}>{t('experiments.export')}</Button></div>
+      <div className="page-header-actions"><Button data-hint={t('experiments.exportHint')} variant="primary" size="sm" disabled={exporting} onClick={() => void onExport()}>{t('experiments.export')}</Button></div>
     </header>
     {error && <p className="error" role="alert">{error}</p>}
     <Card className="card-stack">

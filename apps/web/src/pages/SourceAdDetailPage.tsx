@@ -58,6 +58,7 @@ export function SourceAdDetailPage() {
   const [briefBrandId, setBriefBrandId] = useState('');
   const [briefFocus, setBriefFocus] = useState('');
   const [briefJobId, setBriefJobId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const briefJob = useJobPolling(briefJobId);
   useEffect(() => {
     setPollFast(Boolean(jobId) || Boolean(briefJobId) || data?.sourceAd?.status === 'ANALYZING');
@@ -91,7 +92,8 @@ export function SourceAdDetailPage() {
 
   async function run(action: () => Promise<string | null>) {
     setError(null);
-    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+    setBusy(true);
+    try { setJobId(await action()); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); }
   }
 
   async function onSimilar() {
@@ -117,7 +119,10 @@ export function SourceAdDetailPage() {
   const hasBrief = ad.referencingBriefs.length > 0;
   type AnalysisFields = { summary: string; hookType: string; targetAudience: string[]; emotionalTriggers: string[]; genres: string[] };
   const zhTwAnalysis = ad.latestAnalysis?.zhTwJson ? JSON.parse(ad.latestAnalysis.zhTwJson) as AnalysisFields : null;
-  const jobActive = Boolean(job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED') || ad.status === 'ANALYZING';
+  // 잡 ID만 있고 폴링 응답이 아직 없는 순간에도 잠겨야 연타를 막는다
+  const extractionActive = Boolean(jobId) && (!job || (job.status !== 'SUCCEEDED' && job.status !== 'FAILED'));
+  const briefActive = Boolean(briefJobId) && (!briefJob || (briefJob.status !== 'SUCCEEDED' && briefJob.status !== 'FAILED'));
+  const jobActive = busy || extractionActive || briefActive || ad.status === 'ANALYZING';
   const analysis: AnalysisFields | null = ad.latestAnalysis
     ? (lang === 'zhTw' && zhTwAnalysis ? zhTwAnalysis : ad.latestAnalysis)
     : null;
@@ -154,11 +159,10 @@ export function SourceAdDetailPage() {
       {jobActive && (
         <div className="job-banner" role="status">
           <span className="job-banner-spinner" aria-hidden="true" />
-          <span>{t('ads.jobBanner', { status: job?.status ?? '' })}</span>
+          <span>{briefActive ? t('ads.briefGenerating', { status: briefJob?.status ?? '' }) : t('ads.jobBanner', { status: job?.status ?? '' })}</span>
         </div>
       )}
       {job?.status === 'FAILED' && <p className="error" role="alert">{t('ads.jobFailed', { error: job.error ?? '' })}</p>}
-      {briefJob && briefJob.status !== 'SUCCEEDED' && briefJob.status !== 'FAILED' && <p>{t('ads.briefGenerating', { status: briefJob.status })}</p>}
       <Card className="card-stack">
         <h2>{t('ads.media')}</h2>
         {mediaUrl && ad.mediaAsset ? <div className="detail-media">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={mediaUrl} /> : <img src={mediaUrl} alt={ad.title ?? t('ads.originalAlt')} />}<a href={mediaUrl} download>{t('common.originalDownload')}</a></div> : <p className="muted">{t('ads.noMedia')}</p>}

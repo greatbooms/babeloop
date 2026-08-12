@@ -41,7 +41,7 @@ export const messages = {
     },
     login: { invalidEmail: '올바른 이메일을 입력하세요', requiredPassword: '비밀번호를 입력하세요', title: 'BabeLoop 로그인', description: 'BabeChat 마케팅 자동화 내부 도구', email: '이메일', password: '비밀번호', failed: '로그인 실패: 이메일 또는 비밀번호를 확인하세요', submit: '로그인' },
     ads: {
-      fileReadFailed: '파일 읽기 실패', noDate: '날짜 없음', importSummary: '{imported}건 임포트, {duplicates}건 중복', title: '광고', step: '루프 1·2단계 — 수집·분석', description: '경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요.', csvImport: 'CSV 임포트', newAd: '새 광고 등록', manualRegister: '광고 수동 등록', adTitle: '제목', adCopy: '광고 문구', sourceUrl: '소스 URL', register: '광고 등록',
+      fileReadFailed: '파일 읽기 실패', noDate: '날짜 없음', importSummary: '{imported}건 임포트, {duplicates}건 중복', title: '광고', step: '루프 1·2단계 — 수집·분석', description: '경쟁사 광고를 모으고 분석하는 루프의 시작점입니다. Sensor Tower CSV 임포트 또는 수동 등록 → 미디어 텍스트 추출 → 광고 분석 → 유사 광고 비교 순서로 진행하세요.', csvImport: 'CSV 임포트', importing: '임포트 중…', newAd: '새 광고 등록', manualRegister: '광고 수동 등록', adTitle: '제목', adCopy: '광고 문구', sourceUrl: '소스 URL', register: '광고 등록',
       status: '상태', kind: '종류', country: '국가', all: '전체', image: '이미지', video: '영상', search: '검색', zeroCount: '0건', resultCount: '{total}건 중 {start}–{end}', analyzing: '분석 중… ({status})', jobBanner: '작업 실행 중… ({status}) — 완료될 때까지 버튼이 잠깁니다', jobFailed: '작업 실패: {error}', ad: '광고', detailAria: '{title} 상세 보기', noImage: '이미지 없음', noNetworkCountry: '네트워크·국가 정보 없음',
       briefFailed: '브리프 생성에 실패했습니다', embeddingNotReady: '분석이 끝나면 검색할 수 있습니다', loading: '광고를 불러오는 중…', back: '← 광고 목록', noAdvertiserInfo: '광고주 정보 없음',
       extractHint: '이미지 글자·영상 음성 추출 + 비주얼 묘사 생성 (AI, 건당 2~3센트)', extractConfirm: '이미 추출된 텍스트·비주얼 묘사가 있습니다. 다시 실행하면 기존 결과를 새 결과로 교체하며 약 2~3센트가 발생합니다. 계속할까요?', extract: '미디어 텍스트 추출',
@@ -161,7 +161,7 @@ export const messages = {
     },
     login: { invalidEmail: '請輸入有效的電子郵件', requiredPassword: '請輸入密碼', title: '登入 BabeLoop', description: 'BabeChat 行銷自動化內部工具', email: '電子郵件', password: '密碼', failed: '登入失敗：請確認電子郵件或密碼', submit: '登入' },
     ads: {
-      fileReadFailed: '讀取檔案失敗', noDate: '無日期', importSummary: '匯入 {imported} 筆，重複 {duplicates} 筆', title: '廣告', step: '循環第 1、2 階段 — 蒐集、分析', description: '這是蒐集並分析競品廣告的循環起點。請依序進行 Sensor Tower CSV 匯入或手動登錄 → 擷取媒體文字 → 廣告分析 → 比較相似廣告。', csvImport: '匯入 CSV', newAd: '登錄新廣告', manualRegister: '手動登錄廣告', adTitle: '標題', adCopy: '廣告文案', sourceUrl: '來源網址', register: '登錄廣告',
+      fileReadFailed: '讀取檔案失敗', noDate: '無日期', importSummary: '匯入 {imported} 筆，重複 {duplicates} 筆', title: '廣告', step: '循環第 1、2 階段 — 蒐集、分析', description: '這是蒐集並分析競品廣告的循環起點。請依序進行 Sensor Tower CSV 匯入或手動登錄 → 擷取媒體文字 → 廣告分析 → 比較相似廣告。', csvImport: '匯入 CSV', importing: '匯入中…', newAd: '登錄新廣告', manualRegister: '手動登錄廣告', adTitle: '標題', adCopy: '廣告文案', sourceUrl: '來源網址', register: '登錄廣告',
       status: '狀態', kind: '類型', country: '國家', all: '全部', image: '圖片', video: '影片', search: '搜尋', zeroCount: '0 筆', resultCount: '共 {total} 筆，第 {start}–{end} 筆', analyzing: '分析中…（{status}）', jobBanner: '任務執行中…（{status}）— 完成前按鈕將暫時鎖定', jobFailed: '任務失敗：{error}', ad: '廣告', detailAria: '查看 {title} 詳細內容', noImage: '無圖片', noNetworkCountry: '無聯播網、國家資訊',
       briefFailed: '生成簡報失敗', embeddingNotReady: '分析完成後即可搜尋', loading: '正在載入廣告…', back: '← 廣告列表', noAdvertiserInfo: '無廣告主資訊',
       extractHint: '擷取圖片文字、影片語音並生成視覺描述（AI，每件約 2～3 美分）', extractConfirm: '已有擷取文字或視覺描述。重新執行會以新結果取代現有結果，並產生約 2～3 美分費用。是否繼續？', extract: '擷取媒體文字',

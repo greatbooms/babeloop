@@ -80,6 +80,7 @@ export function ReviewDetailPage() {
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   // 정책 검사도 비동기 잡 — 잡 완료를 추적해야 30초 폴링 주기를 기다리지 않고 상태 전이가 보인다
   const [policyJobId, setPolicyJobId] = useState<string | null>(null);
+  const [acting, setActing] = useState(false);
   const imageJob = useJobPolling(imageJobId);
   const videoJob = useJobPolling(videoJobId);
   const policyJob = useJobPolling(policyJobId);
@@ -91,7 +92,7 @@ export function ReviewDetailPage() {
   const { data: referenceMediaData } = useQuery(ReviewReferenceMediaDocument);
   const role = meData?.me.role; const canApprove = role === UserRole.Admin || role === UserRole.Reviewer;
   const selectedExperiment = experimentSelection || experimentsData?.experiments[0]?.id || '';
-  async function act(operation: () => Promise<unknown>, alsoExperiments = false) { setError(null); try { await operation(); await refetch(); if (alsoExperiments) await refetchExperiments(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } }
+  async function act(operation: () => Promise<unknown>, alsoExperiments = false) { setError(null); setActing(true); try { await operation(); await refetch(); if (alsoExperiments) await refetchExperiments(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setActing(false); } }
   useEffect(() => {
     setPollFast(Boolean(imageJobId || videoJobId || policyJobId));
   }, [imageJobId, videoJobId, policyJobId]);
@@ -216,6 +217,9 @@ export function ReviewDetailPage() {
     { label: t('review.referenceMediaAssets'), options: mediaAssetOptions },
   ];
   const visualJobActive = Boolean(imageJobId || videoJobId);
+  // 전이 뮤테이션 실행 중(acting)과 정책 검사 잡 실행 중에도 헤더 액션을 잠근다
+  const policyActive = Boolean(policyJobId);
+  const headerLocked = acting || policyActive || visualJobActive;
   return <section className="review-page stage-review ad-detail">
     <Link className="back-link" to="/review">{t('review.back')}</Link>
     <header className="page-header">
@@ -223,7 +227,7 @@ export function ReviewDetailPage() {
         <div className="page-header-title-row"><h1>{creative.briefTitle}</h1>{creative.type === CreativeType.VideoScript ? <span className="tag tag-video">{t('review.typeVideoScript')}</span> : <span className="tag">{t('review.typeCopy')}</span>}<StatusBadge status={creative.status} /></div>
         <p>{t('review.variantRevision', { variant: creative.variantIndex, revision: creative.revision })}</p>
       </div>
-      <div className="page-header-actions">
+      <div className={`page-header-actions${headerLocked ? ' actions-locked' : ''}`}>
         {creative.status === CreativeStatus.Draft && <Button variant="primary" size="sm" data-hint={t('review.policyHint')} onClick={() => void act(async () => { const result = await runPolicyCheck({ variables: { input: { creativeId: creative.id } } }); setPolicyJobId(result.data!.runPolicyCheck.id); })}>{t('review.policy')}</Button>}
         {creative.status === CreativeStatus.PolicyChecked && <Button variant="primary" size="sm" data-hint={t('review.requestHint')} onClick={() => void act(() => requestReview({ variables: { input: { creativeId: creative.id } } }))}>{t('review.request')}</Button>}
         {creative.status === CreativeStatus.LocalizationApproved && canApprove && <Button variant="primary" size="sm" data-hint={t('review.finalApproveHint')} onClick={() => void act(() => approveCreative({ variables: { input: { creativeId: creative.id } } }))}>{t('review.finalApprove')}</Button>}
@@ -242,8 +246,9 @@ export function ReviewDetailPage() {
       </div>
     </header>
     {error && <p className="error" role="alert">{error}</p>}
-    {imageJob && imageJob.status !== JobStatus.Succeeded && imageJob.status !== JobStatus.Failed && <p>{t('review.copyImagesGenerating', { status: imageJob.status })}</p>}
-    {videoJob && videoJob.status !== JobStatus.Succeeded && videoJob.status !== JobStatus.Failed && <p>{t('review.videoGenerating', { status: videoJob.status })}</p>}
+    {policyActive && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('ads.jobBanner', { status: policyJob?.status ?? '' })}</span></div>}
+    {imageJobId && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('review.copyImagesGenerating', { status: imageJob?.status ?? '' })}</span></div>}
+    {videoJobId && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('review.videoGenerating', { status: videoJob?.status ?? '' })}</span></div>}
 
     <Modal title={t('review.generateCopyImages')} open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
       <p className="muted">{t('review.copyImageModalDescription')}</p>
@@ -468,7 +473,7 @@ export function ReviewDetailPage() {
         {canApprove && (
           <div className="review-reason-row">
             <label>{t('review.minorReason')}<input value={minorReason} onChange={(event) => setMinorReason(event.target.value)} /></label>
-            <Button size="sm" onClick={() => void act(() => releaseMinorFlag({ variables: { input: { creativeId: creative.id, reason: minorReason } } }))}>{t('review.releaseMinor')}</Button>
+            <Button size="sm" disabled={acting} onClick={() => void act(() => releaseMinorFlag({ variables: { input: { creativeId: creative.id, reason: minorReason } } }))}>{t('review.releaseMinor')}</Button>
           </div>
         )}
       </Card>
@@ -480,18 +485,18 @@ export function ReviewDetailPage() {
         <div className="review-edit-area">
           <label className="facet-label">{t('review.editZh')}<textarea value={localizationEdit ?? latestLocalization?.text ?? ''} onChange={(event) => setLocalizationEdit(event.target.value)} /></label>
           <div className="review-edit-actions">
-            <Button size="sm" data-hint={t('review.saveEditHint')} onClick={() => void act(() => reviseLocalization({ variables: { input: { creativeId: creative.id, text: localizationEdit ?? latestLocalization?.text ?? '' } } }))}>{t('review.saveEdit')}</Button>
-            {canApprove && <Button variant="primary" size="sm" data-hint={t('review.approveLocalizationHint')} onClick={() => void act(() => approveLocalization({ variables: { input: { creativeId: creative.id } } }))}>{t('review.approveLocalization')}</Button>}
+            <Button size="sm" disabled={acting} data-hint={t('review.saveEditHint')} onClick={() => void act(() => reviseLocalization({ variables: { input: { creativeId: creative.id, text: localizationEdit ?? latestLocalization?.text ?? '' } } }))}>{t('review.saveEdit')}</Button>
+            {canApprove && <Button variant="primary" size="sm" disabled={acting} data-hint={t('review.approveLocalizationHint')} onClick={() => void act(() => approveLocalization({ variables: { input: { creativeId: creative.id } } }))}>{t('review.approveLocalization')}</Button>}
           </div>
         </div>
         <hr className="review-divider" />
         <div className="review-reason-row">
           <label>{t('review.revisionReason')}<input value={revisionReason} onChange={(event) => setRevisionReason(event.target.value)} /></label>
-          <Button size="sm" data-hint={t('review.requestRevisionHint')} onClick={() => void act(() => requestRevision({ variables: { input: { creativeId: creative.id, reason: revisionReason } } }))}>{t('review.requestRevision')}</Button>
+          <Button size="sm" disabled={acting} data-hint={t('review.requestRevisionHint')} onClick={() => void act(() => requestRevision({ variables: { input: { creativeId: creative.id, reason: revisionReason } } }))}>{t('review.requestRevision')}</Button>
         </div>
         <div className="review-reason-row">
           <label>{t('review.rejectionReason')}<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label>
-          <Button size="sm" data-hint={t('review.rejectHint')} onClick={() => void act(() => rejectCreative({ variables: { input: { creativeId: creative.id, reason: rejectionReason } } }))}>{t('review.reject')}</Button>
+          <Button size="sm" disabled={acting} data-hint={t('review.rejectHint')} onClick={() => void act(() => rejectCreative({ variables: { input: { creativeId: creative.id, reason: rejectionReason } } }))}>{t('review.reject')}</Button>
         </div>
       </Card>
     )}
@@ -501,7 +506,7 @@ export function ReviewDetailPage() {
         <h2>{t('review.addExperiment')}</h2>
         <div className="experiment-add-row">
           <label>{t('review.experimentSelection')}<select value={selectedExperiment} onChange={(event) => setExperimentSelection(event.target.value)}>{experimentsData?.experiments.map((experiment) => <option key={experiment.id} value={experiment.id}>{experiment.name}</option>)}</select></label>
-          <Button variant="primary" size="sm" data-hint={t('review.addExperimentHint')} disabled={!selectedExperiment} onClick={() => void act(() => addToExperiment({ variables: { input: { creativeId: creative.id, experimentId: selectedExperiment } } }), true)}>{t('review.addExperiment')}</Button>
+          <Button variant="primary" size="sm" data-hint={t('review.addExperimentHint')} disabled={!selectedExperiment || acting} onClick={() => void act(() => addToExperiment({ variables: { input: { creativeId: creative.id, experimentId: selectedExperiment } } }), true)}>{t('review.addExperiment')}</Button>
         </div>
         {creative.experimentVariants.length > 0 && (
           <div className="tag-row">{creative.experimentVariants.map((variant) => <span className="tag tag-accent" key={variant.id}>{variant.trackingCode}{variant.exportedAt && <small> · {t('review.exportedAt', { date: formatDate(String(variant.exportedAt), lang) })}</small>}</span>)}</div>
