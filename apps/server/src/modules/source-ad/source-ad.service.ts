@@ -122,6 +122,19 @@ export class SourceAdService {
     return { sourceAd: this.mapSourceAd(created), job };
   }
 
+  // URL 등록 광고는 문구 없이 들어오는 경우가 많다 — 나중에 문구를 채워 분석 가능하게 한다
+  async updateAdText(sourceAdId: string, adText: string) {
+    if (!adText.trim()) {
+      throw new NotFoundException('광고 문구는 비어 있을 수 없습니다');
+    }
+    const updated = await this.prisma.sourceAd
+      .update({ where: { id: sourceAdId }, data: { adText: adText.trim() }, include: SOURCE_AD_INCLUDE })
+      .catch(() => {
+        throw new NotFoundException('광고를 찾을 수 없습니다');
+      });
+    return this.mapSourceAdWithThumbnail(updated);
+  }
+
   async analyze(sourceAdId: string) {
     const ad = await this.prisma.sourceAd.findUnique({
       where: { id: sourceAdId },

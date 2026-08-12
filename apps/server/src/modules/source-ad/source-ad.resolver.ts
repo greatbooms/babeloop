@@ -9,6 +9,7 @@ import { JobModel } from '../jobs/job.model';
 import { CsvImportService } from './csv-import.service';
 import {
   AnalyzeSourceAdInput,
+  UpdateSourceAdTextInput,
   CreateSourceAdInput,
   ImportSensorTowerCsvInput,
   SimilarSourceAdsInput,
@@ -62,6 +63,12 @@ export class SourceAdResolver {
   @Roles('ADMIN', 'EDITOR', 'REVIEWER')
   analyzeSourceAd(@Args('input') input: AnalyzeSourceAdInput) {
     return this.sourceAdService.analyze(input.sourceAdId);
+  }
+
+  @Mutation(() => SourceAdModel)
+  @Roles('ADMIN', 'EDITOR', 'REVIEWER')
+  updateSourceAdText(@Args('input') input: UpdateSourceAdTextInput) {
+    return this.sourceAdService.updateAdText(input.sourceAdId, input.adText);
   }
 
   @Mutation(() => JobModel)

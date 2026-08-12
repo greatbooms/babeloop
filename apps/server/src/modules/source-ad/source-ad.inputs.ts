@@ -25,6 +25,12 @@ export class AnalyzeSourceAdInput {
 }
 
 @InputType()
+export class UpdateSourceAdTextInput {
+  @Field(() => ID) sourceAdId: string;
+  @Field(() => String) adText: string;
+}
+
+@InputType()
 export class ImportSensorTowerCsvInput {
   @Field() fileBase64: string;
   @Field(() => ID, { nullable: true }) competitorId?: string;

@@ -25,6 +25,7 @@ const SourceAdDocument = graphql(`
   }
 `);
 const SimilarDocument = graphql(`query Similar($input: SimilarSourceAdsInput!) { similarSourceAds(input: $input) { similarity sourceAd { id title adText } } }`);
+const UpdateSourceAdTextDocument = graphql(`mutation UpdateSourceAdText($input: UpdateSourceAdTextInput!) { updateSourceAdText(input: $input) { id adText } }`);
 const ProcessMediaAssetDocument = graphql(`mutation ProcessMediaAsset($mediaAssetId: ID!) { processMediaAsset(mediaAssetId: $mediaAssetId) { id status } }`);
 const AnalyzeSourceAdDocument = graphql(`mutation AnalyzeSourceAd($input: AnalyzeSourceAdInput!) { analyzeSourceAd(input: $input) { id status } }`);
 const RedownloadMediaDocument = graphql(`mutation RedownloadSourceAdMedia($sourceAdId: ID!) { redownloadSourceAdMedia(sourceAdId: $sourceAdId) { id status } }`);
@@ -38,6 +39,9 @@ export function SourceAdDetailPage() {
   const [pollFast, setPollFast] = useState(true);
   const { data, refetch } = useQuery(SourceAdDocument, { variables: { id: id! }, skip: !id, pollInterval: pollFast ? 3000 : 30_000, fetchPolicy: 'cache-and-network', nextFetchPolicy: 'cache-first' });
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState(false);
+  const [adTextDraft, setAdTextDraft] = useState('');
+  const [updateAdText] = useMutation(UpdateSourceAdTextDocument);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const job = useJobPolling(jobId);
@@ -102,6 +106,12 @@ export function SourceAdDetailPage() {
   }
 
   if (!ad) return <section><p className="muted">{t('ads.loading')}</p></section>;
+
+  async function onSaveAdText() {
+    await updateAdText({ variables: { input: { sourceAdId: id!, adText: adTextDraft } } });
+    setEditingText(false);
+    await refetch();
+  }
   const hasText = Boolean(ad.adText) || (ad.mediaAsset?.ocrResults.length ?? 0) > 0 || (ad.mediaAsset?.transcriptions.length ?? 0) > 0;
   const hasAnalysis = Boolean(ad.latestAnalysis);
   const hasBrief = ad.referencingBriefs.length > 0;
@@ -147,7 +157,18 @@ export function SourceAdDetailPage() {
         {mediaUrl && ad.mediaAsset ? <div className="detail-media">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={mediaUrl} /> : <img src={mediaUrl} alt={ad.title ?? t('ads.originalAlt')} />}<a href={mediaUrl} download>{t('common.originalDownload')}</a></div> : <p className="muted">{t('ads.noMedia')}</p>}
       </Card>
       <Card className="card-stack"><h2>{t('ads.meta')}</h2><dl className="brand-dl"><div><dt>{t('ads.advertiser')}</dt><dd>{ad.competitor?.name ?? t('ads.none')}</dd></div><div><dt>{t('ads.networkCountry')}</dt><dd>{[...ad.networks, ...ad.countries].join(' · ') || t('ads.none')}</dd></div><div><dt>{t('ads.period')}</dt><dd>{ad.firstSeenAt ? formatDate(String(ad.firstSeenAt), lang) : t('ads.noDate')} ~ {ad.lastSeenAt ? formatDate(String(ad.lastSeenAt), lang) : t('ads.noDate')}</dd></div><div><dt>{t('ads.source')}</dt><dd>{ad.origin} · {ad.provider}{ad.sourceUrl && <> · <a href={ad.sourceUrl} target="_blank" rel="noreferrer">{t('ads.originalLink')}</a></>}</dd></div><div><dt>{t('ads.confidence')}</dt><dd>{ad.confidence}</dd></div></dl></Card>
-      <Card className="card-stack"><h2>{t('ads.extractedText')}</h2>{ad.adText && <><h3>{t('ads.adCopy')}</h3><p className="long-copy">{ad.adText}</p></>}{ad.mediaAsset?.ocrResults.map((item) => <div key={item.id}><h3>OCR</h3><p className="long-copy">{item.text}</p></div>)}{ad.mediaAsset?.transcriptions.map((item) => <div key={item.id}><h3>{t('ads.transcription')}{item.language ? ` (${item.language})` : ''}</h3><p className="long-copy">{item.text}</p></div>)}{!ad.adText && !ad.mediaAsset?.ocrResults.length && !ad.mediaAsset?.transcriptions.length && <p className="muted">{t('ads.noExtractedText')}</p>}</Card>
+      <Card className="card-stack"><h2>{t('ads.extractedText')}</h2>{ad.adText && !editingText && <><h3>{t('ads.adCopy')}</h3><p className="long-copy">{ad.adText}</p></>}{ad.mediaAsset?.ocrResults.map((item) => <div key={item.id}><h3>OCR</h3><p className="long-copy">{item.text}</p></div>)}{ad.mediaAsset?.transcriptions.map((item) => <div key={item.id}><h3>{t('ads.transcription')}{item.language ? ` (${item.language})` : ''}</h3><p className="long-copy">{item.text}</p></div>)}{!ad.adText && !editingText && !ad.mediaAsset?.ocrResults.length && !ad.mediaAsset?.transcriptions.length && <p className="muted">{t('ads.noExtractedText')}</p>}
+        {editingText ? (
+          <div className="page-form">
+            <textarea value={adTextDraft} placeholder={t('ads.adCopyPlaceholder')} onChange={(event) => setAdTextDraft(event.target.value)} rows={4} />
+            <div className="inline-actions">
+              <Button variant="primary" size="sm" disabled={!adTextDraft.trim()} onClick={() => void onSaveAdText()}>{t('common.save')}</Button>
+              <Button variant="secondary" size="sm" onClick={() => setEditingText(false)}>{t('common.cancel')}</Button>
+            </div>
+          </div>
+        ) : (
+          <div><Button variant="secondary" size="sm" data-hint={t('ads.editAdCopyHint')} onClick={() => { setAdTextDraft(ad.adText ?? ''); setEditingText(true); }}>{ad.adText ? t('ads.editAdCopy') : t('ads.addAdCopy')}</Button></div>
+        )}</Card>
       <Card className="card-stack"><h2>{t('ads.latestAnalysis')}</h2>{analysis ? <>{lang === 'zhTw' && !zhTwAnalysis && <p className="muted">{t('ads.noZhAnalysis')}</p>}<dl className="brand-dl"><div><dt>{t('ads.summary')}</dt><dd>{analysis.summary}</dd></div><div><dt>{t('ads.hook')}</dt><dd>{analysis.hookType}</dd></div><div><dt>{t('ads.target')}</dt><dd>{analysis.targetAudience.join(', ')}</dd></div><div><dt>{t('ads.emotion')}</dt><dd>{analysis.emotionalTriggers.join(', ')}</dd></div><div><dt>{t('ads.genre')}</dt><dd>{analysis.genres.join(', ')}</dd></div></dl></> : <p className="muted">{t('ads.noAnalysis')}</p>}</Card>
       <Card className="card-stack"><h2>{t('ads.referencingBriefs')}</h2>{ad.referencingBriefs.length ? <ul className="compact-list">{ad.referencingBriefs.map((brief) => <li key={brief.id}><Link to={`/briefs/${brief.id}`}>{brief.title}</Link></li>)}</ul> : <p className="muted">{t('ads.noReferencingBriefs')}</p>}</Card>
       {similarQuery.loading && <p>{t('common.search')}</p>}

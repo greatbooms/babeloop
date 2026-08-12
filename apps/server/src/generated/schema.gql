@@ -547,6 +547,7 @@ type Mutation {
   translateBrandZhTw(brandId: ID!): JobModel!
   updateBrand(input: UpdateBrandInput!): BrandModel!
   updateCreativeText(input: UpdateCreativeTextInput!): CreativeDetailModel!
+  updateSourceAdText(input: UpdateSourceAdTextInput!): SourceAdModel!
 }
 
 type OcrResultModel {
@@ -768,6 +769,11 @@ input UpdateBrandInput {
 input UpdateCreativeTextInput {
   creativeId: ID!
   koreanText: String!
+}
+
+input UpdateSourceAdTextInput {
+  adText: String!
+  sourceAdId: ID!
 }
 
 type UploadRequestModel {
