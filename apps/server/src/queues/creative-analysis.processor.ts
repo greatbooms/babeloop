@@ -3,7 +3,7 @@ import { Inject } from '@nestjs/common';
 import { Job as BullJob, Queue } from 'bullmq';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
-import { AnalysisService } from '../modules/creative-analysis/analysis.service';
+import { AnalysisService, buildExtractedMediaText } from '../modules/creative-analysis/analysis.service';
 import { CREATIVE_ANALYSIS_SYSTEM, creativeAnalysisSchema, PROMPT_VERSION } from '../modules/creative-analysis/creative-analysis.schema';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { generateJsonWithRepair } from '../providers/text/generate-json-with-repair';
@@ -107,8 +107,8 @@ export class CreativeAnalysisProcessor extends WorkerHost {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
     try {
-      const asset = await this.prisma.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId }, include: { ocrResults: true, transcriptions: true } });
-      const inputText = [...asset.ocrResults, ...asset.transcriptions].map((item) => item.text.trim()).filter(Boolean).join('\n');
+      const asset = await this.prisma.mediaAsset.findUniqueOrThrow({ where: { id: job.data.mediaAssetId }, include: { ocrResults: true, transcriptions: true, visualDescriptions: true } });
+      const inputText = buildExtractedMediaText(asset);
       const meta: AiExecutionMeta = { provider: this.textAi.name, model: this.textAi.model, promptVersion: MEDIA_INSIGHT_PROMPT_VERSION, inputRef: `mediaAsset:${asset.id}` };
       const result = await this.aiLog.record(meta, async () => {
         const generated = await generateJsonWithRepair(this.textAi, { system: MEDIA_INSIGHT_SYSTEM, prompt: inputText, responseHint: 'media-insight' }, mediaInsightSchema);

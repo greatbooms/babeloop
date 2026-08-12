@@ -4,7 +4,7 @@ import { JOB_TYPES } from './queue.constants';
 describe('CreativeAnalysisProcessor media insight', () => {
   it('mock TEXT_AI 결과를 MediaInsight 필드에 저장한다', async () => {
     const prisma = {
-      mediaAsset: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'm1', ocrResults: [{ text: '[MOCK OCR] sample' }], transcriptions: [] }) },
+      mediaAsset: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'm1', ocrResults: [{ text: '[MOCK OCR] sample' }], transcriptions: [], visualDescriptions: [{ text: '[MOCK 비주얼] 광고 이미지 묘사' }] }) },
       mediaInsight: { create: jest.fn().mockResolvedValue({ id: 'i1' }) },
     };
     const aiLog = { record: jest.fn(async (_meta, run) => run()) };
@@ -16,6 +16,8 @@ describe('CreativeAnalysisProcessor media insight', () => {
     const processor = new CreativeAnalysisProcessor(prisma as never, aiLog as never, {} as never, jobRecord as never, textAi as never, embedder as never, vectors as never, {} as never);
     await processor.process({ id: 'analyze-media--m1', name: JOB_TYPES.ANALYZE_MEDIA, data: { mediaAssetId: 'm1' }, attemptsMade: 0, opts: { attempts: 1 } } as never);
     expect(prisma.mediaInsight.create).toHaveBeenCalledWith({ data: expect.objectContaining({ mediaAssetId: 'm1', summary: '[MOCK 미디어 인사이트] sample', hookType: '질문형', targetAudience: ['성인'], zhTwFields: zhTw, promptVersion: 'analyze-media@v2' }) });
+    expect(textAi.generate).toHaveBeenCalledWith(expect.objectContaining({ prompt: '[MOCK OCR] sample\n## 비주얼 묘사\n[MOCK 비주얼] 광고 이미지 묘사' }));
+    expect(embedder.embed).toHaveBeenCalledWith('[MOCK OCR] sample\n## 비주얼 묘사\n[MOCK 비주얼] 광고 이미지 묘사');
   });
 });
 
@@ -34,6 +36,6 @@ describe('CreativeAnalysisProcessor bilingual creative analysis', () => {
 
     await processor.process({ id: 'analyze-creative--ad-1', name: JOB_TYPES.ANALYZE_CREATIVE, data: { sourceAdId: 'ad-1' }, attemptsMade: 0, opts: { attempts: 1 } } as never);
 
-    expect(prisma.creativeAnalysis.create).toHaveBeenCalledWith({ data: expect.objectContaining({ zhTwFields: zhTw, promptVersion: 'analyze-creative@v2' }) });
+    expect(prisma.creativeAnalysis.create).toHaveBeenCalledWith({ data: expect.objectContaining({ zhTwFields: zhTw, promptVersion: 'analyze-creative@v3' }) });
   });
 });

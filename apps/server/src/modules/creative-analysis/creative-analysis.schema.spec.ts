@@ -20,6 +20,6 @@ describe('creativeAnalysisSchema bilingual result', () => {
     });
 
     expect(parsed.zhTw.summary).toBe('繁體中文摘要');
-    expect(PROMPT_VERSION).toBe('analyze-creative@v2');
+    expect(PROMPT_VERSION).toBe('analyze-creative@v3');
   });
 });

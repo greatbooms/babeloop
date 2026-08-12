@@ -40,6 +40,15 @@ export class TranscriptionModel {
 }
 
 @ObjectType()
+export class VisualDescriptionModel {
+  @Field(() => ID) id: string;
+  @Field() text: string;
+  @Field() provider: string;
+  @Field() model: string;
+  @Field() promptVersion: string;
+}
+
+@ObjectType()
 export class MediaAssetModel {
   @Field(() => ID) id: string;
   @Field(() => MediaAssetKind) kind: MediaAssetKind;
@@ -56,6 +65,7 @@ export class MediaAssetModel {
   @Field() createdAt: Date;
   @Field(() => [OcrResultModel]) ocrResults: OcrResultModel[];
   @Field(() => [TranscriptionModel]) transcriptions: TranscriptionModel[];
+  @Field(() => [VisualDescriptionModel]) visualDescriptions: VisualDescriptionModel[];
   @Field(() => [AdRefModel]) linkedSourceAds: AdRefModel[];
   @Field(() => [MediaInsightModel]) insights: MediaInsightModel[];
 }

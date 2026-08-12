@@ -29,3 +29,11 @@
 @media (min-width: 1128px) { .ads-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .ads-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 744px) { .filter-bar, .ads-grid { grid-template-columns: 1fr; } }
+
+
+/* 잡 진행 배너 — 실행 중임을 크게 보여주고 연타를 막는다 */
+.job-banner { display: flex; align-items: center; gap: var(--sp-sm); padding: var(--sp-md) var(--sp-lg); border-radius: var(--r-sm); background: var(--stage-bg, #fff0f3); color: var(--stage-fg, var(--primary-active)); font-weight: 600; }
+.job-banner-spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: job-spin 0.8s linear infinite; flex: none; }
+@keyframes job-spin { to { transform: rotate(360deg); } }
+/* 실행 중에는 액션 버튼 영역을 잠근다 */
+.actions-locked { pointer-events: none; opacity: 0.45; filter: saturate(0.6); }

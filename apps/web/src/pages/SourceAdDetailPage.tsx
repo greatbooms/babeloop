@@ -18,7 +18,7 @@ const SourceAdDocument = graphql(`
     sourceAd(id: $id) {
       id status title adText origin sourceUrl networks countries firstSeenAt lastSeenAt provider confidence
       competitor { id name }
-      mediaAsset { id kind mediaUrl ocrResults { id text } transcriptions { id text language } }
+      mediaAsset { id kind mediaUrl ocrResults { id text } transcriptions { id text language } visualDescriptions { id text } }
       latestAnalysis { id summary hookType targetAudience emotionalTriggers genres zhTwJson }
       referencingBriefs { id title }
     }
@@ -112,11 +112,12 @@ export function SourceAdDetailPage() {
     setEditingText(false);
     await refetch();
   }
-  const hasText = Boolean(ad.adText) || (ad.mediaAsset?.ocrResults.length ?? 0) > 0 || (ad.mediaAsset?.transcriptions.length ?? 0) > 0;
+  const hasText = Boolean(ad.adText) || (ad.mediaAsset?.ocrResults.length ?? 0) > 0 || (ad.mediaAsset?.transcriptions.length ?? 0) > 0 || (ad.mediaAsset?.visualDescriptions.length ?? 0) > 0;
   const hasAnalysis = Boolean(ad.latestAnalysis);
   const hasBrief = ad.referencingBriefs.length > 0;
   type AnalysisFields = { summary: string; hookType: string; targetAudience: string[]; emotionalTriggers: string[]; genres: string[] };
   const zhTwAnalysis = ad.latestAnalysis?.zhTwJson ? JSON.parse(ad.latestAnalysis.zhTwJson) as AnalysisFields : null;
+  const jobActive = Boolean(job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED') || ad.status === 'ANALYZING';
   const analysis: AnalysisFields | null = ad.latestAnalysis
     ? (lang === 'zhTw' && zhTwAnalysis ? zhTwAnalysis : ad.latestAnalysis)
     : null;
@@ -125,7 +126,7 @@ export function SourceAdDetailPage() {
       <Link className="back-link" to="/ads">{t('ads.back')}</Link>
       <header className="page-header">
         <div><div className="page-header-title-row"><h1>{ad.title ?? ad.adText ?? ad.id}</h1><StatusBadge status={ad.status} /></div><p>{ad.competitor?.name ?? t('ads.noAdvertiserInfo')}</p></div>
-        <div className="page-header-actions detail-actions">
+        <div className={`page-header-actions detail-actions${jobActive ? ' actions-locked' : ''}`}>
           <div className="action-steps">
           {ad.mediaAsset && (
             <span className="action-step">
@@ -150,14 +151,20 @@ export function SourceAdDetailPage() {
       </header>
       <p className="action-flow-hint">{t('ads.flow')}</p>
       {error && <p className="error" role="alert">{error}</p>}
-      {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>{t('ads.analyzing', { status: job.status })}</p>}
+      {jobActive && (
+        <div className="job-banner" role="status">
+          <span className="job-banner-spinner" aria-hidden="true" />
+          <span>{t('ads.jobBanner', { status: job?.status ?? '' })}</span>
+        </div>
+      )}
+      {job?.status === 'FAILED' && <p className="error" role="alert">{t('ads.jobFailed', { error: job.error ?? '' })}</p>}
       {briefJob && briefJob.status !== 'SUCCEEDED' && briefJob.status !== 'FAILED' && <p>{t('ads.briefGenerating', { status: briefJob.status })}</p>}
       <Card className="card-stack">
         <h2>{t('ads.media')}</h2>
         {mediaUrl && ad.mediaAsset ? <div className="detail-media">{ad.mediaAsset.kind === MediaAssetKind.Video ? <video controls src={mediaUrl} /> : <img src={mediaUrl} alt={ad.title ?? t('ads.originalAlt')} />}<a href={mediaUrl} download>{t('common.originalDownload')}</a></div> : <p className="muted">{t('ads.noMedia')}</p>}
       </Card>
       <Card className="card-stack"><h2>{t('ads.meta')}</h2><dl className="brand-dl"><div><dt>{t('ads.advertiser')}</dt><dd>{ad.competitor?.name ?? t('ads.none')}</dd></div><div><dt>{t('ads.networkCountry')}</dt><dd>{[...ad.networks, ...ad.countries].join(' · ') || t('ads.none')}</dd></div><div><dt>{t('ads.period')}</dt><dd>{ad.firstSeenAt ? formatDate(String(ad.firstSeenAt), lang) : t('ads.noDate')} ~ {ad.lastSeenAt ? formatDate(String(ad.lastSeenAt), lang) : t('ads.noDate')}</dd></div><div><dt>{t('ads.source')}</dt><dd>{ad.origin} · {ad.provider}{ad.sourceUrl && <> · <a href={ad.sourceUrl} target="_blank" rel="noreferrer">{t('ads.originalLink')}</a></>}</dd></div><div><dt>{t('ads.confidence')}</dt><dd>{ad.confidence}</dd></div></dl></Card>
-      <Card className="card-stack"><h2>{t('ads.extractedText')}</h2>{ad.adText && !editingText && <><h3>{t('ads.adCopy')}</h3><p className="long-copy">{ad.adText}</p></>}{ad.mediaAsset?.ocrResults.map((item) => <div key={item.id}><h3>OCR</h3><p className="long-copy">{item.text}</p></div>)}{ad.mediaAsset?.transcriptions.map((item) => <div key={item.id}><h3>{t('ads.transcription')}{item.language ? ` (${item.language})` : ''}</h3><p className="long-copy">{item.text}</p></div>)}{!ad.adText && !editingText && !ad.mediaAsset?.ocrResults.length && !ad.mediaAsset?.transcriptions.length && <p className="muted">{t('ads.noExtractedText')}</p>}
+      <Card className="card-stack"><h2>{t('ads.extractedText')}</h2>{ad.adText && !editingText && <><h3>{t('ads.adCopy')}</h3><p className="long-copy">{ad.adText}</p></>}{ad.mediaAsset?.ocrResults.map((item) => <div key={item.id}><h3>OCR</h3><p className="long-copy">{item.text}</p></div>)}{ad.mediaAsset?.transcriptions.map((item) => <div key={item.id}><h3>{t('ads.transcription')}{item.language ? ` (${item.language})` : ''}</h3><p className="long-copy">{item.text}</p></div>)}{ad.mediaAsset?.visualDescriptions.map((item) => <div key={item.id}><h3>{t('ads.visualDescription')}</h3><p className="long-copy">{item.text}</p></div>)}{!ad.adText && !editingText && !ad.mediaAsset?.ocrResults.length && !ad.mediaAsset?.transcriptions.length && !ad.mediaAsset?.visualDescriptions.length && <p className="muted">{t('ads.noExtractedText')}</p>}
         {editingText ? (
           <div className="page-form">
             <textarea value={adTextDraft} placeholder={t('ads.adCopyPlaceholder')} onChange={(event) => setAdTextDraft(event.target.value)} rows={4} />

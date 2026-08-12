@@ -111,12 +111,20 @@ describe('MediaService relationships', () => {
 describe('MediaService.analyzeMediaAsset', () => {
   function serviceFor(asset: unknown) {
     const prisma = { mediaAsset: { findUnique: jest.fn().mockResolvedValue(asset) } };
-    return new MediaService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+    const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+    return new MediaService(prisma as never, {} as never, jobRecord as never, {} as never, {} as never, {} as never, {} as never);
   }
-  it('텍스트가 없으면 TEXT_NOT_EXTRACTED로 거부한다', async () => {
-    await expect(serviceFor({ id: 'm1', origin: 'MANUAL', ocrResults: [], transcriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({ extensions: { code: 'TEXT_NOT_EXTRACTED' } });
+  it('추출 재료가 없으면 TEXT_NOT_EXTRACTED로 거부한다', async () => {
+    await expect(serviceFor({ id: 'm1', origin: 'MANUAL', ocrResults: [], transcriptions: [], visualDescriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({
+      message: '분석할 재료가 없습니다 — 문구 입력 또는 텍스트 추출(비주얼 묘사 포함)이 필요합니다',
+      extensions: { code: 'TEXT_NOT_EXTRACTED' },
+    });
   });
   it('AD_IMPORT 자산은 MEDIA_NOT_MANUAL로 거부한다', async () => {
-    await expect(serviceFor({ id: 'm1', origin: 'AD_IMPORT', ocrResults: [{ text: 'x' }], transcriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({ extensions: { code: 'MEDIA_NOT_MANUAL' } });
+    await expect(serviceFor({ id: 'm1', origin: 'AD_IMPORT', ocrResults: [{ text: 'x' }], transcriptions: [], visualDescriptions: [] }).analyzeMediaAsset('m1')).rejects.toMatchObject({ extensions: { code: 'MEDIA_NOT_MANUAL' } });
+  });
+
+  it('비주얼 묘사만 있어도 분석을 등록한다', async () => {
+    await expect(serviceFor({ id: 'm1', origin: 'MANUAL', ocrResults: [], transcriptions: [], visualDescriptions: [{ text: '장면 묘사' }] }).analyzeMediaAsset('m1')).resolves.toEqual({ id: 'job-1' });
   });
 });

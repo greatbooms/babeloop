@@ -94,9 +94,11 @@ describe('media pipeline', () => {
     const jobRow = await prisma.job.findUniqueOrThrow({ where: { id: job.id } });
     expect(jobRow.status).toBe('SUCCEEDED');
 
+    // OCR + 비주얼 묘사 — 추출 1회당 AI 호출 2건이 기록된다
     const aiLogs = await prisma.aiExecutionLog.findMany({ where: { inputRef: `mediaAsset:${mediaAsset.id}` } });
-    expect(aiLogs).toHaveLength(1);
-    expect(aiLogs[0].status).toBe('SUCCESS');
+    expect(aiLogs).toHaveLength(2);
+    expect(aiLogs.every((log) => log.status === 'SUCCESS')).toBe(true);
+    expect(aiLogs.some((log) => log.promptVersion === 'describe-visual@v1')).toBe(true);
   });
 
   it('같은 내용의 파일을 다시 올리면 duplicateOfId가 기존 자산을 가리킨다', async () => {

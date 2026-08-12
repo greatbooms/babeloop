@@ -13,7 +13,7 @@ import { useT } from '../i18n/lang-context';
 import './source-ads.css';
 import './media.css';
 
-const MediaDetailDocument = graphql(`query MediaDetail($id: ID!) { mediaAsset(id: $id) { id status kind originalFilename createdAt mediaUrl thumbnailUrl ocrResults { id text } transcriptions { id text language } insights { id summary hookType targetAudience emotionalTriggers genres zhTwJson provider model promptVersion createdAt } } }`);
+const MediaDetailDocument = graphql(`query MediaDetail($id: ID!) { mediaAsset(id: $id) { id status kind originalFilename createdAt mediaUrl thumbnailUrl ocrResults { id text } transcriptions { id text language } visualDescriptions { id text } insights { id summary hookType targetAudience emotionalTriggers genres zhTwJson provider model promptVersion createdAt } } }`);
 const ProcessMediaDocument = graphql(`mutation DetailProcessMedia($mediaAssetId: ID!) { processMediaAsset(mediaAssetId: $mediaAssetId) { id status } }`);
 const AnalyzeMediaDocument = graphql(`mutation AnalyzeMediaAsset($mediaAssetId: ID!) { analyzeMediaAsset(mediaAssetId: $mediaAssetId) { id status } }`);
 const SimilarMediaAdsDocument = graphql(`query SimilarAdsForMedia($mediaAssetId: ID!, $limit: Int!) { similarAdsForMediaAsset(mediaAssetId: $mediaAssetId, limit: $limit) { similarity sourceAd { id title } } }`);
@@ -48,7 +48,7 @@ export function MediaDetailPage() {
   }
 
   const kindLabel = asset.kind === MediaAssetKind.Video ? t('media.video') : t('media.image');
-  const hasText = asset.ocrResults.length > 0 || asset.transcriptions.length > 0;
+  const hasText = asset.ocrResults.length > 0 || asset.transcriptions.length > 0 || asset.visualDescriptions.length > 0;
   const hasInsight = asset.insights.length > 0;
   return <section className="stage-prep ad-detail">
     <Link className="back-link" to="/media">{t('media.back')}</Link>
@@ -57,7 +57,7 @@ export function MediaDetailPage() {
         <div className="page-header-title-row"><h1>{asset.originalFilename}</h1><StatusBadge status={asset.status} /></div>
         <p>{t('media.detailMeta', { kind: kindLabel, date: formatDate(String(asset.createdAt), lang), count: asset.insights.length })}</p>
       </div>
-      <div className="page-header-actions detail-actions">
+      <div className={`page-header-actions detail-actions${job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed ? ' actions-locked' : ''}`}>
         <div className="action-steps">
         <span className="action-step">
           <span className={`action-step-num${hasText ? ' done' : ''}`} aria-hidden="true">{hasText ? '✓' : '1'}</span>
@@ -75,7 +75,10 @@ export function MediaDetailPage() {
     </header>
     <p className="action-flow-hint">{t('media.flow')}</p>
     {error && <p className="error" role="alert">{error}</p>}
-    {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && <p>{t('common.processing', { status: job.status })}</p>}
+    {job && job.status !== JobStatus.Succeeded && job.status !== JobStatus.Failed && (
+      <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('ads.jobBanner', { status: job.status })}</span></div>
+    )}
+    {job?.status === JobStatus.Failed && <p className="error" role="alert">{t('ads.jobFailed', { error: job.error ?? '' })}</p>}
     {fixedMediaUrl && (
       <Card className="card-stack">
         <h2>{t('media.media')}</h2>
@@ -87,9 +90,10 @@ export function MediaDetailPage() {
     )}
     <Card className="card-stack">
       <h2>{t('media.extractedText')}</h2>
-      {asset.ocrResults.length === 0 && asset.transcriptions.length === 0 && <p className="muted">{t('media.noExtractedText')}</p>}
+      {asset.ocrResults.length === 0 && asset.transcriptions.length === 0 && asset.visualDescriptions.length === 0 && <p className="muted">{t('media.noExtractedText')}</p>}
       {asset.ocrResults.map((item) => <div key={item.id}><h3>OCR</h3><p className="long-copy">{item.text}</p></div>)}
       {asset.transcriptions.map((item) => <div key={item.id}><h3>{t('media.transcription')}{item.language ? ` (${item.language})` : ''}</h3><p className="long-copy">{item.text}</p></div>)}
+      {asset.visualDescriptions.map((item) => <div key={item.id}><h3>{t('media.visualDescription')}</h3><p className="long-copy">{item.text}</p></div>)}
     </Card>
     <Card className="card-stack">
       <h2>{t('media.insights')}</h2>

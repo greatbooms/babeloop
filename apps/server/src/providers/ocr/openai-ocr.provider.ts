@@ -1,8 +1,18 @@
-import { OcrInput, OcrOutput, OcrProvider } from './ocr.provider';
+import {
+  OcrInput,
+  OcrOutput,
+  OcrProvider,
+  VisualDescriptionInput,
+  VisualDescriptionOutput,
+} from './ocr.provider';
 
 const OCR_SYSTEM = `이미지에 보이는 모든 텍스트를 추출하라. 광고 이미지라면 훅 문구·자막·버튼 텍스트를 빠짐없이 포함하라.
 반드시 아래 JSON 구조로만 응답하라:
 {"text": "추출한 전체 텍스트 (줄바꿈 유지)"}`;
+
+const VISUAL_DESCRIPTION_SYSTEM = `이 광고 이미지를 마케팅 분석용으로 묘사하라: 장면·등장 캐릭터(외형·스타일)·아트 스타일·색감·구도·비주얼 훅(시선을 끄는 요소)·전달하는 분위기. 한국어 4~6문장.
+반드시 아래 JSON 구조로만 응답하라:
+{"text": "광고 이미지의 비주얼 묘사"}`;
 
 export interface OpenAIOcrClient {
   chat: {
@@ -39,11 +49,19 @@ export class OpenAIOcrProvider implements OcrProvider {
   }
 
   async extractText(input: OcrInput): Promise<OcrOutput> {
+    return this.requestText(OCR_SYSTEM, input);
+  }
+
+  async describe(input: VisualDescriptionInput): Promise<VisualDescriptionOutput> {
+    return this.requestText(VISUAL_DESCRIPTION_SYSTEM, input);
+  }
+
+  private async requestText(system: string, input: VisualDescriptionInput): Promise<OcrOutput> {
     const dataUrl = `data:${input.contentType};base64,${input.buffer.toString('base64')}`;
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
-        { role: 'system', content: OCR_SYSTEM },
+        { role: 'system', content: system },
         { role: 'user', content: [{ type: 'image_url', image_url: { url: dataUrl } }] },
       ],
       response_format: { type: 'json_object' },

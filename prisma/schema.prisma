@@ -144,6 +144,7 @@ model MediaAsset {
   updatedAt        DateTime              @updatedAt
   ocrResults       OcrResult[]
   transcriptions   Transcription[]
+  visualDescriptions VisualDescription[]
   sourceAds        SourceAd[]
   insights         MediaInsight[]
   embeddings       MediaAssetEmbedding[]
@@ -210,6 +211,20 @@ model Transcription {
   createdAt    DateTime   @default(now())
 
   @@map("transcriptions")
+}
+
+model VisualDescription {
+  id            String     @id @default(cuid())
+  mediaAssetId  String
+  mediaAsset    MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  text          String
+  provider      String
+  model         String
+  promptVersion String
+  createdAt     DateTime   @default(now())
+
+  @@index([mediaAssetId])
+  @@map("visual_descriptions")
 }
 
 enum JobStatus {

@@ -18,6 +18,7 @@ import './source-ads.css';
 
 const PAGE_SIZE = 24;
 
+const SourceAdCountriesDocument = graphql(`query SourceAdCountries { sourceAdCountries }`);
 const SourceAdsPageDocument = graphql(`
   query SourceAdsPage($input: SourceAdFilterInput!) {
     sourceAdsPage(input: $input) {
@@ -48,15 +49,17 @@ export function SourceAdsPage() {
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState<SourceAdStatus | ''>('');
   const [kind, setKind] = useState<MediaAssetKind | ''>('');
+  const [country, setCountry] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   // 분석→임베딩 체인이 잡 폴링 종료 후에도 상태를 바꾸므로 목록을 폴링하되,
   // 진행 중(잡 활성·ANALYZING 항목)일 때만 3초, 평상시엔 30초로 줄인다 (원격 접속 트래픽 절감)
   const [pollFast, setPollFast] = useState(false);
   const { data, refetch } = useQuery(SourceAdsPageDocument, {
-    variables: { input: { offset, limit: PAGE_SIZE, status: status || undefined, kind: kind || undefined, search: search || undefined } },
+    variables: { input: { offset, limit: PAGE_SIZE, status: status || undefined, kind: kind || undefined, search: search || undefined, country: country || undefined } },
     pollInterval: pollFast ? 3000 : 30_000,
   });
+  const { data: countriesData } = useQuery(SourceAdCountriesDocument);
   const [createSourceAd] = useMutation(CreateSourceAdDocument);
   const [importCsv] = useMutation(ImportCsvDocument);
   const [title, setTitle] = useState('');
@@ -125,6 +128,7 @@ export function SourceAdsPage() {
           <div className="filter-bar">
             <FormField label={t('ads.status')} htmlFor="ad-status"><select id="ad-status" value={status} onChange={(event) => { setOffset(0); setStatus(event.target.value as SourceAdStatus | ''); }}><option value="">{t('ads.all')}</option>{Object.values(SourceAdStatus).map((value) => <option key={value} value={value}>{STATUS_LABELS[value]?.[lang] ?? value}</option>)}</select></FormField>
             <FormField label={t('ads.kind')} htmlFor="ad-kind"><select id="ad-kind" value={kind} onChange={(event) => { setOffset(0); setKind(event.target.value as MediaAssetKind | ''); }}><option value="">{t('ads.all')}</option><option value={MediaAssetKind.Image}>{t('ads.image')}</option><option value={MediaAssetKind.Video}>{t('ads.video')}</option></select></FormField>
+            <FormField label={t('ads.country')} htmlFor="ad-country"><select id="ad-country" value={country} onChange={(event) => { setOffset(0); setCountry(event.target.value); }}><option value="">{t('ads.all')}</option>{(countriesData?.sourceAdCountries ?? []).map((code) => <option key={code} value={code}>{code}</option>)}</select></FormField>
             <FormField label={t('ads.search')} htmlFor="ad-search"><input id="ad-search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
             <p className="result-count">{total === 0 ? t('ads.zeroCount') : t('ads.resultCount', { total, start: offset + 1, end })}</p>
           </div>

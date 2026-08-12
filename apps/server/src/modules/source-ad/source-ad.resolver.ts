@@ -48,6 +48,11 @@ export class SourceAdResolver {
     return this.sourceAdService.findById(id);
   }
 
+  @Query(() => [String])
+  sourceAdCountries() {
+    return this.sourceAdService.listCountries();
+  }
+
   @Query(() => [SimilarSourceAdModel])
   similarSourceAds(@Args('input') input: SimilarSourceAdsInput) {
     return this.sourceAdService.findSimilar(input.sourceAdId, input.limit ?? 5);

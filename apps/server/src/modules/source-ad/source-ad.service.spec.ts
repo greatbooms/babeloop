@@ -79,12 +79,13 @@ describe('SourceAdService.analyze 텍스트 가드', () => {
     return { service, jobRecord };
   }
 
-  it('adText도 OCR·전사도 없으면 잡을 태우지 않고 TEXT_NOT_EXTRACTED로 거절한다', async () => {
+  it('adText·OCR·전사·비주얼 묘사가 모두 없으면 잡을 태우지 않고 TEXT_NOT_EXTRACTED로 거절한다', async () => {
     const { service, jobRecord } = serviceWith({
       adText: null,
-      mediaAsset: { _count: { ocrResults: 0, transcriptions: 0 } },
+      mediaAsset: { _count: { ocrResults: 0, transcriptions: 0, visualDescriptions: 0 } },
     });
     await expect(service.analyze('ad-1')).rejects.toMatchObject({
+      message: '분석할 재료가 없습니다 — 문구 입력 또는 텍스트 추출(비주얼 묘사 포함)이 필요합니다',
       extensions: { code: 'TEXT_NOT_EXTRACTED' },
     });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
@@ -93,8 +94,18 @@ describe('SourceAdService.analyze 텍스트 가드', () => {
   it('OCR 결과가 있으면 enqueueOrRetry 경로로 분석을 등록한다 (실패 잡 재시도 포함)', async () => {
     const { service, jobRecord } = serviceWith({
       adText: null,
-      mediaAsset: { _count: { ocrResults: 1, transcriptions: 0 } },
+      mediaAsset: { _count: { ocrResults: 1, transcriptions: 0, visualDescriptions: 0 } },
     });
+    await expect(service.analyze('ad-1')).resolves.toEqual({ id: 'job-1' });
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('비주얼 묘사만 있어도 enqueueOrRetry 경로로 분석을 등록한다', async () => {
+    const { service, jobRecord } = serviceWith({
+      adText: null,
+      mediaAsset: { _count: { ocrResults: 0, transcriptions: 0, visualDescriptions: 1 } },
+    });
+
     await expect(service.analyze('ad-1')).resolves.toEqual({ id: 'job-1' });
     expect(jobRecord.enqueueOrRetry).toHaveBeenCalledTimes(1);
   });

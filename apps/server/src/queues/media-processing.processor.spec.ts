@@ -55,7 +55,7 @@ describe('MediaProcessingProcessor GENERATE_THUMBNAIL', () => {
 });
 
 describe('MediaProcessingProcessor PROCESS_MEDIA 재추출', () => {
-  it('이미지 재추출 시 기존 OCR 결과를 지우고 새 결과로 교체한다', async () => {
+  it('이미지 재추출 시 OCR과 비주얼 묘사를 한 트랜잭션에서 새 결과로 교체한다', async () => {
     const prisma = {
       mediaAsset: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({
@@ -68,15 +68,24 @@ describe('MediaProcessingProcessor PROCESS_MEDIA 재추출', () => {
         update: jest.fn().mockResolvedValue({}),
       },
       ocrResult: {
-        deleteMany: jest.fn().mockReturnValue('del'),
-        create: jest.fn().mockReturnValue('crt'),
+        deleteMany: jest.fn().mockReturnValue('ocr-del'),
+        create: jest.fn().mockReturnValue('ocr-crt'),
+      },
+      visualDescription: {
+        deleteMany: jest.fn().mockReturnValue('visual-del'),
+        create: jest.fn().mockReturnValue('visual-crt'),
       },
       $transaction: jest.fn().mockResolvedValue([]),
     };
     const storage = { getBuffer: jest.fn().mockResolvedValue(Buffer.from('png')) };
     const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
     const aiLog = { record: jest.fn(async (_meta: unknown, fn: () => Promise<unknown>) => fn()) };
-    const ocr = { extractText: jest.fn().mockResolvedValue({ text: '새 텍스트' }), name: 'ocr', model: 'ocr-1' };
+    const ocr = {
+      extractText: jest.fn().mockResolvedValue({ text: '새 텍스트' }),
+      describe: jest.fn().mockResolvedValue({ text: '[MOCK 비주얼] 광고 이미지 묘사', costEstimateUsd: 0.01 }),
+      name: 'ocr',
+      model: 'ocr-1',
+    };
     const processor = new MediaProcessingProcessor(
       prisma as never,
       storage as never,
@@ -98,6 +107,17 @@ describe('MediaProcessingProcessor PROCESS_MEDIA 재추출', () => {
     expect(prisma.ocrResult.create).toHaveBeenCalledWith({
       data: { mediaAssetId: 'image-1', text: '새 텍스트', provider: 'ocr', model: 'ocr-1' },
     });
-    expect(prisma.$transaction).toHaveBeenCalledWith(['del', 'crt']);
+    expect(prisma.visualDescription.deleteMany).toHaveBeenCalledWith({ where: { mediaAssetId: 'image-1' } });
+    expect(prisma.visualDescription.create).toHaveBeenCalledWith({
+      data: {
+        mediaAssetId: 'image-1',
+        text: '[MOCK 비주얼] 광고 이미지 묘사',
+        provider: 'ocr',
+        model: 'ocr-1',
+        promptVersion: 'describe-visual@v1',
+      },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(['ocr-del', 'ocr-crt', 'visual-del', 'visual-crt']);
+    expect(aiLog.record).toHaveBeenCalledTimes(2);
   });
 });

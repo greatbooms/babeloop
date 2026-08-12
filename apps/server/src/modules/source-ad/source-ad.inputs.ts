@@ -9,6 +9,7 @@ export class SourceAdFilterInput {
   @Field(() => MediaAssetKind, { nullable: true }) kind?: MediaAssetKind;
   @Field(() => ID, { nullable: true }) competitorId?: string;
   @Field(() => String, { nullable: true }) search?: string;
+  @Field(() => String, { nullable: true }) country?: string;
 }
 
 @InputType()

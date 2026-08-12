@@ -73,7 +73,7 @@ describe('analysis pipeline', () => {
     const analyses = await prisma.creativeAnalysis.findMany({ where: { sourceAdId: { in: ids } } });
     expect(analyses).toHaveLength(3);
     expect(analyses.every((analysis) => analysis.provider === 'mock')).toBe(true);
-    expect(analyses.every((analysis) => analysis.promptVersion === 'analyze-creative@v2')).toBe(true);
+    expect(analyses.every((analysis) => analysis.promptVersion === 'analyze-creative@v3')).toBe(true);
 
     const logs = await prisma.aiExecutionLog.findMany({
       where: { inputRef: { in: ids.map((id) => `sourceAd:${id}`) } },

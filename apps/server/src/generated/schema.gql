@@ -473,6 +473,7 @@ type MediaAssetModel {
   thumbnailKey: String
   thumbnailUrl: String
   transcriptions: [TranscriptionModel!]!
+  visualDescriptions: [VisualDescriptionModel!]!
 }
 
 enum MediaAssetOrigin {
@@ -635,6 +636,7 @@ type Query {
   similarAdsForMediaAsset(limit: Int! = 5, mediaAssetId: ID!): [SimilarSourceAdModel!]!
   similarSourceAds(input: SimilarSourceAdsInput!): [SimilarSourceAdModel!]!
   sourceAd(id: ID!): SourceAdModel!
+  sourceAdCountries: [String!]!
   sourceAds: [SourceAdModel!]!
   sourceAdsPage(input: SourceAdFilterInput!): SourceAdPage!
   variantPerformance(experimentId: ID!): [VariantPerformanceModel!]!
@@ -698,6 +700,7 @@ input SimilarSourceAdsInput {
 
 input SourceAdFilterInput {
   competitorId: ID
+  country: String
   kind: MediaAssetKind
   limit: Int! = 24
   offset: Int! = 0
@@ -817,4 +820,12 @@ type VariantPerformanceModel {
   status: CreativeStatus!
   trackingCode: String!
   variantCode: String!
+}
+
+type VisualDescriptionModel {
+  id: ID!
+  model: String!
+  promptVersion: String!
+  provider: String!
+  text: String!
 }

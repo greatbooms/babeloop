@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const PROMPT_VERSION = 'analyze-creative@v2';
+export const PROMPT_VERSION = 'analyze-creative@v3';
 
 export const CREATIVE_ANALYSIS_SYSTEM = `너는 광고 크리에이티브 분석가다. 주어진 광고 텍스트를 분석한다.
 최상위 필드는 한국어로 작성하고, zhTw 객체는 대만 번체중문으로 작성한다.

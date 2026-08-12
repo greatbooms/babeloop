@@ -21,6 +21,7 @@ import { CompleteMediaUploadInput, RequestMediaUploadInput } from './media.input
 const MEDIA_INCLUDE = {
   ocrResults: true,
   transcriptions: true,
+  visualDescriptions: true,
   sourceAds: { select: { id: true, title: true } },
   insights: { orderBy: { createdAt: 'desc' as const } },
 } as const;
@@ -123,10 +124,12 @@ export class MediaService {
   }
 
   async analyzeMediaAsset(mediaAssetId: string) {
-    const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId }, include: { ocrResults: true, transcriptions: true } });
+    const asset = await this.prisma.mediaAsset.findUnique({ where: { id: mediaAssetId }, include: { ocrResults: true, transcriptions: true, visualDescriptions: true } });
     if (!asset) throw new NotFoundException('미디어 자산을 찾을 수 없습니다');
     if (asset.origin !== 'MANUAL') throw new GraphQLError('광고 미디어는 광고 탭의 분석을 사용하세요', { extensions: { code: 'MEDIA_NOT_MANUAL' } });
-    if (![...asset.ocrResults, ...asset.transcriptions].some((item) => item.text.trim())) throw new GraphQLError('먼저 미디어 텍스트 추출을 실행해주세요', { extensions: { code: 'TEXT_NOT_EXTRACTED' } });
+    if (![...asset.ocrResults, ...asset.transcriptions, ...asset.visualDescriptions].some((item) => item.text.trim())) {
+      throw new GraphQLError('분석할 재료가 없습니다 — 문구 입력 또는 텍스트 추출(비주얼 묘사 포함)이 필요합니다', { extensions: { code: 'TEXT_NOT_EXTRACTED' } });
+    }
     const payload = { mediaAssetId };
     const jobId = `analyze-media--${mediaAssetId}`;
     return this.jobRecord.enqueueOrRetry(this.analysisQueue, 'creative-analysis', JOB_TYPES.ANALYZE_MEDIA, jobId, payload);

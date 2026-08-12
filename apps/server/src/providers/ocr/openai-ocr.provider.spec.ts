@@ -31,6 +31,22 @@ describe('OpenAIOcrProvider', () => {
     });
   });
 
+  it('비주얼 묘사 프롬프트와 base64 image_url로 요청한다', async () => {
+    const create = jest.fn().mockResolvedValue({ choices: [{ message: { content: '{"text":"장면 묘사"}' } }] });
+    const provider = new OpenAIOcrProvider(fakeClient(create));
+
+    await provider.describe({ buffer: Buffer.from('visual'), contentType: 'image/jpeg' });
+
+    expect(create).toHaveBeenCalledWith({
+      model: 'gpt-vision-test',
+      messages: [
+        { role: 'system', content: expect.stringContaining('한국어 4~6문장') },
+        { role: 'user', content: [{ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${Buffer.from('visual').toString('base64')}` } }] },
+      ],
+      response_format: { type: 'json_object' },
+    });
+  });
+
   it('JSON 응답의 text와 usage를 매핑한다', async () => {
     const create = jest.fn().mockResolvedValue({
       choices: [{ message: { content: '{"text":"첫 줄\\n둘째 줄"}' } }],

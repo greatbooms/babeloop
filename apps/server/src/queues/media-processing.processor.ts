@@ -7,10 +7,15 @@ import { AiExecutionLogService } from '../modules/ai-log/ai-execution-log.servic
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { downloadExternal } from '../common/security/external-url.guard';
-import { OCR_PROVIDER, OcrProvider } from '../providers/ocr/ocr.provider';
+import {
+  OCR_PROVIDER,
+  OcrProvider,
+  VISUAL_DESCRIPTION_PROMPT_VERSION,
+  VisualDescriptionOutput,
+} from '../providers/ocr/ocr.provider';
 import { STT_PROVIDER, SttProvider } from '../providers/stt/stt.provider';
 import { JOB_TYPES, MEDIA_PROCESSING_QUEUE } from './queue.constants';
-import { extractVideoThumbnail } from '../common/media/video-thumbnail';
+import { extractVideoThumbnail, hasAudioStream } from '../common/media/video-thumbnail';
 
 @Processor(MEDIA_PROCESSING_QUEUE)
 export class MediaProcessingProcessor extends WorkerHost {
@@ -56,6 +61,28 @@ export class MediaProcessingProcessor extends WorkerHost {
     }
   }
 
+  private async describeVisual(
+    buffer: Buffer,
+    contentType: string,
+    inputRef: string,
+  ): Promise<VisualDescriptionOutput> {
+    const meta: AiExecutionMeta = {
+      provider: this.ocr.name,
+      model: this.ocr.model,
+      promptVersion: VISUAL_DESCRIPTION_PROMPT_VERSION,
+      inputRef,
+    };
+    return this.aiLog.record(meta, async () => {
+      const result = await this.ocr.describe({ buffer, contentType });
+      Object.assign(meta, {
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        costEstimateUsd: result.costEstimateUsd,
+      });
+      return result;
+    });
+  }
+
   private async processMedia(job: BullJob<{ mediaAssetId: string }>): Promise<void> {
     const jobId = job.id!;
     await this.jobRecord.markRunning(jobId);
@@ -81,31 +108,64 @@ export class MediaProcessingProcessor extends WorkerHost {
             return result;
           },
         );
+        const visual = await this.describeVisual(buffer, asset.contentType, inputRef);
         // 재추출은 교체다 — 파생 데이터를 쌓으면 화면에 같은 내용이 중복된다 (호출 이력은 AI 실행 로그가 보관)
         await this.prisma.$transaction([
           this.prisma.ocrResult.deleteMany({ where: { mediaAssetId: asset.id } }),
           this.prisma.ocrResult.create({
             data: { mediaAssetId: asset.id, text: out.text, provider: this.ocr.name, model: this.ocr.model },
           }),
-        ]);
-      } else {
-        const out = await this.aiLog.record(
-          { provider: this.stt.name, model: this.stt.model, inputRef },
-          () => this.stt.transcribe({ buffer, contentType: asset.contentType, filename: asset.originalFilename }),
-        );
-        await this.prisma.$transaction([
-          this.prisma.transcription.deleteMany({ where: { mediaAssetId: asset.id } }),
-          this.prisma.transcription.create({
-            data: { mediaAssetId: asset.id, text: out.text, language: out.language, provider: this.stt.name, model: this.stt.model },
+          this.prisma.visualDescription.deleteMany({ where: { mediaAssetId: asset.id } }),
+          this.prisma.visualDescription.create({
+            data: {
+              mediaAssetId: asset.id,
+              text: visual.text,
+              provider: this.ocr.name,
+              model: this.ocr.model,
+              promptVersion: VISUAL_DESCRIPTION_PROMPT_VERSION,
+            },
           }),
         ]);
-        if (!asset.thumbnailKey) {
+      } else {
+        // 무음 영상(오디오 트랙 없음)은 Whisper가 400으로 거절한다 — 전사를 건너뛰고 비주얼 묘사로 분석 재료를 만든다
+        const audible = await hasAudioStream(buffer).catch(() => true);
+        const out = audible
+          ? await this.aiLog.record(
+              { provider: this.stt.name, model: this.stt.model, inputRef },
+              () => this.stt.transcribe({ buffer, contentType: asset.contentType, filename: asset.originalFilename }),
+            )
+          : null;
+        let thumbnailKey = asset.thumbnailKey;
+        if (!thumbnailKey) {
           try {
-            await this.createAndStoreThumbnail(asset);
+            thumbnailKey = await this.createAndStoreThumbnail(asset);
           } catch {
-            // 썸네일은 부가물이다. 텍스트 추출 성공 여부에는 영향을 주지 않는다.
+            // 썸네일은 부가물이다. 생성할 수 없으면 전사만 교체하고 기존 비주얼 묘사는 제거한다.
           }
         }
+        const visual = thumbnailKey
+          ? await this.describeVisual(await this.storage.getBuffer(thumbnailKey), 'image/jpeg', inputRef)
+          : null;
+        await this.prisma.$transaction([
+          this.prisma.transcription.deleteMany({ where: { mediaAssetId: asset.id } }),
+          ...(out
+            ? [this.prisma.transcription.create({
+                data: { mediaAssetId: asset.id, text: out.text, language: out.language, provider: this.stt.name, model: this.stt.model },
+              })]
+            : []),
+          this.prisma.visualDescription.deleteMany({ where: { mediaAssetId: asset.id } }),
+          ...(visual
+            ? [this.prisma.visualDescription.create({
+                data: {
+                  mediaAssetId: asset.id,
+                  text: visual.text,
+                  provider: this.ocr.name,
+                  model: this.ocr.model,
+                  promptVersion: VISUAL_DESCRIPTION_PROMPT_VERSION,
+                },
+              })]
+            : []),
+        ]);
       }
 
       await this.prisma.mediaAsset.update({ where: { id: asset.id }, data: { status: 'READY' } });

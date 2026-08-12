@@ -21,7 +21,7 @@ import { CreateSourceAdInput, SourceAdFilterInput } from './source-ad.inputs';
 
 export const SOURCE_AD_INCLUDE = {
   competitor: true,
-  mediaAsset: { include: { ocrResults: true, transcriptions: true } },
+  mediaAsset: { include: { ocrResults: true, transcriptions: true, visualDescriptions: true } },
   analyses: { orderBy: { createdAt: 'desc' as const }, take: 1 },
 } as const;
 
@@ -140,17 +140,18 @@ export class SourceAdService {
       where: { id: sourceAdId },
       select: {
         adText: true,
-        mediaAsset: { select: { _count: { select: { ocrResults: true, transcriptions: true } } } },
+        mediaAsset: { select: { _count: { select: { ocrResults: true, transcriptions: true, visualDescriptions: true } } } },
       },
     });
     if (!ad) throw new NotFoundException('광고를 찾을 수 없습니다');
     const hasText =
       Boolean(ad.adText) ||
       (ad.mediaAsset?._count.ocrResults ?? 0) > 0 ||
-      (ad.mediaAsset?._count.transcriptions ?? 0) > 0;
+      (ad.mediaAsset?._count.transcriptions ?? 0) > 0 ||
+      (ad.mediaAsset?._count.visualDescriptions ?? 0) > 0;
     if (!hasText) {
       // 재료 없이 잡을 태우면 뒤늦게 FAILED 상태만 남는다 — 미디어 인사이트와 동일하게 즉시 안내로 거절
-      throw new GraphQLError('분석할 텍스트가 없습니다 — 먼저 「미디어 텍스트 추출」을 실행해주세요', {
+      throw new GraphQLError('분석할 재료가 없습니다 — 문구 입력 또는 텍스트 추출(비주얼 묘사 포함)이 필요합니다', {
         extensions: { code: 'TEXT_NOT_EXTRACTED' },
       });
     }
@@ -182,6 +183,13 @@ export class SourceAdService {
     return ads.map((ad) => this.mapSourceAd(ad));
   }
 
+  // 필터 셀렉트 옵션용 — 수집된 광고들의 국가 코드 목록
+  async listCountries(): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ country: string }>>`
+      SELECT DISTINCT unnest(countries) AS country FROM source_ads ORDER BY 1`;
+    return rows.map((row) => row.country).filter(Boolean);
+  }
+
   async findPage(input: SourceAdFilterInput) {
     const offset = Math.max(0, input.offset ?? 0);
     const limit = Math.min(100, Math.max(1, input.limit ?? 24));
@@ -190,6 +198,7 @@ export class SourceAdService {
       status: input.status,
       competitorId: input.competitorId,
       mediaAsset: input.kind ? { kind: input.kind } : undefined,
+      countries: input.country ? { has: input.country } : undefined,
       OR: search
         ? [
             { title: { contains: search, mode: 'insensitive' } },
