@@ -74,9 +74,12 @@ export class JobRecordService {
       await existing.retry();
       return this.requeue(jobId);
     }
+    // 워커가 add 직후 ms 단위로 잡을 집어가므로 DB 행을 먼저 만들어야 markRunning이 레코드를 찾는다
+    // (실측: attempts 1 잡이 9ms 만에 'No record was found for an update'로 죽음 — attempts 3의 백오프 재시도가 가리던 레이스)
+    const record = await this.enqueue(jobId, queueName, jobName, payload);
     if (!existing) {
       await queue.add(jobName, payload, { jobId, ...DEFAULT_JOB_OPTS, ...opts });
     }
-    return this.enqueue(jobId, queueName, jobName, payload);
+    return record;
   }
 }
