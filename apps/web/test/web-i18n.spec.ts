@@ -56,3 +56,30 @@ test('provides independent Korean and Traditional Chinese copy for every Snowfla
     assert.notEqual(zhTw, ko);
   }
 });
+
+test('provides Korean and Traditional Chinese copy for every image size control', () => {
+  const keys = [
+    'review.imageSizePreset',
+    'review.imageSizePresetHint',
+    'review.imageSizeSquare1200x1200',
+    'review.imageSizeLandscape600x500',
+    'review.imageSizePortrait960x1200',
+    'review.imageSizePortrait300x500',
+    'review.imageSizeLandscape1200x628',
+    'review.imageSizeBanner600x200',
+    'review.imageSizeBanner908x226',
+  ];
+
+  for (const key of keys) {
+    const ko = getMessage(messages, 'ko', key);
+    const zhTw = getMessage(messages, 'zhTw', key);
+    assert.notEqual(ko, key);
+    assert.notEqual(zhTw, key);
+    assert.notEqual(zhTw, ko);
+  }
+
+  assert.equal(
+    getMessage(messages, 'ko', 'review.imageSizePresetHint'),
+    '배너형(3:1·4:1)은 상하 크롭 폭이 커서 완성도가 떨어질 수 있습니다',
+  );
+});

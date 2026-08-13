@@ -1,5 +1,13 @@
 import { CreativeGenerationProcessor } from './creative-generation.processor';
 import { JOB_TYPES } from './queue.constants';
+import { resizeImageToSpec } from '../common/media/image-resize';
+
+jest.mock('../common/media/image-resize', () => ({ resizeImageToSpec: jest.fn() }));
+
+const VALID_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
 
 describe('CreativeGenerationProcessor brand translation', () => {
   it('원문 언어와 무관하게 한국어·번체중문 두 벌을 저장한다 (translate-brand@v2)', async () => {
@@ -37,8 +45,12 @@ describe('CreativeGenerationProcessor brand translation', () => {
 });
 
 describe('CreativeGenerationProcessor image generation', () => {
+  beforeEach(() => {
+    jest.mocked(resizeImageToSpec).mockReset().mockResolvedValue(VALID_PNG);
+  });
+
   it('참고 버퍼를 mock 이미지 provider에 전달하고 키와 비용을 저장한다', async () => {
-    const png = Buffer.from('mock-png');
+    const png = VALID_PNG;
     const creativeFixture = {
       id: 'creative-copy-1',
       koreanText: '오늘 밤, 내 이야기에 빠져봐',
@@ -109,6 +121,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         count: 2,
         quality: 'low',
+        sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
       },
       attemptsMade: 0,
@@ -117,10 +130,11 @@ describe('CreativeGenerationProcessor image generation', () => {
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
+        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 출력 규격: 1200x628 \(1\.91:1\)[\s\S]*가로형 구도[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
       ),
       count: 2,
       quality: 'low',
+      size: '1536x1024',
       referenceImages: [
         { buffer: referenceJpeg, contentType: 'image/jpeg' },
         { buffer: referencePng, contentType: 'image/png' },
@@ -129,6 +143,8 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(storage.getBuffer).toHaveBeenNthCalledWith(1, 'generated-images/ref-1.jpg');
     expect(storage.getBuffer).toHaveBeenNthCalledWith(2, 'media/ref-2.png');
     expect(storage.putBuffer).toHaveBeenCalledTimes(2);
+    expect(resizeImageToSpec).toHaveBeenCalledTimes(2);
+    expect(resizeImageToSpec).toHaveBeenCalledWith(png, 1200, 628);
     expect(storage.putBuffer).toHaveBeenCalledWith(
       expect.stringMatching(/^generated-images\/brief-1\/[0-9a-f-]+\.png$/),
       png,
@@ -142,7 +158,8 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v2',
+        promptVersion: 'generate-copy-images@v3',
+        sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
         costEstimateUsd: 0.04,
       }),
@@ -151,7 +168,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v2',
+        promptVersion: 'generate-copy-images@v3',
         inputRef: 'creative:creative-copy-1',
         costEstimateUsd: 0.08,
       }),
@@ -189,7 +206,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       name: 'mock',
       model: 'mock-image-1',
       generate: jest.fn().mockResolvedValue({
-        images: [{ buffer: Buffer.from('mock-png'), contentType: 'image/png' }],
+        images: [{ buffer: VALID_PNG, contentType: 'image/png' }],
         costEstimateUsd: 0.04,
       }),
     };
@@ -228,12 +245,14 @@ describe('CreativeGenerationProcessor image generation', () => {
       ),
       count: 1,
       quality: 'low',
+      size: '1024x1024',
     });
     expect(prisma.generatedImage.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         briefId: 'brief-1',
         creativeId: 'creative-copy-1',
-        promptVersion: 'generate-copy-images@v1',
+        promptVersion: 'generate-copy-images@v3',
+        sizePreset: 'square_1200x1200',
       }),
     });
   });

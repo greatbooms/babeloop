@@ -55,6 +55,7 @@ describe('OpenAIImageGenerationProvider', () => {
       prompt: '참고 스타일을 유지한 광고 이미지',
       count: 1,
       quality: 'high',
+      size: '1024x1536',
       referenceImages: [{ buffer: reference, contentType: 'image/jpeg' }],
     });
 
@@ -66,13 +67,41 @@ describe('OpenAIImageGenerationProvider', () => {
       prompt: '참고 스타일을 유지한 광고 이미지',
       n: 1,
       quality: 'high',
-      size: '1024x1024',
+      size: '1024x1536',
       input_fidelity: 'high',
     });
     expect(request.image).toHaveLength(1);
     expect(request.image[0]).toMatchObject({ name: 'ref-1.png', type: 'image/jpeg' });
     expect(Buffer.from(await request.image[0].arrayBuffer())).toEqual(reference);
     expect(result.images).toEqual([{ buffer: png, contentType: 'image/png' }]);
-    expect(result.costEstimateUsd).toBe(0.19);
+    expect(result.costEstimateUsd).toBeCloseTo(0.285);
+  });
+
+  it('비참고 생성에도 가로형 네이티브 크기와 1.5배 비용을 적용한다', async () => {
+    process.env.IMAGE_PRICE_LOW_USD = '0.04';
+    const png = Buffer.from('landscape-png');
+    const generate = jest.fn().mockResolvedValue({
+      data: [{ b64_json: png.toString('base64') }],
+    });
+    const edit = jest.fn();
+    const client = { images: { generate, edit } } as unknown as OpenAIImageGenerationClient;
+    const provider = new OpenAIImageGenerationProvider(client);
+
+    const result = await provider.generate({
+      prompt: '가로형 광고 이미지',
+      count: 1,
+      quality: 'low',
+      size: '1536x1024',
+    });
+
+    expect(generate).toHaveBeenCalledWith({
+      model: 'gpt-image-1',
+      prompt: '가로형 광고 이미지',
+      n: 1,
+      quality: 'low',
+      size: '1536x1024',
+    });
+    expect(edit).not.toHaveBeenCalled();
+    expect(result.costEstimateUsd).toBe(0.06);
   });
 });

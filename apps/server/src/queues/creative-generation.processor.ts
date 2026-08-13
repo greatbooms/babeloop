@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { CreativeType } from '../../generated/prisma';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
+import { resizeImageToSpec } from '../common/media/image-resize';
 import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
@@ -26,6 +27,7 @@ import {
   videoScriptSchema,
   brandTranslationSchema,
 } from '../modules/generation/generation.schemas';
+import { buildSizePromptSection, resolveSizePreset } from '../modules/generation/image-size-presets';
 import { JobRecordService } from '../modules/jobs/job-record.service';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../providers/embedding/embedding.provider';
 import {
@@ -74,6 +76,7 @@ interface GenerateImagesJobData {
   instructions: string;
   count: number;
   quality: 'low' | 'high';
+  sizePreset: string;
   referenceKeys: string[];
 }
 
@@ -251,24 +254,26 @@ export class CreativeGenerationProcessor extends WorkerHost {
         },
       });
       const brief = creative.brief;
+      const sizePreset = resolveSizePreset(job.data.sizePreset);
       const referenceKeys = job.data.referenceKeys ?? [];
       const referenceImages = await this.loadReferenceImages(referenceKeys);
       const prompt = appendReferenceImages(
-        buildImagePrompt({
-          brief,
-          brandName: brief.brand?.name ?? 'BabeChat',
-          brandDescription: brief.brand?.description,
-          creative: {
-            koreanText: creative.koreanText,
-            approvedZhTw: creative.localizations[0]?.text,
-          },
-          instructions: job.data.instructions,
-        }),
+        [
+          buildImagePrompt({
+            brief,
+            brandName: brief.brand?.name ?? 'BabeChat',
+            brandDescription: brief.brand?.description,
+            creative: {
+              koreanText: creative.koreanText,
+              approvedZhTw: creative.localizations[0]?.text,
+            },
+            instructions: job.data.instructions,
+          }),
+          buildSizePromptSection(sizePreset),
+        ].join('\n\n'),
         referenceKeys,
       );
-      const promptVersion = referenceKeys.length
-        ? 'generate-copy-images@v2'
-        : 'generate-copy-images@v1';
+      const promptVersion = 'generate-copy-images@v3';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
@@ -283,6 +288,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           prompt,
           count: job.data.count,
           quality: job.data.quality,
+          size: sizePreset.nativeSize,
           ...(referenceImages.length ? { referenceImages } : {}),
         });
         meta.costEstimateUsd = generated.costEstimateUsd;
@@ -300,19 +306,21 @@ export class CreativeGenerationProcessor extends WorkerHost {
           : generated.costEstimateUsd / generated.images.length;
       for (const image of generated.images) {
         const storageKey = `generated-images/${brief.id}/${randomUUID()}.png`;
-        await this.storage.putBuffer(storageKey, image.buffer, image.contentType);
+        const resized = await resizeImageToSpec(image.buffer, sizePreset.width, sizePreset.height);
+        await this.storage.putBuffer(storageKey, resized, 'image/png');
         const saved = await this.prisma.generatedImage.create({
           data: {
             briefId: brief.id,
             creativeId: creative.id,
             storageKey,
-            contentType: image.contentType,
+            contentType: 'image/png',
             quality: job.data.quality,
             instructions: job.data.instructions,
             prompt,
             provider: this.imageAi.name,
             model: this.imageAi.model,
             promptVersion,
+            sizePreset: sizePreset.id,
             referenceKeys,
             costEstimateUsd: costPerImage,
           },

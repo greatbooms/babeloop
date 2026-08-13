@@ -36,6 +36,8 @@ export class GenerateCreativeImagesInput {
   @Field(() => String, { nullable: true }) instructions?: string;
   @Field(() => Int, { nullable: true, defaultValue: 2 }) count: number;
   @Field(() => String, { nullable: true, defaultValue: 'low' }) quality: string;
+  @Field(() => String, { nullable: true, defaultValue: 'square_1200x1200' })
+  sizePreset?: string;
   @Field(() => [GenerationReferenceInput], { nullable: true })
   references?: GenerationReferenceInput[];
 }

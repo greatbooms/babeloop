@@ -4,6 +4,7 @@ import {
   ImageGenerationInput,
   ImageGenerationOutput,
   ImageGenerationProvider,
+  ImageGenerationSize,
 } from './image-generation.provider';
 
 export interface OpenAIImageGenerationClient {
@@ -13,7 +14,7 @@ export interface OpenAIImageGenerationClient {
       prompt: string;
       n: number;
       quality: 'low' | 'high';
-      size: '1024x1024';
+      size: ImageGenerationSize;
     }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
     edit(input: {
       model: string;
@@ -21,7 +22,7 @@ export interface OpenAIImageGenerationClient {
       prompt: string;
       n: number;
       quality: 'low' | 'high';
-      size: '1024x1024';
+      size: ImageGenerationSize;
       input_fidelity: 'high';
     }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
   };
@@ -46,6 +47,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
   }
 
   async generate(input: ImageGenerationInput): Promise<ImageGenerationOutput> {
+    const size = input.size ?? '1024x1024';
     const response = input.referenceImages?.length
       ? await this.client.images.edit({
           model: this.model,
@@ -57,7 +59,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           prompt: input.prompt,
           n: input.count,
           quality: input.quality,
-          size: '1024x1024',
+          size,
           input_fidelity: 'high',
         })
       : await this.client.images.generate({
@@ -65,7 +67,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           prompt: input.prompt,
           n: input.count,
           quality: input.quality,
-          size: '1024x1024',
+          size,
         });
     const images = (response.data ?? []).map((image, index) => {
       if (!image.b64_json) {
@@ -78,14 +80,15 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
     });
     return {
       images,
-      costEstimateUsd: images.length * this.priceFor(input.quality),
+      costEstimateUsd: images.length * this.priceFor(input.quality, size),
     };
   }
 
-  private priceFor(quality: 'low' | 'high'): number {
+  private priceFor(quality: 'low' | 'high', size: ImageGenerationSize): number {
     const name = quality === 'low' ? 'IMAGE_PRICE_LOW_USD' : 'IMAGE_PRICE_HIGH_USD';
     const fallback = quality === 'low' ? 0.04 : 0.19;
     const value = Number(process.env[name] ?? fallback);
-    return Number.isFinite(value) ? value : fallback;
+    const squarePrice = Number.isFinite(value) ? value : fallback;
+    return squarePrice * (size === '1024x1024' ? 1 : 1.5);
   }
 }

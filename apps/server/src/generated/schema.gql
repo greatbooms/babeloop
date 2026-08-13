@@ -309,6 +309,7 @@ input GenerateCreativeImagesInput {
   instructions: String
   quality: String = "low"
   references: [GenerationReferenceInput!]
+  sizePreset: String = "square_1200x1200"
 }
 
 input GenerateCreativeVariantsInput {
@@ -357,6 +358,7 @@ type GeneratedImageModel {
   prompt: String!
   quality: String!
   referenceKeys: [String!]!
+  sizePreset: String
   url: String!
 }
 

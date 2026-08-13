@@ -24,6 +24,7 @@ import {
   GenerationReferenceInput,
   GenerationReferenceKind,
 } from './brief.inputs';
+import { resolveSizePreset } from './image-size-presets';
 
 export const BRIEF_INCLUDE = {
   brand: true,
@@ -104,6 +105,7 @@ export class BriefService {
 
   async requestCreativeImages(input: GenerateCreativeImagesInput) {
     this.validateImageRequest(input.count, input.quality, input.references?.length ?? 0);
+    const sizePreset = resolveSizePreset(input.sizePreset);
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id: input.creativeId },
       select: { id: true, briefId: true, type: true, status: true },
@@ -120,6 +122,7 @@ export class BriefService {
       instructions: input.instructions?.trim() ?? '',
       count: input.count,
       quality: input.quality,
+      sizePreset: sizePreset.id,
       referenceKeys,
     };
     return this.jobRecord.enqueueOrRetry(
@@ -340,6 +343,7 @@ export class BriefService {
           quality: image.quality,
           instructions: image.instructions,
           prompt: image.prompt,
+          sizePreset: image.sizePreset,
           referenceKeys: image.referenceKeys,
           createdAt: image.createdAt,
           costEstimateUsd: image.costEstimateUsd,

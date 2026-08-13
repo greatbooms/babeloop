@@ -1,9 +1,11 @@
 export type ImageQuality = 'low' | 'high';
+export type ImageGenerationSize = '1024x1024' | '1536x1024' | '1024x1536';
 
 export interface ImageGenerationInput {
   prompt: string;
   count: number;
   quality: ImageQuality;
+  size?: ImageGenerationSize;
   referenceImages?: Array<{ buffer: Buffer; contentType: string }>;
 }
 

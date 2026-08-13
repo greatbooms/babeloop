@@ -231,6 +231,7 @@ export class ReviewService {
           quality: image.quality,
           instructions: image.instructions,
           prompt: image.prompt,
+          sizePreset: image.sizePreset,
           referenceKeys: image.referenceKeys,
           createdAt: image.createdAt,
           costEstimateUsd: image.costEstimateUsd,

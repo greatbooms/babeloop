@@ -18,11 +18,18 @@ import { useJobPolling } from '../hooks/useJobPolling';
 import { formatDate } from '../i18n/format-date';
 import { useT } from '../i18n/lang-context';
 import { parseScenes } from '../lib/parse-scenes';
+import {
+  DEFAULT_IMAGE_SIZE_PRESET,
+  IMAGE_SIZE_PRESET_OPTIONS,
+  ImageSizePresetId,
+  imageSizePresetCaption,
+  resolveImageSizePresetId,
+} from '../lib/image-size-presets';
 import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -71,6 +78,7 @@ export function ReviewDetailPage() {
   const [imageInstructions, setImageInstructions] = useState('');
   const [imageCount, setImageCount] = useState(2);
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
+  const [imageSizePreset, setImageSizePreset] = useState<ImageSizePresetId>(DEFAULT_IMAGE_SIZE_PRESET);
   const [imageReferences, setImageReferences] = useState<ReferenceOption[]>([]);
   const [imageJobId, setImageJobId] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
@@ -139,6 +147,7 @@ export function ReviewDetailPage() {
             instructions: imageInstructions || undefined,
             count: imageCount,
             quality: imageQuality,
+            sizePreset: imageSizePreset,
             references: imageReferences.length
               ? imageReferences.map(({ kind, id: referenceId }) => ({ kind, id: referenceId }))
               : undefined,
@@ -233,7 +242,7 @@ export function ReviewDetailPage() {
         {creative.status === CreativeStatus.LocalizationApproved && canApprove && <Button variant="primary" size="sm" data-hint={t('review.finalApproveHint')} onClick={() => void act(() => approveCreative({ variables: { input: { creativeId: creative.id } } }))}>{t('review.finalApprove')}</Button>}
         {creative.status === CreativeStatus.Approved && creative.type === CreativeType.Copy && (
           <div className="creative-generation-action">
-            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => { setImageReferences([]); setImageModalOpen(true); }}>{t('review.generateCopyImages')}</Button>
+            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => { setImageReferences([]); setImageSizePreset(DEFAULT_IMAGE_SIZE_PRESET); setImageModalOpen(true); }}>{t('review.generateCopyImages')}</Button>
             <small>{t('review.copyImageCostHint')}</small>
           </div>
         )}
@@ -254,6 +263,11 @@ export function ReviewDetailPage() {
       <p className="muted">{t('review.copyImageModalDescription')}</p>
       <p className="image-workflow-hint">💡 {t('briefs.imageWorkflowHint')}</p>
       <form className="page-form" onSubmit={onGenerateImages}>
+        <FormField label={t('review.imageSizePreset')} htmlFor="creative-image-size-preset" hint={t('review.imageSizePresetHint')}>
+          <select id="creative-image-size-preset" value={imageSizePreset} onChange={(event) => setImageSizePreset(resolveImageSizePresetId(event.target.value))}>
+            {IMAGE_SIZE_PRESET_OPTIONS.map((preset) => <option key={preset.id} value={preset.id}>{t(preset.labelKey)}</option>)}
+          </select>
+        </FormField>
         <section className="reference-picker" aria-labelledby="image-reference-title">
           <div className="reference-picker-header">
             <h3 id="image-reference-title">{t('review.referenceImages')}</h3>
@@ -410,7 +424,9 @@ export function ReviewDetailPage() {
         <h2>{t('review.creativeImages')}</h2>
         <p className="muted">{t('review.creativeImagesGuide')}</p>
         <div className="brief-image-grid">
-          {creative.images.map((image) => (
+          {creative.images.map((image) => {
+            const sizeCaption = imageSizePresetCaption(image.sizePreset);
+            return (
             <figure className="brief-image-item" key={image.id}>
               <a href={image.url} target="_blank" rel="noreferrer" aria-label={t('review.creativeImageOpen')}>
                 <img src={image.url} alt={t('review.creativeImageAlt')} />
@@ -419,6 +435,7 @@ export function ReviewDetailPage() {
                 <div className="tag-row">
                   <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
+                  {sizeCaption && <span className="tag">{sizeCaption}</span>}
                   {image.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
@@ -427,12 +444,13 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>
             </figure>
-          ))}
+            );
+          })}
         </div>
       </Card>
     )}

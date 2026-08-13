@@ -59,6 +59,24 @@ describe('BriefService.requestCreativeImages 검증', () => {
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
 
+  it('모르는 이미지 규격은 BAD_USER_INPUT으로 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 2,
+        quality: 'low',
+        sizePreset: 'unknown_size',
+      }),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/unknown_size.*square_1200x1200/),
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
   it('참고 이미지가 16장을 초과하면 BAD_USER_INPUT으로 거부한다', async () => {
     const { service, jobRecord } = setup();
 
@@ -161,6 +179,7 @@ describe('BriefService approved creative generation', () => {
         instructions: '따뜻한 조명',
         count: 2,
         quality: 'high',
+        sizePreset: 'square_1200x1200',
         referenceKeys: [],
       },
     );

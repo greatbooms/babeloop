@@ -406,6 +406,7 @@ model GeneratedImage {
   provider        String
   model           String
   promptVersion   String
+  sizePreset      String?
   referenceKeys   String[]           @default([])
   costEstimateUsd Float?
   createdAt       DateTime           @default(now())

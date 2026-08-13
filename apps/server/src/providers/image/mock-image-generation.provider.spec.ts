@@ -9,6 +9,7 @@ describe('MockImageGenerationProvider', () => {
       prompt: '다른 프롬프트',
       count: 1,
       quality: 'high',
+      size: '1024x1536',
       referenceImages: [{ buffer: Buffer.from('reference'), contentType: 'image/png' }],
     });
 
