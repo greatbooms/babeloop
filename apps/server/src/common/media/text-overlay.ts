@@ -1,6 +1,5 @@
-import { execFile } from 'child_process';
-import { access, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
+import { GlobalFonts, createCanvas, loadImage } from '@napi-rs/canvas';
+import { access } from 'fs/promises';
 import { join } from 'path';
 
 export type OverlayGroup = 'square' | 'portrait' | 'landscape' | 'banner';
@@ -99,59 +98,45 @@ export function computeOverlayLayout(input: {
   return { lines };
 }
 
-function runFfmpeg(binary: string, args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    execFile(binary, args, { timeout: 30_000 }, (error) =>
-      error ? reject(error) : resolve(),
-    );
-  });
-}
+const FONT_FAMILY = 'Noto Sans TC Overlay';
+let fontRegistered = false;
 
-export async function renderTextOverlay(
-  buffer: Buffer,
-  layout: OverlayLayout,
-): Promise<Buffer> {
-  const ffmpegPath = require('ffmpeg-static') as string | null;
-  if (!ffmpegPath) throw new Error('ffmpeg 바이너리를 찾을 수 없습니다');
-
-  const fontPath = join(
-    process.cwd(),
-    'apps/server/assets/fonts/NotoSansTC-Bold.otf',
-  );
+async function ensureFont(): Promise<void> {
+  if (fontRegistered) return;
+  const fontPath = join(process.cwd(), 'apps/server/assets/fonts/NotoSansTC-Bold.otf');
   try {
     await access(fontPath);
   } catch {
     throw new Error(`텍스트 오버레이 폰트를 찾을 수 없습니다: ${fontPath}`);
   }
-
-  const dir = await mkdtemp(join(tmpdir(), 'babeloop-text-overlay-'));
-  try {
-    const inputPath = join(dir, 'input');
-    const outputPath = join(dir, 'output.png');
-    await writeFile(inputPath, buffer);
-
-    const filters: string[] = [];
-    for (const [index, line] of layout.lines.entries()) {
-      const textPath = join(dir, `line-${index}.txt`);
-      await writeFile(textPath, line.text, 'utf8');
-      const shadow = Math.max(2, Math.round(line.fontSize / 22));
-      filters.push(
-        `drawtext=fontfile='${fontPath}':textfile='${textPath}':fontsize=${line.fontSize}:fontcolor=white:x=(w-text_w)/2:y=${line.y}:shadowcolor=black@0.55:shadowx=${shadow}:shadowy=${shadow}`,
-      );
-    }
-
-    await runFfmpeg(ffmpegPath, [
-      '-i',
-      inputPath,
-      '-vf',
-      filters.join(','),
-      '-frames:v',
-      '1',
-      outputPath,
-      '-y',
-    ]);
-    return await readFile(outputPath);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
+  if (!GlobalFonts.registerFromPath(fontPath, FONT_FAMILY)) {
+    throw new Error(`텍스트 오버레이 폰트 등록에 실패했습니다: ${fontPath}`);
   }
+  fontRegistered = true;
+}
+
+// ffmpeg drawtext가 아닌 canvas 렌더링을 쓰는 이유: 운영(리눅스)의 ffmpeg-static
+// 정적 빌드에 drawtext 필터가 없어(harfbuzz 미포함) 나스에서만 실패했다 (실측).
+export async function renderTextOverlay(
+  buffer: Buffer,
+  layout: OverlayLayout,
+): Promise<Buffer> {
+  await ensureFont();
+  const image = await loadImage(buffer);
+  const canvas = createCanvas(image.width, image.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffffff';
+  for (const line of layout.lines) {
+    const shadow = Math.max(2, Math.round(line.fontSize / 22));
+    ctx.font = `${line.fontSize}px "${FONT_FAMILY}"`;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowOffsetX = shadow;
+    ctx.shadowOffsetY = shadow;
+    ctx.shadowBlur = 0;
+    ctx.fillText(line.text, image.width / 2, line.y);
+  }
+  return canvas.toBuffer('image/png');
 }

@@ -221,6 +221,7 @@ describe('BriefService approved creative generation', () => {
         overlayHeadline: '메인 문구',
         overlaySubline: '서브 문구',
       },
+      { attempts: 1 },
     );
   });
 
@@ -290,6 +291,7 @@ describe('BriefService approved creative generation', () => {
           'generated-images/brief-1/ref.png',
         ],
       }),
+      { attempts: 1 },
     );
   });
 
@@ -335,6 +337,7 @@ describe('BriefService approved creative generation', () => {
         instructions: '영화적인 조명',
         referenceKey: null,
       },
+      { attempts: 1 },
     );
   });
 
@@ -380,6 +383,7 @@ describe('BriefService approved creative generation', () => {
       'generate-video',
       expect.any(String),
       expect.objectContaining({ referenceKey: 'generated-images/brief-1/first.jpg' }),
+      { attempts: 1 },
     );
   });
 

@@ -67,6 +67,7 @@ export class JobRecordService {
     jobName: string,
     jobId: string,
     payload: Prisma.InputJsonValue,
+    opts?: { attempts?: number },
   ) {
     const existing = await queue.getJob(jobId);
     if (existing && (await existing.getState()) === 'failed') {
@@ -74,7 +75,7 @@ export class JobRecordService {
       return this.requeue(jobId);
     }
     if (!existing) {
-      await queue.add(jobName, payload, { jobId, ...DEFAULT_JOB_OPTS });
+      await queue.add(jobName, payload, { jobId, ...DEFAULT_JOB_OPTS, ...opts });
     }
     return this.enqueue(jobId, queueName, jobName, payload);
   }

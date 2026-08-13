@@ -135,12 +135,14 @@ export class BriefService {
       ...(overlayHeadline ? { overlayHeadline } : {}),
       ...(overlaySubline ? { overlaySubline } : {}),
     };
+    // 시도마다 실 AI 과금이라 자동 재시도가 비용을 배로 만든다 — 실패는 명확히 보여주고 재시도는 버튼으로
     return this.jobRecord.enqueueOrRetry(
       this.queue,
       CREATIVE_GENERATION_QUEUE,
       JOB_TYPES.GENERATE_IMAGES,
       generateImagesJobId(creative.id, randomUUID()),
       payload,
+      { attempts: 1 },
     );
   }
 
@@ -181,6 +183,7 @@ export class BriefService {
       JOB_TYPES.GENERATE_VIDEO,
       generateVideoJobId(creative.id, randomUUID()),
       payload,
+      { attempts: 1 },
     );
   }
 
