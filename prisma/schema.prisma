@@ -399,6 +399,9 @@ model GeneratedImage {
   creativeId      String?
   creative        GeneratedCreative? @relation(fields: [creativeId], references: [id], onDelete: SetNull)
   storageKey      String
+  cleanStorageKey String?
+  overlayHeadline String?
+  overlaySubline  String?
   contentType     String
   quality         String
   instructions    String

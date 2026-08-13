@@ -40,6 +40,10 @@
 .reference-none { grid-template-rows: 1fr; min-height: 131px; place-items: center; text-align: center; }
 .reference-none-label { color: var(--muted); font-size: 12px; font-weight: 600; }
 
+.overlay-copy-fields { display: grid; gap: var(--sp-md); padding: var(--sp-md); border: 1px solid var(--hairline); border-radius: var(--r-md); background: var(--canvas); }
+.overlay-copy-fields h3 { margin: 0; font-size: 16px; }
+.overlay-copy-fields .muted { margin: calc(var(--sp-xs) * -1) 0 0; }
+
 /* 상세: 액션 영역 */
 .review-edit-area { display: grid; gap: var(--sp-sm); }
 .review-edit-area textarea { width: 100%; min-height: 120px; padding: var(--sp-md); border: 1px solid var(--hairline); border-radius: var(--r-sm); resize: vertical; }

@@ -29,7 +29,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -76,6 +76,8 @@ export function ReviewDetailPage() {
   const [experimentSelection, setExperimentSelection] = useState(''); const [error, setError] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageInstructions, setImageInstructions] = useState('');
+  const [imageOverlayHeadline, setImageOverlayHeadline] = useState('');
+  const [imageOverlaySubline, setImageOverlaySubline] = useState('');
   const [imageCount, setImageCount] = useState(2);
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [imageSizePreset, setImageSizePreset] = useState<ImageSizePresetId>(DEFAULT_IMAGE_SIZE_PRESET);
@@ -136,6 +138,23 @@ export function ReviewDetailPage() {
     setVideoJobId(null);
   }, [refetch, t, videoJob?.error, videoJob?.status]);
 
+  function openImageGenerationModal(overlay?: {
+    headline?: string | null;
+    subline?: string | null;
+  }) {
+    const sourceLines = (latestLocalization?.text ?? creative?.koreanText ?? '')
+      .trim()
+      .split(/\r?\n/);
+    const truncate = (value: string) => Array.from(value.trim()).slice(0, 60).join('');
+    setImageOverlayHeadline(
+      overlay ? truncate(overlay.headline ?? '') : truncate(sourceLines[0] ?? ''),
+    );
+    setImageOverlaySubline(
+      overlay ? truncate(overlay.subline ?? '') : truncate(sourceLines[1] ?? ''),
+    );
+    setImageModalOpen(true);
+  }
+
   async function onGenerateImages(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -148,6 +167,8 @@ export function ReviewDetailPage() {
             count: imageCount,
             quality: imageQuality,
             sizePreset: imageSizePreset,
+            overlayHeadline: imageOverlayHeadline.trim() || undefined,
+            overlaySubline: imageOverlaySubline.trim() || undefined,
             references: imageReferences.length
               ? imageReferences.map(({ kind, id: referenceId }) => ({ kind, id: referenceId }))
               : undefined,
@@ -242,7 +263,7 @@ export function ReviewDetailPage() {
         {creative.status === CreativeStatus.LocalizationApproved && canApprove && <Button variant="primary" size="sm" data-hint={t('review.finalApproveHint')} onClick={() => void act(() => approveCreative({ variables: { input: { creativeId: creative.id } } }))}>{t('review.finalApprove')}</Button>}
         {creative.status === CreativeStatus.Approved && creative.type === CreativeType.Copy && (
           <div className="creative-generation-action">
-            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => { setImageReferences([]); setImageSizePreset(DEFAULT_IMAGE_SIZE_PRESET); setImageModalOpen(true); }}>{t('review.generateCopyImages')}</Button>
+            <Button variant="primary" size="sm" disabled={visualJobActive} data-hint={t('review.copyImageCostHint')} onClick={() => { setImageReferences([]); setImageSizePreset(DEFAULT_IMAGE_SIZE_PRESET); openImageGenerationModal(); }}>{t('review.generateCopyImages')}</Button>
             <small>{t('review.copyImageCostHint')}</small>
           </div>
         )}
@@ -268,6 +289,16 @@ export function ReviewDetailPage() {
             {IMAGE_SIZE_PRESET_OPTIONS.map((preset) => <option key={preset.id} value={preset.id}>{t(preset.labelKey)}</option>)}
           </select>
         </FormField>
+        <section className="overlay-copy-fields" aria-labelledby="overlay-copy-title">
+          <h3 id="overlay-copy-title">{t('review.overlayCopyTitle')}</h3>
+          <FormField label={t('review.overlayHeadline')} htmlFor="creative-image-overlay-headline">
+            <input id="creative-image-overlay-headline" maxLength={60} value={imageOverlayHeadline} onChange={(event) => setImageOverlayHeadline(event.target.value)} />
+          </FormField>
+          <FormField label={t('review.overlaySubline')} htmlFor="creative-image-overlay-subline">
+            <input id="creative-image-overlay-subline" maxLength={60} value={imageOverlaySubline} onChange={(event) => setImageOverlaySubline(event.target.value)} />
+          </FormField>
+          <p className="muted">{t('review.overlayCleanHint')}</p>
+        </section>
         <section className="reference-picker" aria-labelledby="image-reference-title">
           <div className="reference-picker-header">
             <h3 id="image-reference-title">{t('review.referenceImages')}</h3>
@@ -437,6 +468,8 @@ export function ReviewDetailPage() {
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
                   {sizeCaption && <span className="tag">{sizeCaption}</span>}
                   {image.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
+                  {image.overlayHeadline && <span className="tag">{t('review.overlayApplied')}</span>}
+                  {image.overlayHeadline && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
                 <details className="prompt-detail">
@@ -444,7 +477,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); setImageModalOpen(true); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline }); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>

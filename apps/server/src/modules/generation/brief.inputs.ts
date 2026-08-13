@@ -34,6 +34,8 @@ export class GenerateCreativeVariantsInput {
 export class GenerateCreativeImagesInput {
   @Field(() => ID) creativeId: string;
   @Field(() => String, { nullable: true }) instructions?: string;
+  @Field(() => String, { nullable: true }) overlayHeadline?: string;
+  @Field(() => String, { nullable: true }) overlaySubline?: string;
   @Field(() => Int, { nullable: true, defaultValue: 2 }) count: number;
   @Field(() => String, { nullable: true, defaultValue: 'low' }) quality: string;
   @Field(() => String, { nullable: true, defaultValue: 'square_1200x1200' })

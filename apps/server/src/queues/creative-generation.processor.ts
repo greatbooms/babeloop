@@ -6,6 +6,7 @@ import { CreativeType } from '../../generated/prisma';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resizeImageToSpec } from '../common/media/image-resize';
+import { computeOverlayLayout, renderTextOverlay } from '../common/media/text-overlay';
 import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-execution-log.service';
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
@@ -78,6 +79,8 @@ interface GenerateImagesJobData {
   quality: 'low' | 'high';
   sizePreset: string;
   referenceKeys: string[];
+  overlayHeadline?: string;
+  overlaySubline?: string;
 }
 
 interface GenerateVideoJobData {
@@ -273,7 +276,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
         ].join('\n\n'),
         referenceKeys,
       );
-      const promptVersion = 'generate-copy-images@v3';
+      const promptVersion = 'generate-copy-images@v4';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
@@ -305,14 +308,39 @@ export class CreativeGenerationProcessor extends WorkerHost {
           ? undefined
           : generated.costEstimateUsd / generated.images.length;
       for (const image of generated.images) {
-        const storageKey = `generated-images/${brief.id}/${randomUUID()}.png`;
+        const imageId = randomUUID();
+        const storageKey = `generated-images/${brief.id}/${imageId}.png`;
         const resized = await resizeImageToSpec(image.buffer, sizePreset.width, sizePreset.height);
-        await this.storage.putBuffer(storageKey, resized, 'image/png');
+        const overlayHeadline = job.data.overlayHeadline?.trim() || null;
+        const overlaySubline = overlayHeadline
+          ? job.data.overlaySubline?.trim() || null
+          : null;
+        const cleanStorageKey = overlayHeadline
+          ? `generated-images/${brief.id}/${imageId}-clean.png`
+          : null;
+
+        if (cleanStorageKey && overlayHeadline) {
+          await this.storage.putBuffer(cleanStorageKey, resized, 'image/png');
+          const layout = computeOverlayLayout({
+            width: sizePreset.width,
+            height: sizePreset.height,
+            group: sizePreset.group,
+            headline: overlayHeadline,
+            ...(overlaySubline ? { subline: overlaySubline } : {}),
+          });
+          const overlaid = await renderTextOverlay(resized, layout);
+          await this.storage.putBuffer(storageKey, overlaid, 'image/png');
+        } else {
+          await this.storage.putBuffer(storageKey, resized, 'image/png');
+        }
         const saved = await this.prisma.generatedImage.create({
           data: {
             briefId: brief.id,
             creativeId: creative.id,
             storageKey,
+            cleanStorageKey,
+            overlayHeadline,
+            overlaySubline,
             contentType: 'image/png',
             quality: job.data.quality,
             instructions: job.data.instructions,

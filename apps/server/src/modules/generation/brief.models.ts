@@ -56,6 +56,9 @@ export class GeneratedCreativeModel {
 export class GeneratedImageModel {
   @Field(() => ID) id: string;
   @Field() url: string;
+  @Field(() => String, { nullable: true }) cleanUrl: string | null;
+  @Field(() => String, { nullable: true }) overlayHeadline: string | null;
+  @Field(() => String, { nullable: true }) overlaySubline: string | null;
   @Field() quality: string;
   @Field() instructions: string;
   // 생성에 실제 사용된 전체 프롬프트 — 결과물 추적용

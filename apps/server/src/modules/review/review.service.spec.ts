@@ -39,6 +39,9 @@ describe('ReviewService visual assets', () => {
         {
           id: 'image-copy-1',
           storageKey: 'generated-images/brief-1/copy.png',
+          cleanStorageKey: 'generated-images/brief-1/copy-clean.png',
+          overlayHeadline: '今晚，只屬於你的故事',
+          overlaySubline: '立即開始聊天',
           quality: 'high',
           instructions: '확정 문구 전용',
           prompt: '이미지 프롬프트',
@@ -71,6 +74,7 @@ describe('ReviewService visual assets', () => {
     };
     const storage = {
       presignGet: jest.fn(async (key: string) => {
+        if (key.endsWith('copy-clean.png')) return 'signed:clean-image';
         if (key.endsWith('copy.png')) return 'signed:copy-image';
         if (key.endsWith('video.mp4')) return 'signed:video';
         if (key.includes('ad-image-1')) return 'signed:reference-ad';
@@ -90,6 +94,9 @@ describe('ReviewService visual assets', () => {
         {
           id: 'image-copy-1',
           url: 'signed:copy-image',
+          cleanUrl: 'signed:clean-image',
+          overlayHeadline: '今晚，只屬於你的故事',
+          overlaySubline: '立即開始聊天',
           quality: 'high',
           instructions: '확정 문구 전용',
           sizePreset: 'landscape_1200x628',
@@ -116,6 +123,7 @@ describe('ReviewService visual assets', () => {
       ],
     });
     expect(storage.presignGet).toHaveBeenCalledWith('generated-images/brief-1/copy.png');
+    expect(storage.presignGet).toHaveBeenCalledWith('generated-images/brief-1/copy-clean.png');
     expect(storage.presignGet).toHaveBeenCalledWith('generated-videos/creative-1/video.mp4');
     expect(storage.presignGet).toHaveBeenCalledWith('source-ads/ad-image-1/original.png');
   });

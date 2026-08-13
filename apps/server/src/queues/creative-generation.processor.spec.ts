@@ -1,13 +1,19 @@
 import { CreativeGenerationProcessor } from './creative-generation.processor';
 import { JOB_TYPES } from './queue.constants';
 import { resizeImageToSpec } from '../common/media/image-resize';
+import { computeOverlayLayout, renderTextOverlay } from '../common/media/text-overlay';
 
 jest.mock('../common/media/image-resize', () => ({ resizeImageToSpec: jest.fn() }));
+jest.mock('../common/media/text-overlay', () => ({
+  computeOverlayLayout: jest.fn(),
+  renderTextOverlay: jest.fn(),
+}));
 
 const VALID_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64',
 );
+const OVERLAID_PNG = Buffer.from('overlaid-png');
 
 describe('CreativeGenerationProcessor brand translation', () => {
   it('원문 언어와 무관하게 한국어·번체중문 두 벌을 저장한다 (translate-brand@v2)', async () => {
@@ -47,6 +53,10 @@ describe('CreativeGenerationProcessor brand translation', () => {
 describe('CreativeGenerationProcessor image generation', () => {
   beforeEach(() => {
     jest.mocked(resizeImageToSpec).mockReset().mockResolvedValue(VALID_PNG);
+    jest.mocked(computeOverlayLayout).mockReset().mockReturnValue({
+      lines: [{ text: '主標題', fontSize: 60, y: 400 }],
+    });
+    jest.mocked(renderTextOverlay).mockReset().mockResolvedValue(OVERLAID_PNG);
   });
 
   it('참고 버퍼를 mock 이미지 provider에 전달하고 키와 비용을 저장한다', async () => {
@@ -130,7 +140,7 @@ describe('CreativeGenerationProcessor image generation', () => {
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*텍스트 오버레이 없음[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 출력 규격: 1200x628 \(1\.91:1\)[\s\S]*가로형 구도[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
+        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*어떤 문자도 그리지 마라[\s\S]*문구는 생성 후 별도 합성된다[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 출력 규격: 1200x628 \(1\.91:1\)[\s\S]*가로형 구도[\s\S]*문구가 나중에 얹힐 단순한 빈 공간[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
       ),
       count: 2,
       quality: 'low',
@@ -158,17 +168,21 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v3',
+        promptVersion: 'generate-copy-images@v4',
         sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
         costEstimateUsd: 0.04,
+        cleanStorageKey: null,
+        overlayHeadline: null,
+        overlaySubline: null,
       }),
     });
+    expect(renderTextOverlay).not.toHaveBeenCalled();
     expect(aiLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v3',
+        promptVersion: 'generate-copy-images@v4',
         inputRef: 'creative:creative-copy-1',
         costEstimateUsd: 0.08,
       }),
@@ -176,6 +190,96 @@ describe('CreativeGenerationProcessor image generation', () => {
     );
     expect(jobRecord.markSucceeded).toHaveBeenCalledWith(jobId, {
       imageIds: ['image-1', 'image-2'],
+    });
+  });
+
+  it('문구가 있으면 클린본과 합성본을 모두 저장하고 오버레이 필드를 기록한다', async () => {
+    const creative = {
+      id: 'creative-copy-1',
+      koreanText: '한국어 연출 재료',
+      localizations: [],
+      brief: {
+        id: 'brief-1',
+        visualFormat: '가로형',
+        hookType: '호기심',
+        desire: '몰입',
+        brand: { name: 'BabeChat' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedImage: { create: jest.fn().mockResolvedValue({ id: 'image-overlay-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = {
+      markRunning: jest.fn(),
+      markSucceeded: jest.fn(),
+      markFailed: jest.fn(),
+    };
+    const imageProvider = {
+      name: 'mock',
+      model: 'mock-image-1',
+      generate: jest.fn().mockResolvedValue({
+        images: [{ buffer: VALID_PNG, contentType: 'image/png' }],
+        costEstimateUsd: 0.04,
+      }),
+    };
+    const storage = { getBuffer: jest.fn(), putBuffer: jest.fn() };
+    const processor = new CreativeGenerationProcessor(
+      prisma as never,
+      aiLog as never,
+      jobRecord as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      storage as never,
+      imageProvider as never,
+      {} as never,
+    );
+
+    await processor.process({
+      id: 'generate-images--creative-copy-1--overlay',
+      name: JOB_TYPES.GENERATE_IMAGES,
+      data: {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        sizePreset: 'landscape_1200x628',
+        referenceKeys: [],
+        overlayHeadline: '今晚，只屬於你的故事',
+        overlaySubline: '立即開始聊天',
+      },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    } as never);
+
+    expect(computeOverlayLayout).toHaveBeenCalledWith({
+      width: 1200,
+      height: 628,
+      group: 'landscape',
+      headline: '今晚，只屬於你的故事',
+      subline: '立即開始聊天',
+    });
+    expect(renderTextOverlay).toHaveBeenCalledWith(VALID_PNG, {
+      lines: [{ text: '主標題', fontSize: 60, y: 400 }],
+    });
+    expect(storage.putBuffer).toHaveBeenCalledTimes(2);
+    const cleanKey = storage.putBuffer.mock.calls[0][0] as string;
+    const overlayKey = storage.putBuffer.mock.calls[1][0] as string;
+    expect(cleanKey).toMatch(/^generated-images\/brief-1\/[0-9a-f-]+-clean\.png$/);
+    expect(overlayKey).toBe(cleanKey.replace('-clean.png', '.png'));
+    expect(storage.putBuffer).toHaveBeenNthCalledWith(1, cleanKey, VALID_PNG, 'image/png');
+    expect(storage.putBuffer).toHaveBeenNthCalledWith(2, overlayKey, OVERLAID_PNG, 'image/png');
+    expect(prisma.generatedImage.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        storageKey: overlayKey,
+        cleanStorageKey: cleanKey,
+        overlayHeadline: '今晚，只屬於你的故事',
+        overlaySubline: '立即開始聊天',
+      }),
     });
   });
 
@@ -251,7 +355,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       data: expect.objectContaining({
         briefId: 'brief-1',
         creativeId: 'creative-copy-1',
-        promptVersion: 'generate-copy-images@v3',
+        promptVersion: 'generate-copy-images@v4',
         sizePreset: 'square_1200x1200',
       }),
     });

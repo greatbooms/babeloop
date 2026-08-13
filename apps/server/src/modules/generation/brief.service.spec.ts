@@ -95,6 +95,41 @@ describe('BriefService.requestCreativeImages 검증', () => {
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
 
+  it('메인 문구 없이 서브 문구만 있으면 BAD_USER_INPUT으로 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        overlayHeadline: '   ',
+        overlaySubline: '서브 문구',
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it.each(['overlayHeadline', 'overlaySubline'] as const)(
+    '%s이 60자를 넘으면 BAD_USER_INPUT으로 거부한다',
+    async (field) => {
+      const { service, jobRecord } = setup();
+
+      await expect(
+        service.requestCreativeImages({
+          creativeId: 'creative-copy-1',
+          instructions: '',
+          count: 1,
+          quality: 'low',
+          overlayHeadline: field === 'overlayHeadline' ? '문'.repeat(61) : '메인',
+          overlaySubline: field === 'overlaySubline' ? '문'.repeat(61) : undefined,
+        } as never),
+      ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+      expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+    },
+  );
+
   it('존재하지 않는 참고 항목은 해당 종류와 ID를 명시해 거부한다', async () => {
     const prisma = {
       generatedCreative: {
@@ -166,7 +201,9 @@ describe('BriefService approved creative generation', () => {
       instructions: '따뜻한 조명',
       count: 2,
       quality: 'high',
-    })).resolves.toEqual({ id: 'queued-job' });
+      overlayHeadline: '  메인 문구  ',
+      overlaySubline: '  서브 문구  ',
+    } as never)).resolves.toEqual({ id: 'queued-job' });
 
     expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
       queue,
@@ -181,6 +218,8 @@ describe('BriefService approved creative generation', () => {
         quality: 'high',
         sizePreset: 'square_1200x1200',
         referenceKeys: [],
+        overlayHeadline: '메인 문구',
+        overlaySubline: '서브 문구',
       },
     );
   });

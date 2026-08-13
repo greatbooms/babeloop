@@ -307,6 +307,8 @@ input GenerateCreativeImagesInput {
   count: Int = 2
   creativeId: ID!
   instructions: String
+  overlayHeadline: String
+  overlaySubline: String
   quality: String = "low"
   references: [GenerationReferenceInput!]
   sizePreset: String = "square_1200x1200"
@@ -351,10 +353,13 @@ type GeneratedCreativeModel {
 }
 
 type GeneratedImageModel {
+  cleanUrl: String
   costEstimateUsd: Float
   createdAt: DateTime!
   id: ID!
   instructions: String!
+  overlayHeadline: String
+  overlaySubline: String
   prompt: String!
   quality: String!
   referenceKeys: [String!]!

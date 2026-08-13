@@ -104,7 +104,15 @@ export class BriefService {
   }
 
   async requestCreativeImages(input: GenerateCreativeImagesInput) {
-    this.validateImageRequest(input.count, input.quality, input.references?.length ?? 0);
+    const overlayHeadline = input.overlayHeadline?.trim() || undefined;
+    const overlaySubline = input.overlaySubline?.trim() || undefined;
+    this.validateImageRequest(
+      input.count,
+      input.quality,
+      input.references?.length ?? 0,
+      overlayHeadline,
+      overlaySubline,
+    );
     const sizePreset = resolveSizePreset(input.sizePreset);
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id: input.creativeId },
@@ -124,6 +132,8 @@ export class BriefService {
       quality: input.quality,
       sizePreset: sizePreset.id,
       referenceKeys,
+      ...(overlayHeadline ? { overlayHeadline } : {}),
+      ...(overlaySubline ? { overlaySubline } : {}),
     };
     return this.jobRecord.enqueueOrRetry(
       this.queue,
@@ -174,7 +184,13 @@ export class BriefService {
     );
   }
 
-  private validateImageRequest(count: number, quality: string, referenceCount: number): void {
+  private validateImageRequest(
+    count: number,
+    quality: string,
+    referenceCount: number,
+    overlayHeadline?: string,
+    overlaySubline?: string,
+  ): void {
     if (!Number.isInteger(count) || count < 1 || count > 4) {
       throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
         extensions: { code: 'BAD_USER_INPUT' },
@@ -187,6 +203,21 @@ export class BriefService {
     }
     if (referenceCount > 16) {
       throw new GraphQLError('참고 이미지는 최대 16장까지 선택할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (overlayHeadline && Array.from(overlayHeadline).length > 60) {
+      throw new GraphQLError('메인 문구는 최대 60자까지 입력할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (overlaySubline && Array.from(overlaySubline).length > 60) {
+      throw new GraphQLError('서브 문구는 최대 60자까지 입력할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (overlaySubline && !overlayHeadline) {
+      throw new GraphQLError('서브 문구는 메인 문구가 있을 때만 입력할 수 있습니다', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }

@@ -64,11 +64,11 @@ export type ImageSizePreset = (typeof IMAGE_SIZE_PRESETS)[number];
 const DEFAULT_SIZE_PRESET = IMAGE_SIZE_PRESETS[0];
 
 const GROUP_PROMPTS: Record<ImageSizePreset['group'], string> = {
-  square: '정사각형에 가까운 구도 — 핵심 인물을 중앙에 크게, 하단 1/3은 텍스트 오버레이 여백',
-  portrait: '세로형 구도 — 인물 상반신을 상단~중앙에, 하단은 텍스트 공간으로 단순하게',
-  landscape: '가로형 구도 — 인물을 한쪽에 배치, 반대쪽은 텍스트 공간 확보',
+  square: '정사각형에 가까운 구도 — 핵심 인물을 중앙에 크게, 하단 1/3은 문구가 나중에 얹힐 빈 여백(글자는 그리지 말 것)',
+  portrait: '세로형 구도 — 인물 상반신을 상단~중앙에, 하단은 문구가 나중에 얹힐 빈 여백으로 단순하게',
+  landscape: '가로형 구도 — 인물을 한쪽에 배치, 반대쪽은 문구가 나중에 얹힐 단순한 빈 공간',
   banner:
-    '초광폭 배너 구도 — 인물은 좌우 가장자리, 중앙은 텍스트용 단순 배경. 상하가 크게 잘리므로 얼굴을 세로 중앙 높이에 배치',
+    '초광폭 배너 구도 — 인물은 좌우 가장자리, 중앙은 문구가 나중에 얹힐 단순한 배경. 상하가 크게 잘리므로 얼굴을 세로 중앙 높이에 배치',
 };
 
 export function resolveSizePreset(id?: string): ImageSizePreset {

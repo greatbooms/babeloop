@@ -228,6 +228,11 @@ export class ReviewService {
         creative.images.map(async (image) => ({
           id: image.id,
           url: await this.storage.presignGet(image.storageKey),
+          cleanUrl: image.cleanStorageKey
+            ? await this.storage.presignGet(image.cleanStorageKey)
+            : null,
+          overlayHeadline: image.overlayHeadline,
+          overlaySubline: image.overlaySubline,
           quality: image.quality,
           instructions: image.instructions,
           prompt: image.prompt,
