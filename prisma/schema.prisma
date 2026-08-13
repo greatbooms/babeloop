@@ -402,6 +402,9 @@ model GeneratedImage {
   cleanStorageKey String?
   overlayHeadline String?
   overlaySubline  String?
+  overlayMode     String?
+  overlayFont     String?
+  overlayColor    String?
   contentType     String
   quality         String
   instructions    String

@@ -251,6 +251,9 @@ describe('CreativeGenerationProcessor image generation', () => {
         referenceKeys: [],
         overlayHeadline: '今晚，只屬於你的故事',
         overlaySubline: '立即開始聊天',
+        overlayMode: 'SERVER',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
       },
       attemptsMade: 0,
       opts: { attempts: 1 },
@@ -263,9 +266,11 @@ describe('CreativeGenerationProcessor image generation', () => {
       headline: '今晚，只屬於你的故事',
       subline: '立即開始聊天',
     });
-    expect(renderTextOverlay).toHaveBeenCalledWith(VALID_PNG, {
-      lines: [{ text: '主標題', fontSize: 60, y: 400 }],
-    });
+    expect(renderTextOverlay).toHaveBeenCalledWith(
+      VALID_PNG,
+      { lines: [{ text: '主標題', fontSize: 60, y: 400 }] },
+      { font: 'serif', color: 'gold' },
+    );
     expect(storage.putBuffer).toHaveBeenCalledTimes(2);
     const cleanKey = storage.putBuffer.mock.calls[0][0] as string;
     const overlayKey = storage.putBuffer.mock.calls[1][0] as string;
@@ -279,8 +284,103 @@ describe('CreativeGenerationProcessor image generation', () => {
         cleanStorageKey: cleanKey,
         overlayHeadline: '今晚，只屬於你的故事',
         overlaySubline: '立即開始聊天',
+        overlayMode: 'SERVER',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
       }),
     });
+  });
+
+  it('AI 타이포 모드는 합성을 건너뛰고 v5 문구·스타일 프롬프트를 저장한다', async () => {
+    const creative = {
+      id: 'creative-copy-1',
+      koreanText: '한국어 연출 재료',
+      localizations: [],
+      brief: {
+        id: 'brief-1',
+        visualFormat: '가로형',
+        hookType: '호기심',
+        desire: '몰입',
+        brand: { name: 'BabeChat' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedImage: { create: jest.fn().mockResolvedValue({ id: 'image-ai-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = {
+      markRunning: jest.fn(),
+      markSucceeded: jest.fn(),
+      markFailed: jest.fn(),
+    };
+    const imageProvider = {
+      name: 'mock',
+      model: 'mock-image-1',
+      generate: jest.fn().mockResolvedValue({
+        images: [{ buffer: VALID_PNG, contentType: 'image/png' }],
+        costEstimateUsd: 0.04,
+      }),
+    };
+    const storage = { getBuffer: jest.fn(), putBuffer: jest.fn() };
+    const processor = new CreativeGenerationProcessor(
+      prisma as never,
+      aiLog as never,
+      jobRecord as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      storage as never,
+      imageProvider as never,
+      {} as never,
+    );
+
+    await processor.process({
+      id: 'generate-images--creative-copy-1--ai-typo',
+      name: JOB_TYPES.GENERATE_IMAGES,
+      data: {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        sizePreset: 'landscape_1200x628',
+        referenceKeys: [],
+        overlayHeadline: '戰場上的智慧女神',
+        overlaySubline: '立即開始聊天',
+        overlayMode: 'AI',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
+        aiTypoStyle: 'selected',
+      },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    } as never);
+
+    expect(renderTextOverlay).not.toHaveBeenCalled();
+    expect(storage.putBuffer).toHaveBeenCalledTimes(1);
+    expect(imageProvider.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringMatching(
+          /## 이미지 안에 그릴 문구[\s\S]*메인: "戰場上的智慧女神"[\s\S]*서브: "立即開始聊天"[\s\S]*Noto Serif TC 계열\(명조\) 느낌, 색상 골드[\s\S]*문구 외 다른 글자·로고·워터마크는 넣지 마라/,
+        ),
+      }),
+    );
+    expect(prisma.generatedImage.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cleanStorageKey: null,
+        overlayMode: 'AI',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
+        promptVersion: 'generate-copy-images@v5',
+        prompt: expect.stringContaining('타이포 스타일:'),
+      }),
+    });
+    expect(aiLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ promptVersion: 'generate-copy-images@v5' }),
+      expect.any(Function),
+    );
   });
 
   it('승인 문구 기반 이미지 프롬프트에 한국어와 승인된 zh-TW 문구를 포함한다', async () => {

@@ -25,11 +25,20 @@ import {
   imageSizePresetCaption,
   resolveImageSizePresetId,
 } from '../lib/image-size-presets';
+import {
+  AiTypoStyle,
+  OVERLAY_COLOR_OPTIONS,
+  OVERLAY_FONT_OPTIONS,
+  OverlayColor,
+  OverlayFont,
+  OverlayMode,
+  overlayPreviewText,
+} from '../lib/overlay-options';
 import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -57,6 +66,22 @@ function referenceOptionKey(option: Pick<ReferenceOption, 'kind' | 'id'>) {
   return `${option.kind}:${option.id}`;
 }
 
+const OVERLAY_FONT_LABEL_KEYS: Record<OverlayFont, string> = {
+  gothic: 'review.overlayFontGothic',
+  serif: 'review.overlayFontSerif',
+  rounded: 'review.overlayFontRounded',
+  kai: 'review.overlayFontKai',
+  yozai: 'review.overlayFontYozai',
+  iansui: 'review.overlayFontIansui',
+  genryu: 'review.overlayFontGenryu',
+};
+
+const OVERLAY_COLOR_LABEL_KEYS: Record<OverlayColor, string> = {
+  white: 'review.overlayColorWhite',
+  black: 'review.overlayColorBlack',
+  gold: 'review.overlayColorGold',
+};
+
 export function ReviewDetailPage() {
   const { lang, t } = useT();
   const { id } = useParams<{ id: string }>();
@@ -78,6 +103,10 @@ export function ReviewDetailPage() {
   const [imageInstructions, setImageInstructions] = useState('');
   const [imageOverlayHeadline, setImageOverlayHeadline] = useState('');
   const [imageOverlaySubline, setImageOverlaySubline] = useState('');
+  const [imageOverlayMode, setImageOverlayMode] = useState<OverlayMode>('SERVER');
+  const [imageOverlayFont, setImageOverlayFont] = useState<OverlayFont>('gothic');
+  const [imageOverlayColor, setImageOverlayColor] = useState<OverlayColor>('white');
+  const [imageAiTypoStyle, setImageAiTypoStyle] = useState<AiTypoStyle>('selected');
   const [imageCount, setImageCount] = useState(2);
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [imageSizePreset, setImageSizePreset] = useState<ImageSizePresetId>(DEFAULT_IMAGE_SIZE_PRESET);
@@ -137,10 +166,18 @@ export function ReviewDetailPage() {
     void refetch();
     setVideoJobId(null);
   }, [refetch, t, videoJob?.error, videoJob?.status]);
+  useEffect(() => {
+    if (imageReferences.length === 0 && imageAiTypoStyle === 'match_reference') {
+      setImageAiTypoStyle('selected');
+    }
+  }, [imageAiTypoStyle, imageReferences.length]);
 
   function openImageGenerationModal(overlay?: {
     headline?: string | null;
     subline?: string | null;
+    mode?: string | null;
+    font?: string | null;
+    color?: string | null;
   }) {
     const sourceLines = (latestLocalization?.text ?? creative?.koreanText ?? '')
       .trim()
@@ -152,6 +189,18 @@ export function ReviewDetailPage() {
     setImageOverlaySubline(
       overlay ? truncate(overlay.subline ?? '') : truncate(sourceLines[1] ?? ''),
     );
+    setImageOverlayMode(overlay?.mode === 'AI' ? 'AI' : 'SERVER');
+    setImageOverlayFont(
+      OVERLAY_FONT_OPTIONS.some((font) => font.id === overlay?.font)
+        ? overlay!.font as OverlayFont
+        : 'gothic',
+    );
+    setImageOverlayColor(
+      OVERLAY_COLOR_OPTIONS.some((color) => color.id === overlay?.color)
+        ? overlay!.color as OverlayColor
+        : 'white',
+    );
+    setImageAiTypoStyle('selected');
     setImageModalOpen(true);
   }
 
@@ -169,6 +218,13 @@ export function ReviewDetailPage() {
             sizePreset: imageSizePreset,
             overlayHeadline: imageOverlayHeadline.trim() || undefined,
             overlaySubline: imageOverlaySubline.trim() || undefined,
+            overlayMode: imageOverlayHeadline.trim() ? imageOverlayMode : undefined,
+            overlayFont: imageOverlayHeadline.trim() ? imageOverlayFont : undefined,
+            overlayColor: imageOverlayHeadline.trim() ? imageOverlayColor : undefined,
+            aiTypoStyle:
+              imageOverlayHeadline.trim() && imageOverlayMode === 'AI'
+                ? imageAiTypoStyle
+                : undefined,
             references: imageReferences.length
               ? imageReferences.map(({ kind, id: referenceId }) => ({ kind, id: referenceId }))
               : undefined,
@@ -298,6 +354,56 @@ export function ReviewDetailPage() {
             <input id="creative-image-overlay-subline" maxLength={60} value={imageOverlaySubline} onChange={(event) => setImageOverlaySubline(event.target.value)} />
           </FormField>
           <p className="muted">{t('review.overlayCleanHint')}</p>
+          {imageOverlayHeadline.trim() && (
+            <div className="overlay-options">
+              <fieldset className="overlay-choice-group">
+                <legend>{t('review.overlayMode')}</legend>
+                <label>
+                  <input type="radio" name="overlay-mode" value="SERVER" checked={imageOverlayMode === 'SERVER'} onChange={() => setImageOverlayMode('SERVER')} />
+                  <span>{t('review.overlayModeServer')}</span>
+                </label>
+                <label>
+                  <input type="radio" name="overlay-mode" value="AI" checked={imageOverlayMode === 'AI'} onChange={() => setImageOverlayMode('AI')} />
+                  <span>{t('review.overlayModeAi')}</span>
+                </label>
+              </fieldset>
+              {imageOverlayMode === 'AI' && <p className="overlay-ai-warning" role="note">{t('review.overlayAiWarning')}</p>}
+              <fieldset className="overlay-font-picker">
+                <legend>{t('review.overlayFont')}</legend>
+                <div className="overlay-font-grid">
+                  {OVERLAY_FONT_OPTIONS.map((font) => (
+                    <label className={`overlay-font-card${imageOverlayFont === font.id ? ' is-selected' : ''}`} key={font.id}>
+                      <input type="radio" name="overlay-font" value={font.id} checked={imageOverlayFont === font.id} onChange={() => setImageOverlayFont(font.id)} />
+                      <span className="overlay-font-preview" style={{ fontFamily: `'${font.family}'`, color: OVERLAY_COLOR_OPTIONS.find((color) => color.id === imageOverlayColor)!.value, textShadow: `2px 2px 0 ${OVERLAY_COLOR_OPTIONS.find((color) => color.id === imageOverlayColor)!.shadow}` }}>
+                        {overlayPreviewText(imageOverlayHeadline, latestLocalization?.text)}
+                      </span>
+                      <span className="overlay-font-label">{t(font.labelKey)}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="overlay-color-picker">
+                <legend>{t('review.overlayColor')}</legend>
+                <div className="overlay-color-options">
+                  {OVERLAY_COLOR_OPTIONS.map((color) => (
+                    <label className={`overlay-color-option${imageOverlayColor === color.id ? ' is-selected' : ''}`} key={color.id}>
+                      <input type="radio" name="overlay-color" value={color.id} checked={imageOverlayColor === color.id} onChange={() => setImageOverlayColor(color.id)} />
+                      <span className="overlay-color-swatch" style={{ backgroundColor: color.value }} aria-hidden="true" />
+                      <span>{t(color.labelKey)}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {imageOverlayMode === 'AI' && (
+                <fieldset className="overlay-choice-group overlay-ai-styles">
+                  <legend>{t('review.aiTypoStyle')}</legend>
+                  <label><input type="radio" name="ai-typo-style" value="selected" checked={imageAiTypoStyle === 'selected'} onChange={() => setImageAiTypoStyle('selected')} /><span>{t('review.aiTypoSelected')}</span></label>
+                  <label className={imageReferences.length === 0 ? 'is-disabled' : ''}><input type="radio" name="ai-typo-style" value="match_reference" disabled={imageReferences.length === 0} checked={imageAiTypoStyle === 'match_reference'} onChange={() => setImageAiTypoStyle('match_reference')} /><span>{t('review.aiTypoMatchReference')}</span></label>
+                  <label><input type="radio" name="ai-typo-style" value="auto" checked={imageAiTypoStyle === 'auto'} onChange={() => setImageAiTypoStyle('auto')} /><span>{t('review.aiTypoAuto')}</span></label>
+                </fieldset>
+              )}
+            </div>
+          )}
         </section>
         <section className="reference-picker" aria-labelledby="image-reference-title">
           <div className="reference-picker-header">
@@ -468,8 +574,9 @@ export function ReviewDetailPage() {
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
                   {sizeCaption && <span className="tag">{sizeCaption}</span>}
                   {image.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
-                  {image.overlayHeadline && <span className="tag">{t('review.overlayApplied')}</span>}
-                  {image.overlayHeadline && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
+                  {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')}</span>}
+                  {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {t(OVERLAY_COLOR_LABEL_KEYS[(image.overlayColor ?? 'white') as OverlayColor])}</span>}
+                  {image.overlayHeadline && image.overlayMode !== 'AI' && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
                 <details className="prompt-detail">
@@ -477,7 +584,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline }); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor }); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>

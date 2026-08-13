@@ -225,22 +225,27 @@ export class ReviewService {
     return {
       ...this.mapCreative(creative),
       images: await Promise.all(
-        creative.images.map(async (image) => ({
-          id: image.id,
-          url: await this.storage.presignGet(image.storageKey),
-          cleanUrl: image.cleanStorageKey
-            ? await this.storage.presignGet(image.cleanStorageKey)
-            : null,
-          overlayHeadline: image.overlayHeadline,
-          overlaySubline: image.overlaySubline,
-          quality: image.quality,
-          instructions: image.instructions,
-          prompt: image.prompt,
-          sizePreset: image.sizePreset,
-          referenceKeys: image.referenceKeys,
-          createdAt: image.createdAt,
-          costEstimateUsd: image.costEstimateUsd,
-        })),
+        creative.images.map(async (image) => {
+          return {
+            id: image.id,
+            url: await this.storage.presignGet(image.storageKey),
+            cleanUrl: image.cleanStorageKey
+              ? await this.storage.presignGet(image.cleanStorageKey)
+              : null,
+            overlayHeadline: image.overlayHeadline,
+            overlaySubline: image.overlaySubline,
+            overlayMode: image.overlayMode,
+            overlayFont: image.overlayFont,
+            overlayColor: image.overlayColor,
+            quality: image.quality,
+            instructions: image.instructions,
+            prompt: image.prompt,
+            sizePreset: image.sizePreset,
+            referenceKeys: image.referenceKeys,
+            createdAt: image.createdAt,
+            costEstimateUsd: image.costEstimateUsd,
+          };
+        }),
       ),
       videos: await Promise.all(
         creative.videos.map(async (video) => ({

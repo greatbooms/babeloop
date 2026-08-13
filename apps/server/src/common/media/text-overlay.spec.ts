@@ -58,6 +58,12 @@ describe('computeOverlayLayout', () => {
 });
 
 describe('renderTextOverlay', () => {
+  const configurableRender = renderTextOverlay as unknown as (
+    buffer: Buffer,
+    layout: ReturnType<typeof computeOverlayLayout>,
+    options: { font: string; color: string },
+  ) => Promise<Buffer>;
+
   it('renders a valid PNG whose bytes differ from the clean input', async () => {
     const layout = computeOverlayLayout({
       width: 20,
@@ -79,5 +85,46 @@ describe('renderTextOverlay', () => {
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     );
     expect(rendered.equals(TWENTY_PIXEL_PNG)).toBe(false);
+  });
+
+  it('renders serif gold differently from the default gothic white style', async () => {
+    const layout = computeOverlayLayout({
+      width: 20,
+      height: 20,
+      group: 'banner',
+      headline: '字',
+    });
+
+    const originalCwd = process.cwd();
+    process.chdir(join(__dirname, '../../../../..'));
+    let defaultRendered: Buffer;
+    let styledRendered: Buffer;
+    try {
+      defaultRendered = await renderTextOverlay(TWENTY_PIXEL_PNG, layout);
+      styledRendered = await configurableRender(TWENTY_PIXEL_PNG, layout, {
+        font: 'serif',
+        color: 'gold',
+      });
+    } finally {
+      process.chdir(originalCwd);
+    }
+
+    expect(styledRendered.equals(defaultRendered)).toBe(false);
+  });
+
+  it('rejects an unknown font key', async () => {
+    const layout = computeOverlayLayout({
+      width: 20,
+      height: 20,
+      group: 'banner',
+      headline: '字',
+    });
+
+    await expect(
+      configurableRender(TWENTY_PIXEL_PNG, layout, {
+        font: 'unknown',
+        color: 'white',
+      }),
+    ).rejects.toThrow('지원하지 않는 오버레이 폰트');
   });
 });

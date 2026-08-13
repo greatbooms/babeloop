@@ -95,6 +95,61 @@ describe('BriefService.requestCreativeImages 검증', () => {
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
 
+  it('참고 이미지 없이 AI 타이포의 match_reference 스타일을 선택하면 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        overlayHeadline: '主標題',
+        overlayMode: 'AI',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
+        aiTypoStyle: 'match_reference',
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { overlayMode: 'PAINT' },
+    { overlayFont: 'comic' },
+    { overlayColor: 'blue' },
+    { overlayMode: 'AI', aiTypoStyle: 'wild' },
+  ])('허용되지 않은 오버레이 옵션 $overlayMode$overlayFont$overlayColor$aiTypoStyle 을 거부한다', async (invalidOption) => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        overlayHeadline: '主標題',
+        ...invalidOption,
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('메인 문구 없이 기본값이 아닌 오버레이 옵션을 선택하면 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        overlayFont: 'serif',
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
   it('메인 문구 없이 서브 문구만 있으면 BAD_USER_INPUT으로 거부한다', async () => {
     const { service, jobRecord } = setup();
 
@@ -220,6 +275,9 @@ describe('BriefService approved creative generation', () => {
         referenceKeys: [],
         overlayHeadline: '메인 문구',
         overlaySubline: '서브 문구',
+        overlayMode: 'SERVER',
+        overlayFont: 'gothic',
+        overlayColor: 'white',
       },
       { attempts: 1 },
     );

@@ -8,6 +8,26 @@ export interface OverlayLayout {
   lines: Array<{ text: string; fontSize: number; y: number }>;
 }
 
+export const OVERLAY_FONTS = {
+  gothic: { file: 'NotoSansTC-Bold.otf', family: 'Noto Sans TC Overlay' },
+  serif: { file: 'NotoSerifTC-Bold.otf', family: 'Noto Serif TC Overlay' },
+  rounded: { file: 'jf-openhuninn-2.1.ttf', family: 'JF Open Huninn Overlay' },
+  kai: { file: 'LXGWWenKaiTC-Medium.ttf', family: 'LXGW WenKai TC Overlay' },
+  yozai: { file: 'Yozai-Medium.ttf', family: 'Yozai Overlay' },
+  iansui: { file: 'Iansui-Regular.ttf', family: 'Iansui Overlay' },
+  genryu: { file: 'GenRyuMin2TC-B.otf', family: 'GenRyuMin Overlay' },
+} as const;
+
+export type OverlayFont = keyof typeof OVERLAY_FONTS;
+
+export const OVERLAY_COLORS = {
+  white: { fill: '#FFFFFF', shadow: 'rgba(0,0,0,0.55)' },
+  black: { fill: '#1A1A1A', shadow: 'rgba(255,255,255,0.35)' },
+  gold: { fill: '#E8C87A', shadow: 'rgba(0,0,0,0.6)' },
+} as const;
+
+export type OverlayColor = keyof typeof OVERLAY_COLORS;
+
 const ANCHORS: Record<OverlayGroup, number> = {
   square: 0.74,
   portrait: 0.78,
@@ -98,21 +118,24 @@ export function computeOverlayLayout(input: {
   return { lines };
 }
 
-const FONT_FAMILY = 'Noto Sans TC Overlay';
-let fontRegistered = false;
+const registeredFonts = new Set<OverlayFont>();
 
-async function ensureFont(): Promise<void> {
-  if (fontRegistered) return;
-  const fontPath = join(process.cwd(), 'apps/server/assets/fonts/NotoSansTC-Bold.otf');
+async function ensureFont(font: OverlayFont): Promise<void> {
+  const fontDefinition = OVERLAY_FONTS[font];
+  if (!fontDefinition) {
+    throw new Error(`지원하지 않는 오버레이 폰트: ${String(font)}`);
+  }
+  if (registeredFonts.has(font)) return;
+  const fontPath = join(process.cwd(), 'apps/server/assets/fonts', fontDefinition.file);
   try {
     await access(fontPath);
   } catch {
     throw new Error(`텍스트 오버레이 폰트를 찾을 수 없습니다: ${fontPath}`);
   }
-  if (!GlobalFonts.registerFromPath(fontPath, FONT_FAMILY)) {
+  if (!GlobalFonts.registerFromPath(fontPath, fontDefinition.family)) {
     throw new Error(`텍스트 오버레이 폰트 등록에 실패했습니다: ${fontPath}`);
   }
-  fontRegistered = true;
+  registeredFonts.add(font);
 }
 
 // ffmpeg drawtext가 아닌 canvas 렌더링을 쓰는 이유: 운영(리눅스)의 ffmpeg-static
@@ -120,19 +143,31 @@ async function ensureFont(): Promise<void> {
 export async function renderTextOverlay(
   buffer: Buffer,
   layout: OverlayLayout,
+  options: { font: OverlayFont; color: OverlayColor } = {
+    font: 'gothic',
+    color: 'white',
+  },
 ): Promise<Buffer> {
-  await ensureFont();
+  const fontDefinition = OVERLAY_FONTS[options.font];
+  if (!fontDefinition) {
+    throw new Error(`지원하지 않는 오버레이 폰트: ${String(options.font)}`);
+  }
+  const colorDefinition = OVERLAY_COLORS[options.color];
+  if (!colorDefinition) {
+    throw new Error(`지원하지 않는 오버레이 색상: ${String(options.color)}`);
+  }
+  await ensureFont(options.font);
   const image = await loadImage(buffer);
   const canvas = createCanvas(image.width, image.height);
   const ctx = canvas.getContext('2d');
   ctx.drawImage(image, 0, 0);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = colorDefinition.fill;
   for (const line of layout.lines) {
     const shadow = Math.max(2, Math.round(line.fontSize / 22));
-    ctx.font = `${line.fontSize}px "${FONT_FAMILY}"`;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.font = `${line.fontSize}px "${fontDefinition.family}"`;
+    ctx.shadowColor = colorDefinition.shadow;
     ctx.shadowOffsetX = shadow;
     ctx.shadowOffsetY = shadow;
     ctx.shadowBlur = 0;

@@ -6,6 +6,7 @@ import { GraphQLError } from 'graphql';
 import { User } from '../../../generated/prisma';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
+import { OVERLAY_COLORS, OVERLAY_FONTS } from '../../common/media/text-overlay';
 import {
   CREATIVE_GENERATION_QUEUE,
   generateBriefJobId,
@@ -106,12 +107,20 @@ export class BriefService {
   async requestCreativeImages(input: GenerateCreativeImagesInput) {
     const overlayHeadline = input.overlayHeadline?.trim() || undefined;
     const overlaySubline = input.overlaySubline?.trim() || undefined;
+    const overlayMode = input.overlayMode ?? 'SERVER';
+    const overlayFont = input.overlayFont ?? 'gothic';
+    const overlayColor = input.overlayColor ?? 'white';
+    const aiTypoStyle = input.aiTypoStyle ?? (overlayMode === 'AI' ? 'selected' : undefined);
     this.validateImageRequest(
       input.count,
       input.quality,
       input.references?.length ?? 0,
       overlayHeadline,
       overlaySubline,
+      overlayMode,
+      overlayFont,
+      overlayColor,
+      aiTypoStyle,
     );
     const sizePreset = resolveSizePreset(input.sizePreset);
     const creative = await this.prisma.generatedCreative.findUnique({
@@ -134,6 +143,8 @@ export class BriefService {
       referenceKeys,
       ...(overlayHeadline ? { overlayHeadline } : {}),
       ...(overlaySubline ? { overlaySubline } : {}),
+      ...(overlayHeadline ? { overlayMode, overlayFont, overlayColor } : {}),
+      ...(overlayHeadline && overlayMode === 'AI' ? { aiTypoStyle } : {}),
     };
     // 시도마다 실 AI 과금이라 자동 재시도가 비용을 배로 만든다 — 실패는 명확히 보여주고 재시도는 버튼으로
     return this.jobRecord.enqueueOrRetry(
@@ -193,6 +204,10 @@ export class BriefService {
     referenceCount: number,
     overlayHeadline?: string,
     overlaySubline?: string,
+    overlayMode = 'SERVER',
+    overlayFont = 'gothic',
+    overlayColor = 'white',
+    aiTypoStyle?: string,
   ): void {
     if (!Number.isInteger(count) || count < 1 || count > 4) {
       throw new GraphQLError('이미지 장수는 1~4장이어야 합니다', {
@@ -221,6 +236,52 @@ export class BriefService {
     }
     if (overlaySubline && !overlayHeadline) {
       throw new GraphQLError('서브 문구는 메인 문구가 있을 때만 입력할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (overlayMode !== 'SERVER' && overlayMode !== 'AI') {
+      throw new GraphQLError('렌더 방식은 SERVER 또는 AI여야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(OVERLAY_FONTS, overlayFont)) {
+      throw new GraphQLError('지원하지 않는 오버레이 폰트입니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (!Object.prototype.hasOwnProperty.call(OVERLAY_COLORS, overlayColor)) {
+      throw new GraphQLError('지원하지 않는 오버레이 색상입니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (
+      aiTypoStyle !== undefined &&
+      aiTypoStyle !== 'selected' &&
+      aiTypoStyle !== 'match_reference' &&
+      aiTypoStyle !== 'auto'
+    ) {
+      throw new GraphQLError('지원하지 않는 AI 타이포 스타일입니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (
+      !overlayHeadline &&
+      (overlayMode !== 'SERVER' ||
+        overlayFont !== 'gothic' ||
+        overlayColor !== 'white' ||
+        aiTypoStyle !== undefined)
+    ) {
+      throw new GraphQLError('오버레이 옵션은 메인 문구가 있을 때만 선택할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (overlayMode === 'SERVER' && aiTypoStyle !== undefined) {
+      throw new GraphQLError('AI 타이포 스타일은 AI 렌더 방식에서만 선택할 수 있습니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+    if (aiTypoStyle === 'match_reference' && referenceCount === 0) {
+      throw new GraphQLError('참고 이미지 스타일은 참고 이미지를 선택했을 때만 사용할 수 있습니다', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
@@ -371,17 +432,27 @@ export class BriefService {
     return {
       ...this.mapBrief(brief),
       images: await Promise.all(
-        brief.images.map(async (image) => ({
-          id: image.id,
-          url: await this.storage.presignGet(image.storageKey),
-          quality: image.quality,
-          instructions: image.instructions,
-          prompt: image.prompt,
-          sizePreset: image.sizePreset,
-          referenceKeys: image.referenceKeys,
-          createdAt: image.createdAt,
-          costEstimateUsd: image.costEstimateUsd,
-        })),
+        brief.images.map(async (image) => {
+          return {
+            id: image.id,
+            url: await this.storage.presignGet(image.storageKey),
+            cleanUrl: image.cleanStorageKey
+              ? await this.storage.presignGet(image.cleanStorageKey)
+              : null,
+            overlayHeadline: image.overlayHeadline,
+            overlaySubline: image.overlaySubline,
+            overlayMode: image.overlayMode,
+            overlayFont: image.overlayFont,
+            overlayColor: image.overlayColor,
+            quality: image.quality,
+            instructions: image.instructions,
+            prompt: image.prompt,
+            sizePreset: image.sizePreset,
+            referenceKeys: image.referenceKeys,
+            createdAt: image.createdAt,
+            costEstimateUsd: image.costEstimateUsd,
+          };
+        }),
       ),
     };
   }

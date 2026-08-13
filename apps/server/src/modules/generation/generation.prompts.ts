@@ -1,3 +1,5 @@
+import type { OverlayColor, OverlayFont } from '../../common/media/text-overlay';
+
 // 각 시스템 프롬프트는 기대하는 JSON 필드명을 반드시 명시한다.
 // Mock은 형태를 알고 있지만 실제 모델은 프롬프트에 없는 키 이름을 맞출 수 없다
 // (실측: OpenAI 전환 첫날 variants.koreanText 키 누락으로 검증 실패).
@@ -98,6 +100,39 @@ export function buildBrandTranslationPrompt(brand: { description: string | null;
   return `다음 한국어 브랜드 정보를 번체중문으로 번역하라. 배열 순서와 JSON 필드명을 유지하라:\n${JSON.stringify({ description: brand.description ?? '', features: brand.features, guidelines: brand.guidelines })}`;
 }
 
+export type AiTypoStyle = 'selected' | 'match_reference' | 'auto';
+
+const AI_TYPO_FONT_NAMES: Record<OverlayFont, { name: string; category: string }> = {
+  gothic: { name: '思源黑體 (Noto Sans TC)', category: '흑체/고딕' },
+  serif: { name: '思源宋體 (Noto Serif TC)', category: '명체/명조' },
+  rounded: { name: 'jf 粉圓體', category: '원체/둥근체' },
+  kai: { name: '霞鶩文楷 (LXGW WenKai TC)', category: '해서/붓글씨' },
+  yozai: { name: '悠哉體 (Yozai)', category: '손글씨' },
+  iansui: { name: '芫荽體 (Iansui)', category: '단정한 손글씨' },
+  genryu: { name: '源流明體 (GenRyuMin TC)', category: '전통 장식 명조' },
+};
+
+const AI_TYPO_COLOR_NAMES: Record<OverlayColor, string> = {
+  white: '흰색',
+  black: '검은색',
+  gold: '골드',
+};
+
+export function buildAiTypographyStyle(params: {
+  style: AiTypoStyle;
+  font: OverlayFont;
+  color: OverlayColor;
+}): string {
+  if (params.style === 'match_reference') {
+    return '참고 이미지의 타이포그래피와 비슷한 서체·배치';
+  }
+  if (params.style === 'auto') {
+    return '이미지 분위기에 가장 어울리는 서체를 선택';
+  }
+  const font = AI_TYPO_FONT_NAMES[params.font];
+  return `${font.name} 계열(${font.category}) 느낌, 색상 ${AI_TYPO_COLOR_NAMES[params.color]}`;
+}
+
 export function buildImagePrompt(params: {
   brief: {
     audienceHypothesis?: string | null;
@@ -109,6 +144,7 @@ export function buildImagePrompt(params: {
   brandName: string;
   brandDescription?: string | null;
   creative?: { koreanText: string; approvedZhTw?: string | null };
+  typography?: { headline: string; subline?: string | null; style: string };
   instructions?: string;
 }): string {
   const brandLine = `${params.brandName}${params.brandDescription ? ` — ${params.brandDescription}` : ''}`;
@@ -142,9 +178,22 @@ export function buildImagePrompt(params: {
       '- 인물이 등장하면 20대 이상 성인으로, 대만 도시 생활의 맥락이 자연스럽게 느껴지게.',
       '- 스마트폰 화면을 보여줄 땐 특정 앱을 재현하지 말고 일반화된 채팅 UI 분위기로.',
     ].join('\n'),
+    params.typography
+      ? [
+          '## 이미지 안에 그릴 문구 (반드시 이 글자들 그대로, 번체 한자 자획을 정확하게)',
+          `메인: "${params.typography.headline}"`,
+          params.typography.subline ? `서브: "${params.typography.subline}"` : null,
+          `타이포 스타일: ${params.typography.style}`,
+          '문구 외 다른 글자·로고·워터마크는 넣지 마라.',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : null,
     [
       '## 금지',
-      '- 이미지 안에 어떤 문자도 그리지 마라 — 한글·한자·영문·숫자·타이포그래피·로고·워터마크 전부. 문구 자리는 빈 공간으로만 남겨라 (문구는 생성 후 별도 합성된다).',
+      params.typography
+        ? '- 지정한 문구 외 다른 글자·로고·워터마크는 넣지 마라.'
+        : '- 이미지 안에 어떤 문자도 그리지 마라 — 한글·한자·영문·숫자·타이포그래피·로고·워터마크 전부. 문구 자리는 빈 공간으로만 남겨라 (문구는 생성 후 별도 합성된다).',
       '- 미성년자로 보일 수 있는 인물, 교복·학교 배경 금지.',
       '- 왜곡된 손가락·기형적 신체 금지.',
     ].join('\n'),

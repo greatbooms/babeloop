@@ -304,10 +304,14 @@ input GenerateCreativeBriefInput {
 }
 
 input GenerateCreativeImagesInput {
+  aiTypoStyle: String
   count: Int = 2
   creativeId: ID!
   instructions: String
+  overlayColor: String = "white"
+  overlayFont: String = "gothic"
   overlayHeadline: String
+  overlayMode: String = "SERVER"
   overlaySubline: String
   quality: String = "low"
   references: [GenerationReferenceInput!]
@@ -358,7 +362,10 @@ type GeneratedImageModel {
   createdAt: DateTime!
   id: ID!
   instructions: String!
+  overlayColor: String
+  overlayFont: String
   overlayHeadline: String
+  overlayMode: String
   overlaySubline: String
   prompt: String!
   quality: String!
