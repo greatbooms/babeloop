@@ -135,6 +135,7 @@ export function SourceAdsPage() {
             <FormField label={t('ads.search')} htmlFor="ad-search"><input id="ad-search" type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} /></FormField>
             <p className="result-count">{total === 0 ? t('ads.zeroCount') : t('ads.resultCount', { total, start: offset + 1, end })}</p>
           </div>
+          {busy && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('ads.importingBanner')}</span></div>}
           {message && <p className="notice">{message}</p>}
           {error && <p className="error" role="alert">{error}</p>}
           {job && job.status !== 'SUCCEEDED' && job.status !== 'FAILED' && <p>{t('ads.analyzing', { status: job.status })}</p>}

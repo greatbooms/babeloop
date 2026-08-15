@@ -252,8 +252,9 @@ export function PerformancePage() {
           </label>
           <span className="form-hint">{file?.name ?? t('performance.chooseFileHint')}</span>
           <Button data-hint={t('performance.uploadHint')} variant="primary" size="sm" type="button" disabled={!file || importing} onClick={() => void onUpload()}>
-            {t('performance.upload')}
+            {importing ? t('performance.uploading') : t('performance.upload')}
           </Button>
+          {importing && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('performance.uploadingBanner')}</span></div>}
         </div>
 
         {summary && (
