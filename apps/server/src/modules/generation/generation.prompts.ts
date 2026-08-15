@@ -256,7 +256,10 @@ export function buildVideoPrompt(params: {
 
 export function appendReferenceImages(prompt: string, referenceKeys: string[]): string {
   if (referenceKeys.length === 0) return prompt;
-  return `${prompt}\n\n## 참고 이미지: ${referenceKeys.length}장\n${referenceKeys
-    .map((key) => `- ${key}`)
-    .join('\n')}`;
+  // 유지 지시가 없으면 긴 장면 연출 프롬프트가 참조를 압도해 캐릭터가 다른 인물로 바뀐다 (운영 실측)
+  return `${prompt}\n\n## 참고 이미지: ${referenceKeys.length}장 (첨부됨)
+- 첨부된 참고 이미지의 캐릭터를 새 장면에 그대로 출연시키는 것이 목표다 — 얼굴 생김새·머리 모양과 길이·눈 색·체형·의상 느낌을 참고 이미지와 동일 인물로 알아볼 수 있게 유지하라.
+- 아트 스타일(실사/애니 여부, 선·채색·마감)과 색감도 참고 이미지를 그대로 따르라. 위 연출 지침의 예시와 충돌하면 참고 이미지의 화풍이 우선한다.
+- 참고 이미지에 텍스트·로고가 있어도 그 내용은 복사하지 마라 (타이포그래피 분위기 참고만 허용).
+${referenceKeys.map((key) => `- ${key}`).join('\n')}`;
 }
