@@ -93,8 +93,8 @@ describe('image size presets', () => {
     const preset = resolveSizePreset('banner_600x200');
 
     expect(buildSizePromptSection(preset)).toBe(
-      '## 출력 규격: 600x200 (3:1) — 네이티브 1536x1024로 생성 후 중앙 크롭되므로 중요한 요소(얼굴·핵심 오브젝트)를 가장자리에 두지 말 것\n' +
-        '초광폭 배너 구도 — 인물은 좌우 가장자리, 중앙은 문구가 나중에 얹힐 단순한 배경. 상하가 크게 잘리므로 얼굴을 세로 중앙 높이에 배치',
+      '## Output format: 600x200 (3:1) — generated at native 1536x1024 then center-cropped; keep faces and key objects away from the edges.\n' +
+        'Ultra-wide banner composition — place the subject toward a side edge and keep the center as a simple empty background for copy to be composited later. Heavy top-and-bottom cropping is expected, so keep faces vertically centered.',
     );
   });
 });

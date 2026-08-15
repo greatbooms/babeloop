@@ -64,11 +64,14 @@ export type ImageSizePreset = (typeof IMAGE_SIZE_PRESETS)[number];
 const DEFAULT_SIZE_PRESET = IMAGE_SIZE_PRESETS[0];
 
 const GROUP_PROMPTS: Record<ImageSizePreset['group'], string> = {
-  square: '정사각형에 가까운 구도 — 핵심 인물을 중앙에 크게, 하단 1/3은 문구가 나중에 얹힐 빈 여백(글자는 그리지 말 것)',
-  portrait: '세로형 구도 — 인물 상반신을 상단~중앙에, 하단은 문구가 나중에 얹힐 빈 여백으로 단순하게',
-  landscape: '가로형 구도 — 인물을 한쪽에 배치, 반대쪽은 문구가 나중에 얹힐 단순한 빈 공간',
+  square:
+    'Near-square composition — make the key subject large and central, leaving the lower third as simple empty space for copy to be composited later; do not draw text.',
+  portrait:
+    "Portrait composition — place the subject's upper body from the upper area through the center, keeping the lower area simple and empty for copy to be composited later.",
+  landscape:
+    'Landscape composition — place the subject on one side and keep the opposite side as simple empty space for copy to be composited later.',
   banner:
-    '초광폭 배너 구도 — 인물은 좌우 가장자리, 중앙은 문구가 나중에 얹힐 단순한 배경. 상하가 크게 잘리므로 얼굴을 세로 중앙 높이에 배치',
+    'Ultra-wide banner composition — place the subject toward a side edge and keep the center as a simple empty background for copy to be composited later. Heavy top-and-bottom cropping is expected, so keep faces vertically centered.',
 };
 
 export function resolveSizePreset(id?: string): ImageSizePreset {
@@ -86,7 +89,7 @@ export function resolveSizePreset(id?: string): ImageSizePreset {
 export function buildSizePromptSection(preset: ImageSizePreset): string {
   const ratio = preset.label.slice(preset.label.lastIndexOf('(') + 1, -1);
   return [
-    `## 출력 규격: ${preset.width}x${preset.height} (${ratio}) — 네이티브 ${preset.nativeSize}로 생성 후 중앙 크롭되므로 중요한 요소(얼굴·핵심 오브젝트)를 가장자리에 두지 말 것`,
+    `## Output format: ${preset.width}x${preset.height} (${ratio}) — generated at native ${preset.nativeSize} then center-cropped; keep faces and key objects away from the edges.`,
     GROUP_PROMPTS[preset.group],
   ].join('\n');
 }

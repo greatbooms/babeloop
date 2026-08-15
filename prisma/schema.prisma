@@ -414,6 +414,7 @@ model GeneratedImage {
   promptVersion   String
   sizePreset      String?
   referenceKeys   String[]           @default([])
+  referenceRolesJson Json?
   costEstimateUsd Float?
   createdAt       DateTime           @default(now())
 

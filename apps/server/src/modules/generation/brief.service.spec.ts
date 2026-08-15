@@ -1,5 +1,5 @@
 import { BriefService } from './brief.service';
-import { GenerationReferenceKind } from './brief.inputs';
+import { GenerationReferenceKind, GenerationReferenceRole } from './brief.inputs';
 
 describe('BriefService relationships', () => {
   it('삭제된 광고는 titleSnapshot과 deleted를 매핑한다', async () => {
@@ -109,6 +109,32 @@ describe('BriefService.requestCreativeImages 검증', () => {
         overlayFont: 'serif',
         overlayColor: 'gold',
         aiTypoStyle: 'match_reference',
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('TYPOGRAPHY 역할 참고 없이 AI 타이포의 match_reference 스타일을 선택하면 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        overlayHeadline: '主標題',
+        overlayMode: 'AI',
+        overlayFont: 'serif',
+        overlayColor: 'gold',
+        aiTypoStyle: 'match_reference',
+        references: [
+          {
+            kind: GenerationReferenceKind.GENERATED_IMAGE,
+            id: 'image-1',
+            role: GenerationReferenceRole.STYLE,
+          },
+        ],
       } as never),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
@@ -283,7 +309,7 @@ describe('BriefService approved creative generation', () => {
     );
   });
 
-  it('세 종류의 참고 항목을 입력 순서대로 storage key로 해석한다', async () => {
+  it('세 종류의 참고 항목을 역할 순서대로 storage key와 role로 해석한다', async () => {
     const prisma = {
       generatedCreative: {
         findUnique: jest.fn().mockResolvedValue({
@@ -331,9 +357,21 @@ describe('BriefService approved creative generation', () => {
       count: 1,
       quality: 'low',
       references: [
-        { kind: GenerationReferenceKind.MEDIA_ASSET, id: 'asset-1' },
-        { kind: GenerationReferenceKind.SOURCE_AD, id: 'ad-1' },
-        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'image-1' },
+        {
+          kind: GenerationReferenceKind.MEDIA_ASSET,
+          id: 'asset-1',
+          role: GenerationReferenceRole.TYPOGRAPHY,
+        },
+        {
+          kind: GenerationReferenceKind.SOURCE_AD,
+          id: 'ad-1',
+          role: GenerationReferenceRole.STYLE,
+        },
+        {
+          kind: GenerationReferenceKind.GENERATED_IMAGE,
+          id: 'image-1',
+          role: GenerationReferenceRole.CHARACTER,
+        },
       ],
     });
 
@@ -344,9 +382,67 @@ describe('BriefService approved creative generation', () => {
       expect.any(String),
       expect.objectContaining({
         referenceKeys: [
-          'media/asset-1/original.webp',
-          'source-ads/ad-1/thumb.jpg',
           'generated-images/brief-1/ref.png',
+          'source-ads/ad-1/thumb.jpg',
+          'media/asset-1/original.webp',
+        ],
+        references: [
+          { key: 'generated-images/brief-1/ref.png', role: 'CHARACTER' },
+          { key: 'source-ads/ad-1/thumb.jpg', role: 'STYLE' },
+          { key: 'media/asset-1/original.webp', role: 'TYPOGRAPHY' },
+        ],
+      }),
+      { attempts: 1 },
+    );
+  });
+
+  it('참고 역할을 생략하면 STYLE로 해석한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-copy-1',
+          briefId: 'brief-1',
+          type: 'COPY',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: {
+        findUnique: jest.fn().mockResolvedValue({
+          storageKey: 'generated-images/brief-1/ref.png',
+        }),
+      },
+    };
+    const queue = { name: 'creative-generation' };
+    const jobRecord = {
+      enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }),
+    };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      queue as never,
+      {} as never,
+    );
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      references: [
+        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'image-1' } as never,
+      ],
+    });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      queue,
+      'creative-generation',
+      'generate-images',
+      expect.any(String),
+      expect.objectContaining({
+        referenceKeys: ['generated-images/brief-1/ref.png'],
+        references: [
+          { key: 'generated-images/brief-1/ref.png', role: 'STYLE' },
         ],
       }),
       { attempts: 1 },

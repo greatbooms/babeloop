@@ -103,19 +103,19 @@ export function buildBrandTranslationPrompt(brand: { description: string | null;
 export type AiTypoStyle = 'selected' | 'match_reference' | 'auto';
 
 const AI_TYPO_FONT_NAMES: Record<OverlayFont, { name: string; category: string }> = {
-  gothic: { name: '思源黑體 (Noto Sans TC)', category: '흑체/고딕' },
-  serif: { name: '思源宋體 (Noto Serif TC)', category: '명체/명조' },
-  rounded: { name: 'jf 粉圓體', category: '원체/둥근체' },
-  kai: { name: '霞鶩文楷 (LXGW WenKai TC)', category: '해서/붓글씨' },
-  yozai: { name: '悠哉體 (Yozai)', category: '손글씨' },
-  iansui: { name: '芫荽體 (Iansui)', category: '단정한 손글씨' },
-  genryu: { name: '源流明體 (GenRyuMin TC)', category: '전통 장식 명조' },
+  gothic: { name: '思源黑體 (Noto Sans TC)', category: 'sans-serif/gothic' },
+  serif: { name: '思源宋體 (Noto Serif TC)', category: 'serif/Ming' },
+  rounded: { name: 'jf 粉圓體', category: 'rounded' },
+  kai: { name: '霞鶩文楷 (LXGW WenKai TC)', category: 'Kai/brush script' },
+  yozai: { name: '悠哉體 (Yozai)', category: 'handwritten' },
+  iansui: { name: '芫荽體 (Iansui)', category: 'neat handwritten' },
+  genryu: { name: '源流明體 (GenRyuMin TC)', category: 'traditional decorative Ming' },
 };
 
 const AI_TYPO_COLOR_NAMES: Record<OverlayColor, string> = {
-  white: '흰색',
-  black: '검은색',
-  gold: '골드',
+  white: 'white',
+  black: 'black',
+  gold: 'gold',
 };
 
 export function buildAiTypographyStyle(params: {
@@ -124,16 +124,17 @@ export function buildAiTypographyStyle(params: {
   color: OverlayColor;
 }): string {
   if (params.style === 'match_reference') {
-    return '참고 이미지의 타이포그래피와 비슷한 서체·배치';
+    return 'Match the typeface style and arrangement of the TYPOGRAPHY reference image';
   }
   if (params.style === 'auto') {
-    return '이미지 분위기에 가장 어울리는 서체를 선택';
+    return "Choose the typeface that best fits the image's mood";
   }
   const font = AI_TYPO_FONT_NAMES[params.font];
-  return `${font.name} 계열(${font.category}) 느낌, 색상 ${AI_TYPO_COLOR_NAMES[params.color]}`;
+  return `${font.name} family (${font.category}) feel, color ${AI_TYPO_COLOR_NAMES[params.color]}`;
 }
 
 export function buildImagePrompt(params: {
+  count?: number;
   brief: {
     audienceHypothesis?: string | null;
     desire: string;
@@ -148,57 +149,61 @@ export function buildImagePrompt(params: {
   instructions?: string;
 }): string {
   const brandLine = `${params.brandName}${params.brandDescription ? ` — ${params.brandDescription}` : ''}`;
+  const count = params.count ?? 1;
   return [
-    '모바일 피드 광고용 이미지 시안 1장. 아래 브리프를 추상 개념 나열이 아니라 하나의 구체적인 순간·장면으로 연출하라. 인물의 표정·손·기기 화면·공간이 이야기를 전달해야 한다.',
-    `## 제품\n브랜드: ${brandLine}`,
+    `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
+    `## Product\nBrand: ${brandLine}`,
     [
-      '## 광고 전략 (이 감정과 상황이 화면에 드러나야 한다)',
-      params.brief.audienceHypothesis ? `타깃: ${params.brief.audienceHypothesis}` : null,
-      `핵심 욕구: ${params.brief.desire}`,
-      `훅 유형: ${params.brief.hookType}`,
-      params.brief.messageAngle ? `메시지 각도: ${params.brief.messageAngle}` : null,
-      `비주얼 형식: ${params.brief.visualFormat}`,
+      '## Ad strategy (this emotion and situation must be visible in the image)',
+      params.brief.audienceHypothesis
+        ? `Target audience: ${params.brief.audienceHypothesis}`
+        : null,
+      `Core desire: ${params.brief.desire}`,
+      `Hook type: ${params.brief.hookType}`,
+      params.brief.messageAngle ? `Message angle: ${params.brief.messageAngle}` : null,
+      `Visual format: ${params.brief.visualFormat}`,
     ]
       .filter(Boolean)
       .join('\n'),
     params.creative
       ? [
-          '## 확정 광고 문구 (이미지는 이 문구가 말하는 순간을 그려야 한다)',
-          `한국어: ${params.creative.koreanText}`,
+          '## Approved ad copy (the image must depict the moment this copy describes)',
+          `Korean: ${params.creative.koreanText}`,
           params.creative.approvedZhTw
-            ? `zh-TW(승인본): ${params.creative.approvedZhTw}`
+            ? `zh-TW (approved): ${params.creative.approvedZhTw}`
             : null,
         ]
           .filter(Boolean)
           .join('\n')
       : null,
     [
-      '## 연출 지침',
-      '- 조명·색감·질감을 구체적으로 정하라 (예: 새벽의 차가운 블루 톤 + 화면 글로우, 얕은 심도, 필름 그레인).',
-      '- 인물이 등장하면 20대 이상 성인으로, 대만 도시 생활의 맥락이 자연스럽게 느껴지게.',
-      '- 스마트폰 화면을 보여줄 땐 특정 앱을 재현하지 말고 일반화된 채팅 UI 분위기로.',
+      '## Art direction',
+      '- Define specific lighting, color and texture (for example: cool blue pre-dawn tones with screen glow, shallow depth of field and film grain).',
+      '- If people appear, they must be adults aged 20 or older; make a Taiwan urban-life context feel natural.',
+      '- If showing a smartphone screen, use a generalized chat UI rather than reproducing any specific app.',
     ].join('\n'),
+    [
+      '## Prohibited',
+      '- No text, letters, logos or watermarks unless explicitly instructed below.',
+      params.typography ? null : '- Leave clear empty space for copy to be composited later.',
+      '- No minors or school settings.',
+      '- No distorted hands or anatomy.',
+    ]
+      .filter(Boolean)
+      .join('\n'),
     params.typography
       ? [
-          '## 이미지 안에 그릴 문구 (반드시 이 글자들 그대로, 번체 한자 자획을 정확하게)',
-          `메인: "${params.typography.headline}"`,
-          params.typography.subline ? `서브: "${params.typography.subline}"` : null,
-          `타이포 스타일: ${params.typography.style}`,
-          '문구 외 다른 글자·로고·워터마크는 넣지 마라.',
+          '## Text to render inside the image (exactly these characters, with accurate Traditional Chinese strokes)',
+          `Headline: "${params.typography.headline}"`,
+          params.typography.subline ? `Subline: "${params.typography.subline}"` : null,
+          `Typography style: ${params.typography.style}`,
+          '- Do not render any other text, logos or watermarks.',
         ]
           .filter(Boolean)
           .join('\n')
       : null,
-    [
-      '## 금지',
-      params.typography
-        ? '- 지정한 문구 외 다른 글자·로고·워터마크는 넣지 마라.'
-        : '- 이미지 안에 어떤 문자도 그리지 마라 — 한글·한자·영문·숫자·타이포그래피·로고·워터마크 전부. 문구 자리는 빈 공간으로만 남겨라 (문구는 생성 후 별도 합성된다).',
-      '- 미성년자로 보일 수 있는 인물, 교복·학교 배경 금지.',
-      '- 왜곡된 손가락·기형적 신체 금지.',
-    ].join('\n'),
     params.instructions
-      ? `## 추가 요구사항 (위 지침과 충돌하면 이것을 우선하라)\n${params.instructions}`
+      ? `## User requirement (may be written in Korean — follow it precisely; it overrides any conflicting direction above)\n${params.instructions}`
       : null,
   ]
     .filter(Boolean)
@@ -254,12 +259,44 @@ export function buildVideoPrompt(params: {
     .join('\n\n');
 }
 
-export function appendReferenceImages(prompt: string, referenceKeys: string[]): string {
-  if (referenceKeys.length === 0) return prompt;
-  // 유지 지시가 없으면 긴 장면 연출 프롬프트가 참조를 압도해 캐릭터가 다른 인물로 바뀐다 (운영 실측)
-  return `${prompt}\n\n## 참고 이미지: ${referenceKeys.length}장 (첨부됨)
-- 첨부된 참고 이미지의 캐릭터를 새 장면에 그대로 출연시키는 것이 목표다 — 얼굴 생김새·머리 모양과 길이·눈 색·체형·의상 느낌을 참고 이미지와 동일 인물로 알아볼 수 있게 유지하라.
-- 아트 스타일(실사/애니 여부, 선·채색·마감)과 색감도 참고 이미지를 그대로 따르라. 위 연출 지침의 예시와 충돌하면 참고 이미지의 화풍이 우선한다.
-- 참고 이미지에 텍스트·로고가 있어도 그 내용은 복사하지 마라 (타이포그래피 분위기 참고만 허용).
-${referenceKeys.map((key) => `- ${key}`).join('\n')}`;
+export type GenerationReference = {
+  key: string;
+  role: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
+};
+
+const REFERENCE_ROLE_INSTRUCTIONS: Record<GenerationReference['role'], string> = {
+  CHARACTER:
+    "Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Do not copy this image's composition or any text in it.",
+  STYLE:
+    "Match this image's art style, rendering finish, color palette and mood only. Do not copy its characters, composition or text.",
+  TYPOGRAPHY:
+    'Match only the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy the actual words, characters or logos.',
+};
+
+export function appendReferences(prompt: string, references: GenerationReference[]): string {
+  if (references.length === 0) return prompt;
+
+  const roleInstructions = references.map(
+    (reference, index) =>
+      `Reference #${index + 1} — ${reference.role}: ${REFERENCE_ROLE_INSTRUCTIONS[reference.role]}`,
+  );
+  const referencePriority = references.some(
+    (reference) => reference.role === 'CHARACTER' || reference.role === 'STYLE',
+  )
+    ? 'When any CHARACTER or STYLE reference conflicts with the art direction above, the reference wins (including realism vs. anime).'
+    : null;
+
+  return [
+    prompt,
+    [
+      `## Attached reference images (${references.length})`,
+      'References are attached in the order listed. Use each ONLY for its stated purpose.',
+      ...roleInstructions,
+      referencePriority,
+      '## Reference keys (tracking only)',
+      ...references.map((reference) => `- ${reference.key}`),
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  ].join('\n\n');
 }

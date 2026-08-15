@@ -11,6 +11,7 @@ import {
   CreativeStatus,
   CreativeType,
   GenerationReferenceKind,
+  GenerationReferenceRole,
   JobStatus,
   UserRole,
 } from '../generated/graphql';
@@ -38,7 +39,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor quality instructions prompt sizePreset referenceKeys createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor quality instructions prompt sizePreset referenceKeys referenceRolesJson createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -61,6 +62,44 @@ type ReferenceOption = {
   url: string;
   label: string;
 };
+
+type SelectedReference = ReferenceOption & {
+  role: GenerationReferenceRole;
+};
+
+type StoredReference = {
+  key: string;
+  role: GenerationReferenceRole;
+};
+
+const REFERENCE_ROLES = [
+  GenerationReferenceRole.Character,
+  GenerationReferenceRole.Style,
+  GenerationReferenceRole.Typography,
+] as const;
+
+const REFERENCE_ROLE_LABEL_KEYS: Record<GenerationReferenceRole, string> = {
+  [GenerationReferenceRole.Character]: 'review.referenceRoleCharacter',
+  [GenerationReferenceRole.Style]: 'review.referenceRoleStyle',
+  [GenerationReferenceRole.Typography]: 'review.referenceRoleTypography',
+};
+
+function parseStoredReferences(value: string | null | undefined): StoredReference[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (reference): reference is StoredReference =>
+        typeof reference === 'object' &&
+        reference !== null &&
+        typeof (reference as StoredReference).key === 'string' &&
+        REFERENCE_ROLES.includes((reference as StoredReference).role),
+    );
+  } catch {
+    return [];
+  }
+}
 
 function referenceOptionKey(option: Pick<ReferenceOption, 'kind' | 'id'>) {
   return `${option.kind}:${option.id}`;
@@ -110,7 +149,7 @@ export function ReviewDetailPage() {
   const [imageCount, setImageCount] = useState(2);
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [imageSizePreset, setImageSizePreset] = useState<ImageSizePresetId>(DEFAULT_IMAGE_SIZE_PRESET);
-  const [imageReferences, setImageReferences] = useState<ReferenceOption[]>([]);
+  const [imageReferences, setImageReferences] = useState<SelectedReference[]>([]);
   const [imageJobId, setImageJobId] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoInstructions, setVideoInstructions] = useState('');
@@ -123,6 +162,9 @@ export function ReviewDetailPage() {
   const imageJob = useJobPolling(imageJobId);
   const videoJob = useJobPolling(videoJobId);
   const policyJob = useJobPolling(policyJobId);
+  const hasTypographyReference = imageReferences.some(
+    (reference) => reference.role === GenerationReferenceRole.Typography,
+  );
   const creative = data?.creative; const latestLocalization = creative?.localizations[0];
   const { data: briefImagesData } = useQuery(ReviewBriefImagesDocument, {
     variables: { id: creative?.briefId ?? '' },
@@ -167,10 +209,10 @@ export function ReviewDetailPage() {
     setVideoJobId(null);
   }, [refetch, t, videoJob?.error, videoJob?.status]);
   useEffect(() => {
-    if (imageReferences.length === 0 && imageAiTypoStyle === 'match_reference') {
+    if (!hasTypographyReference && imageAiTypoStyle === 'match_reference') {
       setImageAiTypoStyle('selected');
     }
-  }, [imageAiTypoStyle, imageReferences.length]);
+  }, [hasTypographyReference, imageAiTypoStyle]);
 
   function openImageGenerationModal(overlay?: {
     headline?: string | null;
@@ -226,7 +268,11 @@ export function ReviewDetailPage() {
                 ? imageAiTypoStyle
                 : undefined,
             references: imageReferences.length
-              ? imageReferences.map(({ kind, id: referenceId }) => ({ kind, id: referenceId }))
+              ? imageReferences.map(({ kind, id: referenceId, role: referenceRole }) => ({
+                  kind,
+                  id: referenceId,
+                  role: referenceRole,
+                }))
               : undefined,
           },
         },
@@ -265,8 +311,17 @@ export function ReviewDetailPage() {
       const selected = current.some((item) => referenceOptionKey(item) === key);
       if (selected) return current.filter((item) => referenceOptionKey(item) !== key);
       if (current.length >= 16) return current;
-      return [...current, option];
+      return [...current, { ...option, role: GenerationReferenceRole.Style }];
     });
+  }
+
+  function setImageReferenceRole(option: ReferenceOption, role: GenerationReferenceRole) {
+    const key = referenceOptionKey(option);
+    setImageReferences((current) =>
+      current.map((item) =>
+        referenceOptionKey(item) === key ? { ...item, role } : item,
+      ),
+    );
   }
 
   if (!creative) return <section><p className="muted">{t('review.loading')}</p></section>;
@@ -302,6 +357,17 @@ export function ReviewDetailPage() {
     { label: t('review.referenceAds'), options: sourceAdOptions },
     { label: t('review.referenceMediaAssets'), options: mediaAssetOptions },
   ];
+  const referenceRoleCounts = {
+    [GenerationReferenceRole.Character]: imageReferences.filter(
+      (reference) => reference.role === GenerationReferenceRole.Character,
+    ).length,
+    [GenerationReferenceRole.Style]: imageReferences.filter(
+      (reference) => reference.role === GenerationReferenceRole.Style,
+    ).length,
+    [GenerationReferenceRole.Typography]: imageReferences.filter(
+      (reference) => reference.role === GenerationReferenceRole.Typography,
+    ).length,
+  };
   const visualJobActive = Boolean(imageJobId || videoJobId);
   // 전이 뮤테이션 실행 중(acting)과 정책 검사 잡 실행 중에도 헤더 액션을 잠근다
   const policyActive = Boolean(policyJobId);
@@ -398,8 +464,9 @@ export function ReviewDetailPage() {
                 <fieldset className="overlay-choice-group overlay-ai-styles">
                   <legend>{t('review.aiTypoStyle')}</legend>
                   <label><input type="radio" name="ai-typo-style" value="selected" checked={imageAiTypoStyle === 'selected'} onChange={() => setImageAiTypoStyle('selected')} /><span>{t('review.aiTypoSelected')}</span></label>
-                  <label className={imageReferences.length === 0 ? 'is-disabled' : ''}><input type="radio" name="ai-typo-style" value="match_reference" disabled={imageReferences.length === 0} checked={imageAiTypoStyle === 'match_reference'} onChange={() => setImageAiTypoStyle('match_reference')} /><span>{t('review.aiTypoMatchReference')}</span></label>
+                  <label className={!hasTypographyReference ? 'is-disabled' : ''}><input type="radio" name="ai-typo-style" value="match_reference" disabled={!hasTypographyReference} checked={imageAiTypoStyle === 'match_reference'} onChange={() => setImageAiTypoStyle('match_reference')} /><span>{t('review.aiTypoMatchReference')}</span></label>
                   <label><input type="radio" name="ai-typo-style" value="auto" checked={imageAiTypoStyle === 'auto'} onChange={() => setImageAiTypoStyle('auto')} /><span>{t('review.aiTypoAuto')}</span></label>
+                  {!hasTypographyReference && <small className="overlay-ai-reference-hint">{t('review.aiTypoMatchReferenceHint')}</small>}
                 </fieldset>
               )}
             </div>
@@ -408,7 +475,12 @@ export function ReviewDetailPage() {
         <section className="reference-picker" aria-labelledby="image-reference-title">
           <div className="reference-picker-header">
             <h3 id="image-reference-title">{t('review.referenceImages')}</h3>
-            <strong>{t('review.referenceSelectionCount', { count: imageReferences.length })}</strong>
+            <strong>{t('review.referenceSelectionSummary', {
+              count: imageReferences.length,
+              character: referenceRoleCounts[GenerationReferenceRole.Character],
+              style: referenceRoleCounts[GenerationReferenceRole.Style],
+              typography: referenceRoleCounts[GenerationReferenceRole.Typography],
+            })}</strong>
           </div>
           <p className="muted">{t('review.referenceImagesGuide')}</p>
           {referenceGroups.map((group) => (
@@ -417,23 +489,47 @@ export function ReviewDetailPage() {
               {group.options.length > 0 ? (
                 <div className="reference-thumbnail-row">
                   {group.options.map((option) => {
-                    const selected = imageReferences.some(
+                    const selectedReference = imageReferences.find(
                       (item) => referenceOptionKey(item) === referenceOptionKey(option),
                     );
+                    const selected = Boolean(selectedReference);
                     return (
-                      <button
-                        type="button"
-                        className={`reference-thumbnail${selected ? ' is-selected' : ''}`}
+                      <div
+                        className={`reference-thumbnail reference-thumbnail-selectable${selected ? ' is-selected' : ''}${!selected && imageReferences.length >= 16 ? ' is-disabled' : ''}`}
                         key={referenceOptionKey(option)}
-                        aria-label={t('review.toggleReferenceImage', { name: option.label })}
-                        aria-pressed={selected}
-                        disabled={!selected && imageReferences.length >= 16}
-                        onClick={() => toggleImageReference(option)}
                       >
-                        <img src={option.url} alt={option.label} />
-                        <span className="reference-check" aria-hidden="true">✓</span>
-                        <span className="reference-thumbnail-label">{option.label}</span>
-                      </button>
+                        <button
+                          type="button"
+                          className="reference-thumbnail-toggle"
+                          aria-label={t('review.toggleReferenceImage', { name: option.label })}
+                          aria-pressed={selected}
+                          disabled={!selected && imageReferences.length >= 16}
+                          onClick={() => toggleImageReference(option)}
+                        >
+                          <img src={option.url} alt={option.label} />
+                          <span className="reference-check" aria-hidden="true">✓</span>
+                          <span className="reference-thumbnail-label">{option.label}</span>
+                        </button>
+                        {selectedReference && (
+                          <div className="reference-role-chips">
+                            {REFERENCE_ROLES.map((referenceRole) => (
+                              <button
+                                type="button"
+                                className={selectedReference.role === referenceRole ? 'is-selected' : ''}
+                                key={referenceRole}
+                                aria-label={t('review.selectReferenceRole', {
+                                  name: option.label,
+                                  role: t(REFERENCE_ROLE_LABEL_KEYS[referenceRole]),
+                                })}
+                                aria-pressed={selectedReference.role === referenceRole}
+                                onClick={() => setImageReferenceRole(option, referenceRole)}
+                              >
+                                {t(REFERENCE_ROLE_LABEL_KEYS[referenceRole])}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -563,6 +659,16 @@ export function ReviewDetailPage() {
         <div className="brief-image-grid">
           {creative.images.map((image) => {
             const sizeCaption = imageSizePresetCaption(image.sizePreset);
+            const storedReferences = parseStoredReferences(image.referenceRolesJson);
+            const roleComposition = REFERENCE_ROLES.map((referenceRole) => {
+              const count = storedReferences.filter(
+                (reference) => reference.role === referenceRole,
+              ).length;
+              return count > 0 ? `${t(REFERENCE_ROLE_LABEL_KEYS[referenceRole])} ${count}` : null;
+            })
+              .filter((label): label is string => Boolean(label))
+              .join('·');
+            const inheritedRole = storedReferences[0]?.role ?? GenerationReferenceRole.Style;
             return (
             <figure className="brief-image-item" key={image.id}>
               <a href={image.url} target="_blank" rel="noreferrer" aria-label={t('review.creativeImageOpen')}>
@@ -573,7 +679,9 @@ export function ReviewDetailPage() {
                   <span className="tag tag-accent">{image.quality === 'high' ? t('briefs.qualityHigh') : t('briefs.qualityLow')}</span>
                   <span className="tag">{image.costEstimateUsd == null ? t('briefs.costUnknown') : t('briefs.imageCost', { cost: image.costEstimateUsd.toFixed(2) })}</span>
                   {sizeCaption && <span className="tag">{sizeCaption}</span>}
-                  {image.referenceKeys.length > 0 && <span className="tag">{t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
+                  {image.referenceKeys.length > 0 && <span className="tag">{roleComposition
+                    ? t('review.referenceComposition', { count: image.referenceKeys.length, roles: roleComposition })
+                    : t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
                   {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {t(OVERLAY_COLOR_LABEL_KEYS[(image.overlayColor ?? 'white') as OverlayColor])}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
@@ -584,7 +692,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }) }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor }); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }), role: inheritedRole }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor }); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>

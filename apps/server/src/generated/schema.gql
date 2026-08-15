@@ -370,6 +370,7 @@ type GeneratedImageModel {
   prompt: String!
   quality: String!
   referenceKeys: [String!]!
+  referenceRolesJson: String
   sizePreset: String
   url: String!
 }
@@ -389,12 +390,19 @@ type GeneratedVideoModel {
 input GenerationReferenceInput {
   id: ID!
   kind: GenerationReferenceKind!
+  role: GenerationReferenceRole! = STYLE
 }
 
 enum GenerationReferenceKind {
   GENERATED_IMAGE
   MEDIA_ASSET
   SOURCE_AD
+}
+
+enum GenerationReferenceRole {
+  CHARACTER
+  STYLE
+  TYPOGRAPHY
 }
 
 input ImportPerformanceCsvInput {

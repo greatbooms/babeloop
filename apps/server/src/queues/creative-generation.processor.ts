@@ -16,7 +16,7 @@ import { AiExecutionLogService, AiExecutionMeta } from '../modules/ai-log/ai-exe
 import { VectorSearchRepository } from '../modules/creative-analysis/vector-search.repository';
 import {
   BRIEF_SYSTEM,
-  appendReferenceImages,
+  appendReferences,
   buildBriefPrompt,
   buildImagePrompt,
   buildVideoPrompt,
@@ -86,6 +86,10 @@ interface GenerateImagesJobData {
   quality: 'low' | 'high';
   sizePreset: string;
   referenceKeys: string[];
+  references?: Array<{
+    key: string;
+    role: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
+  }>;
   overlayHeadline?: string;
   overlaySubline?: string;
   overlayMode?: 'SERVER' | 'AI';
@@ -269,7 +273,11 @@ export class CreativeGenerationProcessor extends WorkerHost {
       });
       const brief = creative.brief;
       const sizePreset = resolveSizePreset(job.data.sizePreset);
-      const referenceKeys = job.data.referenceKeys ?? [];
+      const references = job.data.references ?? (job.data.referenceKeys ?? []).map((key) => ({
+        key,
+        role: 'STYLE' as const,
+      }));
+      const referenceKeys = references.map((reference) => reference.key);
       const referenceImages = await this.loadReferenceImages(referenceKeys);
       const overlayHeadline = job.data.overlayHeadline?.trim() || null;
       const overlaySubline = overlayHeadline
@@ -279,9 +287,10 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const overlayFont = job.data.overlayFont ?? 'gothic';
       const overlayColor = job.data.overlayColor ?? 'white';
       const aiTypoStyle = job.data.aiTypoStyle ?? 'selected';
-      const prompt = appendReferenceImages(
+      const prompt = appendReferences(
         [
           buildImagePrompt({
+            count: job.data.count,
             brief,
             brandName: brief.brand?.name ?? 'BabeChat',
             brandDescription: brief.brand?.description,
@@ -306,12 +315,9 @@ export class CreativeGenerationProcessor extends WorkerHost {
           }),
           buildSizePromptSection(sizePreset),
         ].join('\n\n'),
-        referenceKeys,
+        references,
       );
-      const promptVersion =
-        overlayMode === 'AI'
-          ? 'generate-copy-images@v5'
-          : 'generate-copy-images@v4';
+      const promptVersion = 'generate-copy-images@v6';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,
         model: this.imageAi.model,
@@ -387,6 +393,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
             promptVersion,
             sizePreset: sizePreset.id,
             referenceKeys,
+            ...(references.length ? { referenceRolesJson: references } : {}),
             costEstimateUsd: costPerImage,
           },
         });
@@ -410,7 +417,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const size = '720x1280';
       const referenceKeys = job.data.referenceKey ? [job.data.referenceKey] : [];
       const [inputReference] = await this.loadReferenceImages(referenceKeys);
-      const prompt = appendReferenceImages(
+      const prompt = appendReferences(
         buildVideoPrompt({
           scenes: creative.scenes,
           seconds: job.data.seconds,
@@ -419,7 +426,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           brandName: creative.brief.brand?.name ?? 'BabeChat',
           instructions: job.data.instructions,
         }),
-        referenceKeys,
+        referenceKeys.map((key) => ({ key, role: 'CHARACTER' })),
       );
       const promptVersion = referenceKeys.length ? 'generate-video@v2' : 'generate-video@v1';
       const meta: AiExecutionMeta = {

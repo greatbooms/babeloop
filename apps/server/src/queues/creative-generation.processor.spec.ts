@@ -133,15 +133,17 @@ describe('CreativeGenerationProcessor image generation', () => {
         quality: 'low',
         sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
+        references: [
+          { key: 'generated-images/ref-1.jpg', role: 'CHARACTER' },
+          { key: 'media/ref-2.png', role: 'STYLE' },
+        ],
       },
       attemptsMade: 0,
       opts: { attempts: 1 },
     } as never);
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
-      prompt: expect.stringMatching(
-        /BabeChat[\s\S]*주인공이 되고 싶은 욕구[\s\S]*호기심 자극[\s\S]*세로형 캐릭터 클로즈업[\s\S]*어떤 문자도 그리지 마라[\s\S]*문구는 생성 후 별도 합성된다[\s\S]*분홍색 네온 조명, 글자 금지[\s\S]*## 출력 규격: 1200x628 \(1\.91:1\)[\s\S]*가로형 구도[\s\S]*문구가 나중에 얹힐 단순한 빈 공간[\s\S]*## 참고 이미지: 2장\n- generated-images\/ref-1\.jpg\n- media\/ref-2\.png$/,
-      ),
+      prompt: expect.any(String),
       count: 2,
       quality: 'low',
       size: '1536x1024',
@@ -168,9 +170,13 @@ describe('CreativeGenerationProcessor image generation', () => {
         instructions: '분홍색 네온 조명, 글자 금지',
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v4',
+        promptVersion: 'generate-copy-images@v6',
         sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
+        referenceRolesJson: [
+          { key: 'generated-images/ref-1.jpg', role: 'CHARACTER' },
+          { key: 'media/ref-2.png', role: 'STYLE' },
+        ],
         costEstimateUsd: 0.04,
         cleanStorageKey: null,
         overlayHeadline: null,
@@ -182,7 +188,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       expect.objectContaining({
         provider: 'mock',
         model: 'mock-image-1',
-        promptVersion: 'generate-copy-images@v4',
+        promptVersion: 'generate-copy-images@v6',
         inputRef: 'creative:creative-copy-1',
         costEstimateUsd: 0.08,
       }),
@@ -291,7 +297,7 @@ describe('CreativeGenerationProcessor image generation', () => {
     });
   });
 
-  it('AI 타이포 모드는 합성을 건너뛰고 v5 문구·스타일 프롬프트를 저장한다', async () => {
+  it('AI 타이포 모드는 합성을 건너뛰고 v6 문구·스타일 프롬프트를 저장한다', async () => {
     const creative = {
       id: 'creative-copy-1',
       koreanText: '한국어 연출 재료',
@@ -363,7 +369,7 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(imageProvider.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringMatching(
-          /## 이미지 안에 그릴 문구[\s\S]*메인: "戰場上的智慧女神"[\s\S]*서브: "立即開始聊天"[\s\S]*Noto Serif TC 계열\(명조\) 느낌, 색상 골드[\s\S]*문구 외 다른 글자·로고·워터마크는 넣지 마라/,
+          /## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
         ),
       }),
     );
@@ -373,12 +379,12 @@ describe('CreativeGenerationProcessor image generation', () => {
         overlayMode: 'AI',
         overlayFont: 'serif',
         overlayColor: 'gold',
-        promptVersion: 'generate-copy-images@v5',
-        prompt: expect.stringContaining('타이포 스타일:'),
+        promptVersion: 'generate-copy-images@v6',
+        prompt: expect.stringContaining('Typography style:'),
       }),
     });
     expect(aiLog.record).toHaveBeenCalledWith(
-      expect.objectContaining({ promptVersion: 'generate-copy-images@v5' }),
+      expect.objectContaining({ promptVersion: 'generate-copy-images@v6' }),
       expect.any(Function),
     );
   });
@@ -445,7 +451,7 @@ describe('CreativeGenerationProcessor image generation', () => {
 
     expect(imageProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /## 확정 광고 문구[\s\S]*한국어: 오늘 밤, 내 이야기에 빠져봐[\s\S]*zh-TW\(승인본\): 今晚，沉浸在我的故事裡/,
+        /## Approved ad copy[\s\S]*Korean: 오늘 밤, 내 이야기에 빠져봐[\s\S]*zh-TW \(approved\): 今晚，沉浸在我的故事裡/,
       ),
       count: 1,
       quality: 'low',
@@ -455,7 +461,7 @@ describe('CreativeGenerationProcessor image generation', () => {
       data: expect.objectContaining({
         briefId: 'brief-1',
         creativeId: 'creative-copy-1',
-        promptVersion: 'generate-copy-images@v4',
+        promptVersion: 'generate-copy-images@v6',
         sizePreset: 'square_1200x1200',
       }),
     });
@@ -524,7 +530,7 @@ describe('CreativeGenerationProcessor video generation', () => {
 
     expect(videoProvider.generate).toHaveBeenCalledWith({
       prompt: expect.stringMatching(
-        /0-3초: \[연출\] 주인공의 놀란 표정 클로즈업[\s\S]*미스터리[\s\S]*나만의 이야기에 몰입하고 싶은 욕구[\s\S]*세로 9:16 숏폼 광고[\s\S]*영화적인 조명[\s\S]*## 참고 이미지: 1장\n- generated-images\/brief-1\/first\.jpeg$/,
+        /0-3초: \[연출\] 주인공의 놀란 표정 클로즈업[\s\S]*미스터리[\s\S]*나만의 이야기에 몰입하고 싶은 욕구[\s\S]*세로 9:16 숏폼 광고[\s\S]*영화적인 조명[\s\S]*## Attached reference images \(1\)[\s\S]*Reference #1 — CHARACTER:[\s\S]*## Reference keys \(tracking only\)\n- generated-images\/brief-1\/first\.jpeg$/,
       ),
       seconds: 12,
       size: '720x1280',

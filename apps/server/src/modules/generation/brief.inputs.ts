@@ -9,10 +9,20 @@ export enum GenerationReferenceKind {
 
 registerEnumType(GenerationReferenceKind, { name: 'GenerationReferenceKind' });
 
+export enum GenerationReferenceRole {
+  CHARACTER = 'CHARACTER',
+  STYLE = 'STYLE',
+  TYPOGRAPHY = 'TYPOGRAPHY',
+}
+
+registerEnumType(GenerationReferenceRole, { name: 'GenerationReferenceRole' });
+
 @InputType()
 export class GenerationReferenceInput {
   @Field(() => GenerationReferenceKind) kind: GenerationReferenceKind;
   @Field(() => ID) id: string;
+  @Field(() => GenerationReferenceRole, { defaultValue: GenerationReferenceRole.STYLE })
+  role?: GenerationReferenceRole;
 }
 
 @InputType()
