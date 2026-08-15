@@ -21,6 +21,9 @@ describe('BriefService.requestCreativeImages 검증', () => {
       generatedCreative: {
         findUnique: jest.fn().mockResolvedValue({ id: 'creative-copy-1', briefId: 'brief-1', type: 'COPY', status: 'APPROVED' }),
       },
+      generatedImage: {
+        findUnique: jest.fn().mockResolvedValue({ briefId: 'brief-1', storageKey: 'generated-images/brief-1/ref.png' }),
+      },
     };
     const queue = { name: 'creative-generation' };
     const jobRecord = {
@@ -91,6 +94,27 @@ describe('BriefService.requestCreativeImages 검증', () => {
           id: `image-${index}`,
         })),
       }),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('빈 다중 역할 배열은 BAD_USER_INPUT으로 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        references: [
+          {
+            kind: GenerationReferenceKind.GENERATED_IMAGE,
+            id: 'image-1',
+            roles: [],
+          },
+        ],
+      } as never),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
   });
@@ -414,9 +438,63 @@ describe('BriefService approved creative generation', () => {
           'media/asset-1/original.webp',
         ],
         references: [
-          { key: 'generated-images/brief-1/ref.png', role: 'CHARACTER' },
-          { key: 'source-ads/ad-1/thumb.jpg', role: 'STYLE' },
-          { key: 'media/asset-1/original.webp', role: 'TYPOGRAPHY' },
+          { key: 'generated-images/brief-1/ref.png', roles: ['CHARACTER'] },
+          { key: 'source-ads/ad-1/thumb.jpg', roles: ['STYLE'] },
+          { key: 'media/asset-1/original.webp', roles: ['TYPOGRAPHY'] },
+        ],
+      }),
+      { attempts: 1 },
+    );
+  });
+
+  it('다중 역할의 최우선 역할에 따라 CHARACTER, STYLE, TYPOGRAPHY 순으로 참고 항목을 정렬한다', async () => {
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'creative-copy-1',
+          briefId: 'brief-1',
+          type: 'COPY',
+          status: 'APPROVED',
+        }),
+      },
+      generatedImage: {
+        findUnique: jest.fn(async ({ where }: { where: { id: string } }) => ({
+          briefId: 'brief-1',
+          storageKey: `generated-images/${where.id}.png`,
+        })),
+      },
+    };
+    const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }) };
+    const service = new BriefService(
+      prisma as never,
+      jobRecord as never,
+      {} as never,
+      { name: 'creative-generation' } as never,
+      {} as never,
+    );
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      references: [
+        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'typography', roles: [GenerationReferenceRole.TYPOGRAPHY] },
+        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'style', roles: [GenerationReferenceRole.STYLE] },
+        { kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'character', roles: [GenerationReferenceRole.STYLE, GenerationReferenceRole.CHARACTER] },
+      ],
+    } as never);
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        references: [
+          { key: 'generated-images/character.png', roles: ['CHARACTER', 'STYLE'] },
+          { key: 'generated-images/style.png', roles: ['STYLE'] },
+          { key: 'generated-images/typography.png', roles: ['TYPOGRAPHY'] },
         ],
       }),
       { attempts: 1 },
@@ -469,7 +547,7 @@ describe('BriefService approved creative generation', () => {
       expect.objectContaining({
         referenceKeys: ['generated-images/brief-1/ref.png'],
         references: [
-          { key: 'generated-images/brief-1/ref.png', role: 'STYLE' },
+          { key: 'generated-images/brief-1/ref.png', roles: ['STYLE'] },
         ],
       }),
       { attempts: 1 },

@@ -174,8 +174,8 @@ describe('CreativeGenerationProcessor image generation', () => {
         sizePreset: 'landscape_1200x628',
         referenceKeys: ['generated-images/ref-1.jpg', 'media/ref-2.png'],
         referenceRolesJson: [
-          { key: 'generated-images/ref-1.jpg', role: 'CHARACTER' },
-          { key: 'media/ref-2.png', role: 'STYLE' },
+          { key: 'generated-images/ref-1.jpg', roles: ['CHARACTER'] },
+          { key: 'media/ref-2.png', roles: ['STYLE'] },
         ],
         costEstimateUsd: 0.04,
         cleanStorageKey: null,
@@ -370,7 +370,7 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(imageProvider.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringMatching(
-          /Do NOT derive the scene from any ad copy[\s\S]*## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
+          /Do NOT derive the scene, props or setting from any ad copy or campaign strategy[\s\S]*## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
         ),
       }),
     );

@@ -398,6 +398,7 @@ input GenerationReferenceInput {
   id: ID!
   kind: GenerationReferenceKind!
   role: GenerationReferenceRole! = STYLE
+  roles: [GenerationReferenceRole!]
 }
 
 enum GenerationReferenceKind {

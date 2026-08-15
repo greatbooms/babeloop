@@ -26,6 +26,7 @@ import {
   GenerationReferenceInput,
   GenerationReferenceKind,
   GenerationReferenceRole,
+  normalizeReferenceRoles,
 } from './brief.inputs';
 import { resolveSizePreset } from './image-size-presets';
 
@@ -230,6 +231,11 @@ export class BriefService {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
+    if (references.some((reference) => reference.roles !== undefined && reference.roles.length === 0)) {
+      throw new GraphQLError('참고 이미지 역할은 하나 이상 선택해야 합니다', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
     if (overlayHeadline && Array.from(overlayHeadline).length > 60) {
       throw new GraphQLError('메인 문구는 최대 60자까지 입력할 수 있습니다', {
         extensions: { code: 'BAD_USER_INPUT' },
@@ -288,7 +294,7 @@ export class BriefService {
     }
     if (
       aiTypoStyle === 'match_reference' &&
-      !references.some((reference) => reference.role === GenerationReferenceRole.TYPOGRAPHY)
+      !references.some((reference) => normalizeReferenceRoles(reference).includes(GenerationReferenceRole.TYPOGRAPHY))
     ) {
       throw new GraphQLError(
         '참고 이미지 스타일은 TYPOGRAPHY 역할 참고 이미지를 선택했을 때만 사용할 수 있습니다',
@@ -306,10 +312,10 @@ export class BriefService {
   private async resolveGenerationReferences(
     references: GenerationReferenceInput[],
     expectedBriefId?: string,
-  ): Promise<Array<{ key: string; role: GenerationReferenceRole }>> {
+  ): Promise<Array<{ key: string; roles: GenerationReferenceRole[] }>> {
     const resolved = await Promise.all(
       references.map(async (reference) => {
-        const role = reference.role ?? GenerationReferenceRole.STYLE;
+        const roles = normalizeReferenceRoles(reference);
         if (reference.kind === GenerationReferenceKind.GENERATED_IMAGE) {
           const image = await this.prisma.generatedImage.findUnique({
             where: { id: reference.id },
@@ -318,7 +324,7 @@ export class BriefService {
           if (!image || (expectedBriefId && image.briefId !== expectedBriefId)) {
             this.invalidReference(reference);
           }
-          return { key: image.storageKey, role };
+          return { key: image.storageKey, roles };
         }
 
         if (reference.kind === GenerationReferenceKind.SOURCE_AD) {
@@ -334,7 +340,7 @@ export class BriefService {
             ? this.imageKeyForMediaAsset(sourceAd.mediaAsset)
             : null;
           if (!key) this.invalidReference(reference);
-          return { key, role };
+          return { key, roles };
         }
 
         if (reference.kind === GenerationReferenceKind.MEDIA_ASSET) {
@@ -344,7 +350,7 @@ export class BriefService {
           });
           const key = mediaAsset ? this.imageKeyForMediaAsset(mediaAsset) : null;
           if (!key) this.invalidReference(reference);
-          return { key, role };
+          return { key, roles };
         }
 
         return this.invalidReference(reference);
@@ -355,7 +361,7 @@ export class BriefService {
       [GenerationReferenceRole.STYLE]: 1,
       [GenerationReferenceRole.TYPOGRAPHY]: 2,
     };
-    return resolved.sort((left, right) => roleOrder[left.role] - roleOrder[right.role]);
+    return resolved.sort((left, right) => roleOrder[left.roles[0]] - roleOrder[right.roles[0]]);
   }
 
   private imageKeyForMediaAsset(asset: {

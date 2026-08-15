@@ -63,11 +63,15 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     } as never);
 
     expect(prompt).toContain(
-      'Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. Reserve clean space for a text overlay that will be added separately.',
+      'Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. Reserve clean space for a text overlay that will be added separately.',
     );
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
     expect(prompt).not.toContain('在戰場上獲勝的場景');
+    expect(prompt).toContain('## Campaign context (tone and casting only');
+    expect(prompt).not.toContain('## Ad strategy');
+    expect(prompt).not.toContain('Core desire:');
+    expect(prompt).not.toContain('Visual format:');
   });
 
   it('keeps only the Text to render copy in AI typography plus TEXT_ONLY mode', () => {
@@ -87,7 +91,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     } as never);
 
     expect(prompt).toContain(
-      'Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. The only text in the image must be the text specified in the "Text to render" section below.',
+      'Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. The only text in the image must be the text specified in the "Text to render" section below.',
     );
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
@@ -135,15 +139,15 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
   it.each([
     [
       'CHARACTER' as const,
-      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Do not copy this image's composition or any text in it.",
+      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Do not copy this image's composition, text content or logos.",
     ],
     [
       'STYLE' as const,
-      "Reference #1 — STYLE: Match this image's art style, rendering finish, color palette and mood only. Do not copy its characters, composition or text.",
+      "Reference #1 — STYLE: Match this image's art style, rendering finish, color palette and mood. Do not copy this image's characters, composition, text content or logos.",
     ],
     [
       'TYPOGRAPHY' as const,
-      'Reference #1 — TYPOGRAPHY: Match only the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy the actual words, characters or logos.',
+      "Reference #1 — TYPOGRAPHY: Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image's characters, text content or logos.",
     ],
   ])('adds the distinct %s reference instruction', (role, instruction) => {
     const prompt = appendReferences('BASE PROMPT', [{ key: `refs/${role}.png`, role }]);
@@ -170,5 +174,18 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     const prompt = 'BASE PROMPT\n원문 그대로';
 
     expect(appendReferences(prompt, [])).toBe(prompt);
+  });
+
+  it('combines all roles for one reference while forbidding text content and logos', () => {
+    const prompt = appendReferences('BASE PROMPT', [
+      {
+        key: 'refs/all-roles.png',
+        roles: ['CHARACTER', 'STYLE', 'TYPOGRAPHY'],
+      },
+    ] as never);
+
+    expect(prompt).toContain(
+      'Reference #1 — CHARACTER + STYLE + TYPOGRAPHY: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Match this image\'s art style, rendering finish, color palette and mood. Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image\'s text content or logos.',
+    );
   });
 });

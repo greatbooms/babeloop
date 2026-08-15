@@ -155,24 +155,34 @@ export function buildImagePrompt(params: {
     [
       `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
       params.copyInfluence === 'TEXT_ONLY'
-        ? `Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
+        ? `Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
         : null,
     ]
       .filter(Boolean)
       .join('\n'),
     `## Product\nBrand: ${brandLine}`,
-    [
-      '## Ad strategy (this emotion and situation must be visible in the image)',
-      params.brief.audienceHypothesis
-        ? `Target audience: ${params.brief.audienceHypothesis}`
-        : null,
-      `Core desire: ${params.brief.desire}`,
-      `Hook type: ${params.brief.hookType}`,
-      params.brief.messageAngle ? `Message angle: ${params.brief.messageAngle}` : null,
-      `Visual format: ${params.brief.visualFormat}`,
-    ]
-      .filter(Boolean)
-      .join('\n'),
+    // TEXT_ONLY에선 브리프의 장면성 필드를 빼야 한다 — 문구를 빼도 브리프가 같은 장면(우주선·경보등)을 그리던 실측 문제
+    params.copyInfluence === 'TEXT_ONLY'
+      ? [
+          '## Campaign context (tone and casting only — do NOT derive the scene from this)',
+          params.brief.audienceHypothesis
+            ? `Target audience: ${params.brief.audienceHypothesis}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : [
+          '## Ad strategy (this emotion and situation must be visible in the image)',
+          params.brief.audienceHypothesis
+            ? `Target audience: ${params.brief.audienceHypothesis}`
+            : null,
+          `Core desire: ${params.brief.desire}`,
+          `Hook type: ${params.brief.hookType}`,
+          params.brief.messageAngle ? `Message angle: ${params.brief.messageAngle}` : null,
+          `Visual format: ${params.brief.visualFormat}`,
+        ]
+          .filter(Boolean)
+          .join('\n'),
     params.copyInfluence !== 'TEXT_ONLY' && params.creative
       ? [
           '## Approved ad copy (the image must depict the moment this copy describes)',
@@ -269,27 +279,45 @@ export function buildVideoPrompt(params: {
 
 export type GenerationReference = {
   key: string;
-  role: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
+  roles?: Array<'CHARACTER' | 'STYLE' | 'TYPOGRAPHY'>;
+  role?: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
 };
 
-const REFERENCE_ROLE_INSTRUCTIONS: Record<GenerationReference['role'], string> = {
+type ReferenceRole = 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
+
+const REFERENCE_ROLE_INSTRUCTIONS: Record<ReferenceRole, string> = {
   CHARACTER:
-    "Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Do not copy this image's composition or any text in it.",
+    'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person.',
   STYLE:
-    "Match this image's art style, rendering finish, color palette and mood only. Do not copy its characters, composition or text.",
+    "Match this image's art style, rendering finish, color palette and mood.",
   TYPOGRAPHY:
-    'Match only the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy the actual words, characters or logos.',
+    'Match the typography feel (typeface style, weight, arrangement) of the text in this image.',
 };
 
 export function appendReferences(prompt: string, references: GenerationReference[]): string {
   if (references.length === 0) return prompt;
 
   const roleInstructions = references.map(
-    (reference, index) =>
-      `Reference #${index + 1} — ${reference.role}: ${REFERENCE_ROLE_INSTRUCTIONS[reference.role]}`,
+    (reference, index) => {
+      const roles = Array.from(new Set(reference.roles ?? [reference.role ?? 'STYLE']));
+      const hasCharacter = roles.includes('CHARACTER');
+      const restrictedSubjects = [
+        !hasCharacter ? 'characters' : null,
+        roles.length === 1 && (hasCharacter || roles.includes('STYLE')) ? 'composition' : null,
+      ]
+        .filter((subject): subject is string => Boolean(subject));
+      const prohibition = restrictedSubjects.length
+        ? `${restrictedSubjects.join(', ')}, text content or logos`
+        : 'text content or logos';
+      return `Reference #${index + 1} — ${roles.join(' + ')}: ${roles
+        .map((role) => REFERENCE_ROLE_INSTRUCTIONS[role])
+        .join(' ')} Do not copy this image's ${prohibition}.`;
+    },
   );
   const referencePriority = references.some(
-    (reference) => reference.role === 'CHARACTER' || reference.role === 'STYLE',
+    (reference) => (reference.roles ?? [reference.role ?? 'STYLE']).some(
+      (role) => role === 'CHARACTER' || role === 'STYLE',
+    ),
   )
     ? 'When any CHARACTER or STYLE reference conflicts with the art direction above, the reference wins (including realism vs. anime).'
     : null;

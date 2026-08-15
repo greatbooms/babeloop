@@ -29,6 +29,11 @@ import {
   type AiTypoStyle,
 } from '../modules/generation/generation.prompts';
 import {
+  GenerationReferenceRole,
+  normalizeGenerationReferences,
+  type GenerationReferencePayload,
+} from '../modules/generation/brief.inputs';
+import {
   briefSchema,
   copyVariantsSchema,
   GENERATION_PROMPT_VERSIONS,
@@ -87,10 +92,7 @@ interface GenerateImagesJobData {
   sizePreset: string;
   referenceKeys: string[];
   copyInfluence?: 'SCENE' | 'TEXT_ONLY';
-  references?: Array<{
-    key: string;
-    role: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
-  }>;
+  references?: GenerationReferencePayload[];
   overlayHeadline?: string;
   overlaySubline?: string;
   overlayMode?: 'SERVER' | 'AI';
@@ -274,10 +276,12 @@ export class CreativeGenerationProcessor extends WorkerHost {
       });
       const brief = creative.brief;
       const sizePreset = resolveSizePreset(job.data.sizePreset);
-      const references = job.data.references ?? (job.data.referenceKeys ?? []).map((key) => ({
-        key,
-        role: 'STYLE' as const,
-      }));
+      const references = normalizeGenerationReferences(
+        job.data.references ?? (job.data.referenceKeys ?? []).map((key) => ({
+          key,
+          role: GenerationReferenceRole.STYLE,
+        })),
+      );
       const referenceKeys = references.map((reference) => reference.key);
       const referenceImages = await this.loadReferenceImages(referenceKeys);
       const overlayHeadline = job.data.overlayHeadline?.trim() || null;

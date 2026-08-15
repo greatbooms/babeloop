@@ -17,6 +17,38 @@ export enum GenerationReferenceRole {
 
 registerEnumType(GenerationReferenceRole, { name: 'GenerationReferenceRole' });
 
+export type NormalizedGenerationReference = {
+  key: string;
+  roles: GenerationReferenceRole[];
+};
+
+export type GenerationReferencePayload = NormalizedGenerationReference | {
+  key: string;
+  role: GenerationReferenceRole;
+};
+
+const REFERENCE_ROLE_ORDER: Record<GenerationReferenceRole, number> = {
+  [GenerationReferenceRole.CHARACTER]: 0,
+  [GenerationReferenceRole.STYLE]: 1,
+  [GenerationReferenceRole.TYPOGRAPHY]: 2,
+};
+
+export function normalizeReferenceRoles(reference: {
+  roles?: GenerationReferenceRole[];
+  role?: GenerationReferenceRole;
+}): GenerationReferenceRole[] {
+  return Array.from(new Set(reference.roles ?? [reference.role ?? GenerationReferenceRole.STYLE]))
+    .sort((left, right) => REFERENCE_ROLE_ORDER[left] - REFERENCE_ROLE_ORDER[right]);
+}
+
+export function normalizeGenerationReferences(
+  references: GenerationReferencePayload[],
+): NormalizedGenerationReference[] {
+  return references
+    .map((reference) => ({ key: reference.key, roles: normalizeReferenceRoles(reference) }))
+    .sort((left, right) => REFERENCE_ROLE_ORDER[left.roles[0]] - REFERENCE_ROLE_ORDER[right.roles[0]]);
+}
+
 export enum CopyInfluence {
   SCENE = 'SCENE',
   TEXT_ONLY = 'TEXT_ONLY',
@@ -30,6 +62,8 @@ export class GenerationReferenceInput {
   @Field(() => ID) id: string;
   @Field(() => GenerationReferenceRole, { defaultValue: GenerationReferenceRole.STYLE })
   role?: GenerationReferenceRole;
+  @Field(() => [GenerationReferenceRole], { nullable: true })
+  roles?: GenerationReferenceRole[];
 }
 
 @InputType()
