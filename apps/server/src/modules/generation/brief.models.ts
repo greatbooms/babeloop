@@ -69,6 +69,7 @@ export class GeneratedImageModel {
   @Field(() => String, { nullable: true }) sizePreset: string | null;
   @Field(() => [String]) referenceKeys: string[];
   @Field(() => String, { nullable: true }) referenceRolesJson: string | null;
+  @Field(() => String, { nullable: true }) copyInfluence: string | null;
   @Field() createdAt: Date;
   @Field(() => Float, { nullable: true }) costEstimateUsd: number | null;
 }

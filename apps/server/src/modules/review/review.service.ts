@@ -237,6 +237,7 @@ export class ReviewService {
             overlayMode: image.overlayMode,
             overlayFont: image.overlayFont,
             overlayColor: image.overlayColor,
+            copyInfluence: image.copyInfluence,
             quality: image.quality,
             instructions: image.instructions,
             prompt: image.prompt,

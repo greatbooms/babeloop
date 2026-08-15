@@ -299,12 +299,39 @@ describe('BriefService approved creative generation', () => {
         quality: 'high',
         sizePreset: 'square_1200x1200',
         referenceKeys: [],
+        copyInfluence: 'SCENE',
         overlayHeadline: '메인 문구',
         overlaySubline: '서브 문구',
         overlayMode: 'SERVER',
         overlayFont: 'gothic',
         overlayColor: 'white',
       },
+      { attempts: 1 },
+    );
+  });
+
+  it('TEXT_ONLY 문구 반영 방식을 이미지 잡 payload로 전달한다', async () => {
+    const { service, jobRecord } = setup({
+      id: 'creative-copy-1',
+      briefId: 'brief-1',
+      type: 'COPY',
+      status: 'APPROVED',
+    });
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      copyInfluence: 'TEXT_ONLY',
+    } as never);
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ copyInfluence: 'TEXT_ONLY' }),
       { attempts: 1 },
     );
   });

@@ -86,6 +86,7 @@ interface GenerateImagesJobData {
   quality: 'low' | 'high';
   sizePreset: string;
   referenceKeys: string[];
+  copyInfluence?: 'SCENE' | 'TEXT_ONLY';
   references?: Array<{
     key: string;
     role: 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
@@ -287,6 +288,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const overlayFont = job.data.overlayFont ?? 'gothic';
       const overlayColor = job.data.overlayColor ?? 'white';
       const aiTypoStyle = job.data.aiTypoStyle ?? 'selected';
+      const copyInfluence = job.data.copyInfluence ?? 'SCENE';
       const prompt = appendReferences(
         [
           buildImagePrompt({
@@ -298,6 +300,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
               koreanText: creative.koreanText,
               approvedZhTw: creative.localizations[0]?.text,
             },
+            copyInfluence,
             ...(overlayMode === 'AI' && overlayHeadline
               ? {
                   typography: {
@@ -393,6 +396,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
             promptVersion,
             sizePreset: sizePreset.id,
             referenceKeys,
+            copyInfluence,
             ...(references.length ? { referenceRolesJson: references } : {}),
             costEstimateUsd: costPerImage,
           },

@@ -297,7 +297,7 @@ describe('CreativeGenerationProcessor image generation', () => {
     });
   });
 
-  it('AI 타이포 모드는 합성을 건너뛰고 v6 문구·스타일 프롬프트를 저장한다', async () => {
+  it('AI 타이포와 TEXT_ONLY 조합은 장면 문구를 빼고 렌더 문구와 방식을 저장한다', async () => {
     const creative = {
       id: 'creative-copy-1',
       koreanText: '한국어 연출 재료',
@@ -359,6 +359,7 @@ describe('CreativeGenerationProcessor image generation', () => {
         overlayFont: 'serif',
         overlayColor: 'gold',
         aiTypoStyle: 'selected',
+        copyInfluence: 'TEXT_ONLY',
       },
       attemptsMade: 0,
       opts: { attempts: 1 },
@@ -369,16 +370,18 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(imageProvider.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringMatching(
-          /## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
+          /Do NOT derive the scene from any ad copy[\s\S]*## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
         ),
       }),
     );
+    expect(imageProvider.generate.mock.calls[0][0].prompt).not.toContain('한국어 연출 재료');
     expect(prisma.generatedImage.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         cleanStorageKey: null,
         overlayMode: 'AI',
         overlayFont: 'serif',
         overlayColor: 'gold',
+        copyInfluence: 'TEXT_ONLY',
         promptVersion: 'generate-copy-images@v6',
         prompt: expect.stringContaining('Typography style:'),
       }),

@@ -17,6 +17,13 @@ export enum GenerationReferenceRole {
 
 registerEnumType(GenerationReferenceRole, { name: 'GenerationReferenceRole' });
 
+export enum CopyInfluence {
+  SCENE = 'SCENE',
+  TEXT_ONLY = 'TEXT_ONLY',
+}
+
+registerEnumType(CopyInfluence, { name: 'CopyInfluence' });
+
 @InputType()
 export class GenerationReferenceInput {
   @Field(() => GenerationReferenceKind) kind: GenerationReferenceKind;
@@ -43,6 +50,8 @@ export class GenerateCreativeVariantsInput {
 @InputType()
 export class GenerateCreativeImagesInput {
   @Field(() => ID) creativeId: string;
+  @Field(() => CopyInfluence, { nullable: true, defaultValue: CopyInfluence.SCENE })
+  copyInfluence?: CopyInfluence;
   @Field(() => String, { nullable: true }) instructions?: string;
   @Field(() => String, { nullable: true }) overlayHeadline?: string;
   @Field(() => String, { nullable: true }) overlaySubline?: string;

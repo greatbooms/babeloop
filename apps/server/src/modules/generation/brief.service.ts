@@ -18,6 +18,7 @@ import {
 import { JobRecordService } from '../jobs/job-record.service';
 import { PerformanceService } from '../performance/performance.service';
 import {
+  CopyInfluence,
   GenerateCreativeBriefInput,
   GenerateCreativeImagesInput,
   GenerateCreativeVideoInput,
@@ -112,6 +113,7 @@ export class BriefService {
     const overlayFont = input.overlayFont ?? 'gothic';
     const overlayColor = input.overlayColor ?? 'white';
     const aiTypoStyle = input.aiTypoStyle ?? (overlayMode === 'AI' ? 'selected' : undefined);
+    const copyInfluence = input.copyInfluence ?? CopyInfluence.SCENE;
     this.validateImageRequest(
       input.count,
       input.quality,
@@ -143,6 +145,7 @@ export class BriefService {
       quality: input.quality,
       sizePreset: sizePreset.id,
       referenceKeys,
+      copyInfluence,
       ...(references.length ? { references } : {}),
       ...(overlayHeadline ? { overlayHeadline } : {}),
       ...(overlaySubline ? { overlaySubline } : {}),
@@ -466,6 +469,7 @@ export class BriefService {
             referenceRolesJson: image.referenceRolesJson
               ? JSON.stringify(image.referenceRolesJson)
               : null,
+            copyInfluence: image.copyInfluence,
             createdAt: image.createdAt,
             costEstimateUsd: image.costEstimateUsd,
           };

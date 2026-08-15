@@ -8,6 +8,7 @@ import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import {
+  CopyInfluence,
   CreativeStatus,
   CreativeType,
   GenerationReferenceKind,
@@ -39,7 +40,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor quality instructions prompt sizePreset referenceKeys referenceRolesJson createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor copyInfluence quality instructions prompt sizePreset referenceKeys referenceRolesJson createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -143,6 +144,7 @@ export function ReviewDetailPage() {
   const [imageOverlayHeadline, setImageOverlayHeadline] = useState('');
   const [imageOverlaySubline, setImageOverlaySubline] = useState('');
   const [imageOverlayMode, setImageOverlayMode] = useState<OverlayMode>('SERVER');
+  const [imageCopyInfluence, setImageCopyInfluence] = useState<CopyInfluence>(CopyInfluence.Scene);
   const [imageOverlayFont, setImageOverlayFont] = useState<OverlayFont>('gothic');
   const [imageOverlayColor, setImageOverlayColor] = useState<OverlayColor>('white');
   const [imageAiTypoStyle, setImageAiTypoStyle] = useState<AiTypoStyle>('selected');
@@ -220,6 +222,7 @@ export function ReviewDetailPage() {
     mode?: string | null;
     font?: string | null;
     color?: string | null;
+    copyInfluence?: string | null;
   }) {
     const sourceLines = (latestLocalization?.text ?? creative?.koreanText ?? '')
       .trim()
@@ -232,6 +235,11 @@ export function ReviewDetailPage() {
       overlay ? truncate(overlay.subline ?? '') : truncate(sourceLines[1] ?? ''),
     );
     setImageOverlayMode(overlay?.mode === 'AI' ? 'AI' : 'SERVER');
+    setImageCopyInfluence(
+      overlay?.copyInfluence === CopyInfluence.TextOnly
+        ? CopyInfluence.TextOnly
+        : CopyInfluence.Scene,
+    );
     setImageOverlayFont(
       OVERLAY_FONT_OPTIONS.some((font) => font.id === overlay?.font)
         ? overlay!.font as OverlayFont
@@ -261,6 +269,7 @@ export function ReviewDetailPage() {
             overlayHeadline: imageOverlayHeadline.trim() || undefined,
             overlaySubline: imageOverlaySubline.trim() || undefined,
             overlayMode: imageOverlayHeadline.trim() ? imageOverlayMode : undefined,
+            copyInfluence: imageOverlayHeadline.trim() ? imageCopyInfluence : undefined,
             overlayFont: imageOverlayHeadline.trim() ? imageOverlayFont : undefined,
             overlayColor: imageOverlayHeadline.trim() ? imageOverlayColor : undefined,
             aiTypoStyle:
@@ -433,6 +442,18 @@ export function ReviewDetailPage() {
                   <span>{t('review.overlayModeAi')}</span>
                 </label>
               </fieldset>
+              <fieldset className="overlay-choice-group">
+                <legend>{t('review.copyInfluence')}</legend>
+                <label>
+                  <input type="radio" name="copy-influence" value={CopyInfluence.Scene} checked={imageCopyInfluence === CopyInfluence.Scene} onChange={() => setImageCopyInfluence(CopyInfluence.Scene)} />
+                  <span>{t('review.copyInfluenceScene')}</span>
+                </label>
+                <label>
+                  <input type="radio" name="copy-influence" value={CopyInfluence.TextOnly} checked={imageCopyInfluence === CopyInfluence.TextOnly} onChange={() => setImageCopyInfluence(CopyInfluence.TextOnly)} />
+                  <span>{t('review.copyInfluenceTextOnly')}</span>
+                </label>
+              </fieldset>
+              <p className="muted">{t('review.copyInfluenceTextOnlyHint')}</p>
               {imageOverlayMode === 'AI' && <p className="overlay-ai-warning" role="note">{t('review.overlayAiWarning')}</p>}
               <fieldset className="overlay-font-picker">
                 <legend>{t('review.overlayFont')}</legend>
@@ -684,6 +705,7 @@ export function ReviewDetailPage() {
                     : t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
                   {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {t(OVERLAY_COLOR_LABEL_KEYS[(image.overlayColor ?? 'white') as OverlayColor])}</span>}
+                  {image.copyInfluence === CopyInfluence.TextOnly && <span className="tag">{t('review.copyInfluenceTextOnlyTag')}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
@@ -692,7 +714,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }), role: inheritedRole }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor }); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }), role: inheritedRole }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor, copyInfluence: image.copyInfluence }); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>

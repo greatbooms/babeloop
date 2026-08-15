@@ -5,7 +5,7 @@ import {
 } from './generation.prompts';
 
 describe('image generation prompt', () => {
-  it('builds the English scaffold while preserving source-language brief and copy values', () => {
+  it('keeps the default SCENE prompt byte-for-byte identical', () => {
     const prompt = buildImagePrompt({
       count: 2,
       brief: {
@@ -23,27 +23,79 @@ describe('image generation prompt', () => {
       },
     });
 
+    expect(prompt).toBe(`Create 2 ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.
+
+## Product
+Brand: BabeChat — AI 캐릭터챗
+
+## Ad strategy (this emotion and situation must be visible in the image)
+Target audience: 스토리 몰입을 원하는 성인
+Core desire: 주인공이 되고 싶은 욕구
+Hook type: 호기심 자극
+Message angle: 나만의 이야기
+Visual format: 세로형 캐릭터 클로즈업
+
+## Approved ad copy (the image must depict the moment this copy describes)
+Korean: 오늘 밤, 내 이야기에 빠져봐
+zh-TW (approved): 今晚，沉浸在我的故事裡
+
+## Art direction
+- Define specific lighting, color and texture (for example: cool blue pre-dawn tones with screen glow, shallow depth of field and film grain).
+- If people appear, they must be adults aged 20 or older; make a Taiwan urban-life context feel natural.
+- If showing a smartphone screen, use a generalized chat UI rather than reproducing any specific app.
+
+## Prohibited
+- No text, letters, logos or watermarks unless explicitly instructed below.
+- Leave clear empty space for copy to be composited later.
+- No minors or school settings.
+- No distorted hands or anatomy.`);
+  });
+
+  it('omits approved copy and adds the clean-overlay instruction in TEXT_ONLY mode', () => {
+    const prompt = buildImagePrompt({
+      brief: { desire: '몰입', hookType: '호기심', visualFormat: '인물 중심' },
+      brandName: 'BabeChat',
+      creative: {
+        koreanText: '전쟁터에서 승리하는 장면',
+        approvedZhTw: '在戰場上獲勝的場景',
+      },
+      copyInfluence: 'TEXT_ONLY',
+    } as never);
+
     expect(prompt).toContain(
-      'Create 2 ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.',
+      'Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. Reserve clean space for a text overlay that will be added separately.',
     );
-    expect(prompt).toContain('## Product\nBrand: BabeChat — AI 캐릭터챗');
-    expect(prompt).toContain('## Ad strategy');
-    expect(prompt).toContain('Target audience: 스토리 몰입을 원하는 성인');
-    expect(prompt).toContain('Core desire: 주인공이 되고 싶은 욕구');
-    expect(prompt).toContain('Hook type: 호기심 자극');
-    expect(prompt).toContain('Message angle: 나만의 이야기');
-    expect(prompt).toContain('Visual format: 세로형 캐릭터 클로즈업');
+    expect(prompt).not.toContain('## Approved ad copy');
+    expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
+    expect(prompt).not.toContain('在戰場上獲勝的場景');
+  });
+
+  it('keeps only the Text to render copy in AI typography plus TEXT_ONLY mode', () => {
+    const prompt = buildImagePrompt({
+      brief: { desire: '몰입', hookType: '호기심', visualFormat: '인물 중심' },
+      brandName: 'BabeChat',
+      creative: {
+        koreanText: '전쟁터에서 승리하는 장면',
+        approvedZhTw: '在戰場上獲勝的場景',
+      },
+      typography: {
+        headline: '戰場上的智慧女神',
+        subline: '立即開始聊天',
+        style: 'gold serif',
+      },
+      copyInfluence: 'TEXT_ONLY',
+    } as never);
+
     expect(prompt).toContain(
-      '## Approved ad copy (the image must depict the moment this copy describes)',
+      'Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. The only text in the image must be the text specified in the "Text to render" section below.',
     );
-    expect(prompt).toContain('Korean: 오늘 밤, 내 이야기에 빠져봐');
-    expect(prompt).toContain('zh-TW (approved): 今晚，沉浸在我的故事裡');
-    expect(prompt).toContain('## Art direction');
-    expect(prompt).toContain('## Prohibited');
-    expect(prompt).toContain('No minors or school settings.');
-    expect(prompt).toContain('No distorted hands or anatomy.');
-    expect(prompt).not.toContain('## 연출 지침');
-    expect(prompt).not.toContain('## 금지');
+    expect(prompt).not.toContain('## Approved ad copy');
+    expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
+    expect(prompt).not.toContain('在戰場上獲勝的場景');
+    expect(prompt).toContain('## Text to render inside the image');
+    expect(prompt).toContain('Headline: "戰場上的智慧女神"');
+    expect(prompt).toContain('Subline: "立即開始聊天"');
+    expect(prompt).not.toContain('Reserve clean space for a text overlay');
   });
 
   it('uses an English AI typography frame while preserving exact rendered characters', () => {

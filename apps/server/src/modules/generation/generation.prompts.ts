@@ -145,13 +145,21 @@ export function buildImagePrompt(params: {
   brandName: string;
   brandDescription?: string | null;
   creative?: { koreanText: string; approvedZhTw?: string | null };
+  copyInfluence?: 'SCENE' | 'TEXT_ONLY';
   typography?: { headline: string; subline?: string | null; style: string };
   instructions?: string;
 }): string {
   const brandLine = `${params.brandName}${params.brandDescription ? ` — ${params.brandDescription}` : ''}`;
   const count = params.count ?? 1;
   return [
-    `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
+    [
+      `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
+      params.copyInfluence === 'TEXT_ONLY'
+        ? `Do NOT derive the scene from any ad copy. Build the scene only from the strategy context, references and user requirement below. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n'),
     `## Product\nBrand: ${brandLine}`,
     [
       '## Ad strategy (this emotion and situation must be visible in the image)',
@@ -165,7 +173,7 @@ export function buildImagePrompt(params: {
     ]
       .filter(Boolean)
       .join('\n'),
-    params.creative
+    params.copyInfluence !== 'TEXT_ONLY' && params.creative
       ? [
           '## Approved ad copy (the image must depict the moment this copy describes)',
           `Korean: ${params.creative.koreanText}`,

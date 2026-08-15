@@ -94,6 +94,11 @@ enum Confidence {
   MEDIUM
 }
 
+enum CopyInfluence {
+  SCENE
+  TEXT_ONLY
+}
+
 input CreateBrandInput {
   description: String
   features: [BrandFeatureInput!]! = []
@@ -305,6 +310,7 @@ input GenerateCreativeBriefInput {
 
 input GenerateCreativeImagesInput {
   aiTypoStyle: String
+  copyInfluence: CopyInfluence = SCENE
   count: Int = 2
   creativeId: ID!
   instructions: String
@@ -358,6 +364,7 @@ type GeneratedCreativeModel {
 
 type GeneratedImageModel {
   cleanUrl: String
+  copyInfluence: String
   costEstimateUsd: Float
   createdAt: DateTime!
   id: ID!
