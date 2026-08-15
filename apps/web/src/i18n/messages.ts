@@ -54,7 +54,7 @@ export const messages = {
       similarDescription: '이 광고와 메시지가 가까운 순서입니다. 항목을 누르면 해당 광고 상세로 이동합니다.', noSimilar: '유사한 광고를 찾지 못했습니다. (분석된 광고가 많아질수록 결과가 풍부해집니다)', similarity: '유사도 {value}',
       createBriefFromAd: '이 광고를 참조해 브리프 생성', createBriefDescription: '이 광고가 「직접 지정」 참조로 들어간 광고 기획서를 만듭니다. 브랜드를 고르면 제품 소개·기능이 함께 전달돼 품질이 좋아집니다. (AI, 약 1~2센트)', brand: '브랜드', noSelection: '선택 안 함', briefTitle: '브리프 제목 (선택)', focus: '추가 포커스 (선택)', focusPlaceholder: '원하는 방향이 있으면 한 문장으로. 비워두면 이 광고의 패턴만으로 만듭니다', start: '생성 시작',
     }, media: {
-      title: '미디어', step: '보조 도구', description: '내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙', uploadMedia: '미디어 업로드', chooseFile: '파일 선택', chooseFileHint: '이미지 또는 영상 파일을 선택하세요', upload: '업로드', uploadFailed: '업로드 실패: HTTP {status}',
+      title: '미디어', step: '보조 도구', description: '내 시안·참고 미디어를 올려 텍스트를 추출하고 인사이트를 뽑는 곳. 경쟁 광고 수집과 별개 트랙', uploadMedia: '미디어 업로드', chooseFile: '파일 선택', chooseFileHint: '이미지 또는 영상 파일을 선택하세요', upload: '업로드', uploading: '업로드 중…', uploadingBanner: '파일을 올리는 중입니다 — 완료되면 상세 화면으로 이동합니다', uploadFailed: '업로드 실패: HTTP {status}',
       kind: '종류', all: '전체', image: '이미지', video: '영상', searchLabel: '검색', filename: '파일명', zeroCount: '0건', resultCount: '{total}건 중 {start}–{end}',
       emptyFiltered: '조건에 맞는 미디어가 없습니다.', empty: '아직 올린 미디어가 없습니다. 시안이나 참고 이미지·영상을 올려 인사이트를 확인해보세요.', detailAria: '{filename} 상세 보기', cardMeta: '{kind} · 인사이트 {count}개', uploadedAt: '{date} 업로드',
       loading: '미디어를 불러오는 중…', back: '← 미디어 목록', detailMeta: '{kind} · {date} 업로드 · 인사이트 {count}개',
@@ -176,7 +176,7 @@ export const messages = {
       similarDescription: '依與此廣告訊息的相近程度排序。點擊項目可前往該廣告詳細頁。', noSimilar: '找不到相似廣告。（已分析的廣告越多，結果會越豐富）', similarity: '相似度 {value}',
       createBriefFromAd: '參考此廣告生成簡報', createBriefDescription: '建立以此廣告作為「直接指定」參考的廣告企劃書。選擇品牌後會一併提供產品介紹與功能，以提升品質。（AI，約 1～2 美分）', brand: '品牌', noSelection: '不選擇', briefTitle: '簡報標題（選填）', focus: '附加焦點（選填）', focusPlaceholder: '如有期望方向，請用一句話說明。留白時只依此廣告的模式生成', start: '開始生成',
     }, media: {
-      title: '媒體', step: '輔助工具', description: '上傳自己的設計稿或參考媒體，擷取文字並取得洞察；此流程與競品廣告蒐集分開', uploadMedia: '上傳媒體', chooseFile: '選擇檔案', chooseFileHint: '請選擇圖片或影片檔案', upload: '上傳', uploadFailed: '上傳失敗：HTTP {status}',
+      title: '媒體', step: '輔助工具', description: '上傳自己的設計稿或參考媒體，擷取文字並取得洞察；此流程與競品廣告蒐集分開', uploadMedia: '上傳媒體', chooseFile: '選擇檔案', chooseFileHint: '請選擇圖片或影片檔案', upload: '上傳', uploading: '上傳中…', uploadingBanner: '檔案上傳中 — 完成後將前往詳細頁面', uploadFailed: '上傳失敗：HTTP {status}',
       kind: '類型', all: '全部', image: '圖片', video: '影片', searchLabel: '搜尋', filename: '檔名', zeroCount: '0 筆', resultCount: '共 {total} 筆，第 {start}–{end} 筆',
       emptyFiltered: '沒有符合條件的媒體。', empty: '尚未上傳媒體。請上傳設計稿或參考圖片、影片以查看洞察。', detailAria: '查看 {filename} 詳細內容', cardMeta: '{kind} · {count} 筆洞察', uploadedAt: '{date} 上傳',
       loading: '正在載入媒體…', back: '← 媒體列表', detailMeta: '{kind} · {date} 上傳 · {count} 筆洞察',

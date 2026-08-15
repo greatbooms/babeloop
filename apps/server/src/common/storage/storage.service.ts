@@ -79,9 +79,13 @@ export class StorageService implements OnModuleInit {
   async presignGet(key: string): Promise<string> {
     const cached = this.presignCache.get(key);
     if (cached && Date.now() < cached.until) return cached.url;
-    const url = await getSignedUrl(this.presignClient, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: 900,
-    });
+    // ResponseCacheControl no-store: Cloudflare가 이미지 응답을 엣지 캐시하면 업로드 완료 전
+    // 잠깐의 404가 캐시로 굳어 "미디어 안 보임"이 지속된다 (운영 실측) — 원본이 no-store를 내려 캐시를 막는다
+    const url = await getSignedUrl(
+      this.presignClient,
+      new GetObjectCommand({ Bucket: this.bucket, Key: key, ResponseCacheControl: 'no-store' }),
+      { expiresIn: 900 },
+    );
     this.presignCache.set(key, { url, until: Date.now() + 10 * 60 * 1000 });
     return url;
   }

@@ -60,6 +60,7 @@ export function MediaPage() {
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const items = data?.mediaAssetsPage?.items ?? [];
@@ -73,6 +74,7 @@ export function MediaPage() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
     setError(null);
+    setUploading(true);
     try {
       const kind = file.type.startsWith('video/') ? MediaAssetKind.Video : MediaAssetKind.Image;
       const req = await requestUpload({
@@ -85,6 +87,8 @@ export function MediaPage() {
       navigate(`/media/${done.data!.completeMediaUpload.mediaAsset.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -106,7 +110,8 @@ export function MediaPage() {
           </label>
           <span className="form-hint">{fileName ?? t('media.chooseFileHint')}</span>
         </div>
-        <Button variant="primary" disabled={!fileName} onClick={onUpload}>{t('media.upload')}</Button>
+        <Button variant="primary" disabled={!fileName || uploading} onClick={onUpload}>{uploading ? t('media.uploading') : t('media.upload')}</Button>
+        {uploading && <div className="job-banner" role="status"><span className="job-banner-spinner" aria-hidden="true" /><span>{t('media.uploadingBanner')}</span></div>}
       </Modal>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="filter-bar media-filter-bar">
