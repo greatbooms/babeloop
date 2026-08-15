@@ -63,7 +63,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     } as never);
 
     expect(prompt).toContain(
-      'Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. Reserve clean space for a text overlay that will be added separately.',
+      'Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. Reserve clean space for a text overlay that will be added separately.',
     );
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
@@ -91,7 +91,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     } as never);
 
     expect(prompt).toContain(
-      'Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. The only text in the image must be the text specified in the "Text to render" section below.',
+      'Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. The only text in the image must be the text specified in the "Text to render" section below.',
     );
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');

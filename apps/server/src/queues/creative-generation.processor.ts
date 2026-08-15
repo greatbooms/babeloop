@@ -320,7 +320,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
               : {}),
             instructions: job.data.instructions,
           }),
-          buildSizePromptSection(sizePreset),
+          buildSizePromptSection(sizePreset, { rendersText: overlayMode === 'AI' && Boolean(overlayHeadline) }),
         ].join('\n\n'),
         references,
       );

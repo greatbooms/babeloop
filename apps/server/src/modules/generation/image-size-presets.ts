@@ -86,10 +86,20 @@ export function resolveSizePreset(id?: string): ImageSizePreset {
   );
 }
 
-export function buildSizePromptSection(preset: ImageSizePreset): string {
+export function buildSizePromptSection(
+  preset: ImageSizePreset,
+  options?: { rendersText?: boolean },
+): string {
   const ratio = preset.label.slice(preset.label.lastIndexOf('(') + 1, -1);
+  let composition: string = GROUP_PROMPTS[preset.group];
+  // AI 타이포 모드에선 '나중에 합성될 여백/글자 금지' 문구가 렌더 지시와 정면 충돌한다 (실측: 글자 미출력)
+  if (options?.rendersText) {
+    composition = composition
+      .replace(/ for copy to be composited later; do not draw text\./, ' where the specified text will be placed.')
+      .replace(/ for copy to be composited later\./, ' where the specified text will be placed.');
+  }
   return [
     `## Output format: ${preset.width}x${preset.height} (${ratio}) — generated at native ${preset.nativeSize} then center-cropped; keep faces and key objects away from the edges.`,
-    GROUP_PROMPTS[preset.group],
+    composition,
   ].join('\n');
 }

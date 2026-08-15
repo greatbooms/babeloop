@@ -153,10 +153,9 @@ export function buildImagePrompt(params: {
   const count = params.count ?? 1;
   return [
     [
-      `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
       params.copyInfluence === 'TEXT_ONLY'
-        ? `Do NOT derive the scene, props or setting from any ad copy or campaign strategy. Build the scene ONLY from the attached reference images and the user requirement below. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
-        : null,
+        ? `Create ${count} ad image draft(s) for a mobile feed ad. Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
+        : `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
     ]
       .filter(Boolean)
       .join('\n'),
@@ -212,6 +211,7 @@ export function buildImagePrompt(params: {
     params.typography
       ? [
           '## Text to render inside the image (exactly these characters, with accurate Traditional Chinese strokes)',
+          'Treat this text as a graphic overlay only — do NOT use its meaning, objects or events to design the scene.',
           `Headline: "${params.typography.headline}"`,
           params.typography.subline ? `Subline: "${params.typography.subline}"` : null,
           `Typography style: ${params.typography.style}`,
