@@ -23,7 +23,7 @@ describe('image generation prompt', () => {
       },
     });
 
-    expect(prompt).toBe(`Create 2 ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.
+    expect(prompt).toBe(`Create 2 ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, body language and the space itself must tell the story.
 
 ## Product
 Brand: BabeChat — AI 캐릭터챗
@@ -139,21 +139,21 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
   it.each([
     [
       'CHARACTER' as const,
-      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Do not copy this image's composition, text content or logos.",
+      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Do not copy this image's literal text content or logos.",
     ],
     [
       'STYLE' as const,
-      "Reference #1 — STYLE: Match this image's art style, rendering finish, color palette and mood. Do not copy this image's characters, composition, text content or logos.",
+      "Reference #1 — STYLE: Replicate this image's look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series. Do not copy this image's literal text content or logos.",
     ],
     [
       'TYPOGRAPHY' as const,
-      "Reference #1 — TYPOGRAPHY: Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image's characters, text content or logos.",
+      "Reference #1 — TYPOGRAPHY: Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image's literal text content or logos.",
     ],
   ])('adds the distinct %s reference instruction', (role, instruction) => {
     const prompt = appendReferences('BASE PROMPT', [{ key: `refs/${role}.png`, role }]);
 
     expect(prompt).toContain(
-      '## Attached reference images (1)\nReferences are attached in the order listed. Use each ONLY for its stated purpose.',
+      '## Attached reference images (1) — PRIMARY visual specification',
     );
     expect(prompt).toContain(instruction);
     expect(prompt).toContain(`## Reference keys (tracking only)\n- refs/${role}.png`);
@@ -166,7 +166,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     ]);
 
     expect(prompt).toContain(
-      'When any CHARACTER or STYLE reference conflicts with the art direction above, the reference wins (including realism vs. anime).',
+      'the reference wins — including realism vs. anime',
     );
   });
 
@@ -185,7 +185,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     ] as never);
 
     expect(prompt).toContain(
-      'Reference #1 — CHARACTER + STYLE + TYPOGRAPHY: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person. Match this image\'s art style, rendering finish, color palette and mood. Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image\'s text content or logos.',
+      'Reference #1 — CHARACTER + STYLE + TYPOGRAPHY: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Replicate this image\'s look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series. Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image\'s literal text content or logos.',
     );
   });
 });

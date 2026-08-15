@@ -148,6 +148,7 @@ export function buildImagePrompt(params: {
   copyInfluence?: 'SCENE' | 'TEXT_ONLY';
   typography?: { headline: string; subline?: string | null; style: string };
   instructions?: string;
+  hasReferences?: boolean;
 }): string {
   const brandLine = `${params.brandName}${params.brandDescription ? ` — ${params.brandDescription}` : ''}`;
   const count = params.count ?? 1;
@@ -155,7 +156,7 @@ export function buildImagePrompt(params: {
     [
       params.copyInfluence === 'TEXT_ONLY'
         ? `Create ${count} ad image draft(s) for a mobile feed ad. Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
-        : `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, hands, device screens and the space itself must tell the story.`,
+        : `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, body language and the space itself must tell the story.${params.hasReferences ? ' The attached reference images define the desired look — match them closely.' : ''}`,
     ]
       .filter(Boolean)
       .join('\n'),
@@ -195,8 +196,12 @@ export function buildImagePrompt(params: {
       : null,
     [
       '## Art direction',
-      '- Define specific lighting, color and texture (for example: cool blue pre-dawn tones with screen glow, shallow depth of field and film grain).',
-      '- If people appear, they must be adults aged 20 or older; make a Taiwan urban-life context feel natural.',
+      params.hasReferences
+        ? '- Lighting, color, texture and rendering must follow the attached reference images — do not default to photorealism.'
+        : '- Define specific lighting, color and texture (for example: cool blue pre-dawn tones with screen glow, shallow depth of field and film grain).',
+      params.hasReferences
+        ? '- If people appear, they must be adults aged 20 or older.'
+        : '- If people appear, they must be adults aged 20 or older; make a Taiwan urban-life context feel natural.',
       '- If showing a smartphone screen, use a generalized chat UI rather than reproducing any specific app.',
     ].join('\n'),
     [
@@ -287,9 +292,9 @@ type ReferenceRole = 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
 
 const REFERENCE_ROLE_INSTRUCTIONS: Record<ReferenceRole, string> = {
   CHARACTER:
-    'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type and overall art finish so it reads as the same person.',
+    'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork.',
   STYLE:
-    "Match this image's art style, rendering finish, color palette and mood.",
+    "Replicate this image's look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series.",
   TYPOGRAPHY:
     'Match the typography feel (typeface style, weight, arrangement) of the text in this image.',
 };
@@ -297,42 +302,21 @@ const REFERENCE_ROLE_INSTRUCTIONS: Record<ReferenceRole, string> = {
 export function appendReferences(prompt: string, references: GenerationReference[]): string {
   if (references.length === 0) return prompt;
 
-  const roleInstructions = references.map(
-    (reference, index) => {
-      const roles = Array.from(new Set(reference.roles ?? [reference.role ?? 'STYLE']));
-      const hasCharacter = roles.includes('CHARACTER');
-      const restrictedSubjects = [
-        !hasCharacter ? 'characters' : null,
-        roles.length === 1 && (hasCharacter || roles.includes('STYLE')) ? 'composition' : null,
-      ]
-        .filter((subject): subject is string => Boolean(subject));
-      const prohibition = restrictedSubjects.length
-        ? `${restrictedSubjects.join(', ')}, text content or logos`
-        : 'text content or logos';
-      return `Reference #${index + 1} — ${roles.join(' + ')}: ${roles
-        .map((role) => REFERENCE_ROLE_INSTRUCTIONS[role])
-        .join(' ')} Do not copy this image's ${prohibition}.`;
-    },
-  );
-  const referencePriority = references.some(
-    (reference) => (reference.roles ?? [reference.role ?? 'STYLE']).some(
-      (role) => role === 'CHARACTER' || role === 'STYLE',
-    ),
-  )
-    ? 'When any CHARACTER or STYLE reference conflicts with the art direction above, the reference wins (including realism vs. anime).'
-    : null;
+  const roleInstructions = references.map((reference, index) => {
+    const roles = Array.from(new Set(reference.roles ?? [reference.role ?? 'STYLE']));
+    return `Reference #${index + 1} — ${roles.join(' + ')}: ${roles
+      .map((role) => REFERENCE_ROLE_INSTRUCTIONS[role])
+      .join(' ')} Do not copy this image's literal text content or logos.`;
+  });
 
   return [
     prompt,
     [
-      `## Attached reference images (${references.length})`,
-      'References are attached in the order listed. Use each ONLY for its stated purpose.',
+      `## Attached reference images (${references.length}) — PRIMARY visual specification`,
+      'References are attached in the order listed. They define what the output must look like. If anything above (art direction, composition guidance, examples) conflicts with a reference, the reference wins — including realism vs. anime. Only the "User requirement" section outranks the references.',
       ...roleInstructions,
-      referencePriority,
       '## Reference keys (tracking only)',
       ...references.map((reference) => `- ${reference.key}`),
-    ]
-      .filter(Boolean)
-      .join('\n'),
+    ].join('\n'),
   ].join('\n\n');
 }
