@@ -470,7 +470,7 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(imageProvider.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringMatching(
-          /do NOT derive the scene, props or setting from any ad copy or campaign strategy[\s\S]*## Text to render inside the image[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
+          /do NOT derive the scene, props or setting from any ad copy or campaign strategy[\s\S]*## TEXT LAYER — render these exact glyphs on top of the finished scene[\s\S]*Headline: "戰場上的智慧女神"[\s\S]*Subline: "立即開始聊天"[\s\S]*Noto Serif TC[\s\S]*serif\/Ming[\s\S]*color gold/,
         ),
       }),
     );

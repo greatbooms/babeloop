@@ -168,22 +168,17 @@ export function buildImagePrompt(params: {
   return [
     [
       params.copyInfluence === 'TEXT_ONLY'
-        ? `Create ${count} ad image draft(s) for a mobile feed ad. Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. ${params.typography ? 'The only text in the image must be the text specified in the "Text to render" section below.' : 'Reserve clean space for a text overlay that will be added separately.'}`
+        ? `Create ${count} ad image draft(s) for a mobile feed ad. Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. ${params.typography ? 'The only text in the image must be the text specified in the "TEXT LAYER" section at the end.' : 'Reserve clean space for a text overlay that will be added separately.'}`
         : `Create ${count} ad image draft(s) for a mobile feed ad. Render the brief below as one concrete moment and scene — not abstract concepts. Expression, body language and the space itself must tell the story.${params.hasReferences ? ' The attached reference images define the desired look — match them closely.' : ''}`,
     ]
       .filter(Boolean)
       .join('\n'),
-    `## Product\nBrand: ${brandLine}`,
-    // TEXT_ONLY에선 브리프의 장면성 필드를 빼야 한다 — 문구를 빼도 브리프가 같은 장면(우주선·경보등)을 그리던 실측 문제
     params.copyInfluence === 'TEXT_ONLY'
-      ? [
-          '## Campaign context (tone and casting only — do NOT derive the scene from this)',
-          params.brief.audienceHypothesis
-            ? `Target audience: ${params.brief.audienceHypothesis}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join('\n')
+      ? `## Product\nBrand: ${params.brandName}`
+      : `## Product\nBrand: ${brandLine}`,
+    // TEXT_ONLY에선 브리프를 통째로 뺀다 — 타깃 문장('SF 스릴러')만 남겨도 무드가 장면으로 샜다 (운영 실측)
+    params.copyInfluence === 'TEXT_ONLY'
+      ? null
       : [
           '## Ad strategy (this emotion and situation must be visible in the image)',
           params.brief.audienceHypothesis
@@ -215,7 +210,9 @@ export function buildImagePrompt(params: {
       params.hasReferences
         ? '- If people appear, they must be adults aged 20 or older.'
         : '- If people appear, they must be adults aged 20 or older; make a Taiwan urban-life context feel natural.',
-      '- If showing a smartphone screen, use a generalized chat UI rather than reproducing any specific app.',
+      params.copyInfluence === 'TEXT_ONLY'
+        ? null
+        : '- If showing a smartphone screen, use a generalized chat UI rather than reproducing any specific app.',
     ].join('\n'),
     [
       '## Prohibited',
@@ -226,18 +223,6 @@ export function buildImagePrompt(params: {
     ]
       .filter(Boolean)
       .join('\n'),
-    params.typography
-      ? [
-          '## Text to render inside the image (exactly these characters, with accurate Traditional Chinese strokes)',
-          'Treat this text as a graphic overlay only — do NOT use its meaning, objects or events to design the scene.',
-          `Headline: "${params.typography.headline}"`,
-          params.typography.subline ? `Subline: "${params.typography.subline}"` : null,
-          `Typography style: ${params.typography.style}`,
-          '- Do not render any other text, logos or watermarks.',
-        ]
-          .filter(Boolean)
-          .join('\n')
-      : null,
     params.instructions
       ? `## User requirement (may be written in Korean — follow it precisely; it overrides any conflicting direction above)\n${params.instructions}`
       : null,
@@ -332,4 +317,23 @@ export function appendReferences(prompt: string, references: GenerationReference
       ...references.map((reference) => `- ${reference.key}`),
     ].join('\n'),
   ].join('\n\n');
+}
+
+/** AI 타이포 문구 렌더 지시 — 프롬프트 '맨 끝'(참조 뒤)에 붙인다.
+ * 문구 전문이 장면 계획부에 섞이면 그 의미(경보등 등)가 장면으로 샌다 (운영 실측). */
+export function buildTypographySection(typography: {
+  headline: string;
+  subline?: string | null;
+  style: string;
+}): string {
+  return [
+    '## TEXT LAYER — render these exact glyphs on top of the finished scene (accurate Traditional Chinese strokes)',
+    "This text is a graphic layer only. Its meaning is IRRELEVANT to the scene — do not depict any object, place or event mentioned in it.",
+    `Headline: "${typography.headline}"`,
+    typography.subline ? `Subline: "${typography.subline}"` : null,
+    `Typography style: ${typography.style}`,
+    '- Do not render any other text, logos or watermarks.',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }

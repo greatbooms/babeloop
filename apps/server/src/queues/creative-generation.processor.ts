@@ -18,6 +18,7 @@ import { VectorSearchRepository } from '../modules/creative-analysis/vector-sear
 import {
   BRIEF_SYSTEM,
   appendReferences,
+  buildTypographySection,
   buildBriefPrompt,
   buildImagePrompt,
   buildVideoPrompt,
@@ -294,7 +295,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const overlayColor = job.data.overlayColor ?? 'white';
       const aiTypoStyle = job.data.aiTypoStyle ?? 'selected';
       const copyInfluence = job.data.copyInfluence ?? 'SCENE';
-      const prompt = appendReferences(
+      const rendersText = overlayMode === 'AI' && Boolean(overlayHeadline);
+      const scenePrompt = appendReferences(
         [
           buildImagePrompt({
             count: job.data.count,
@@ -306,26 +308,22 @@ export class CreativeGenerationProcessor extends WorkerHost {
               approvedZhTw: creative.localizations[0]?.text,
             },
             copyInfluence,
-            ...(overlayMode === 'AI' && overlayHeadline
-              ? {
-                  typography: {
-                    headline: overlayHeadline,
-                    subline: overlaySubline,
-                    style: buildAiTypographyStyle({
-                      style: aiTypoStyle,
-                      font: overlayFont,
-                      color: overlayColor,
-                    }),
-                  },
-                }
-              : {}),
+            // 타이포 유무는 intro·규격 분기에만 쓰고, 실제 문구 섹션은 맨 끝에 붙인다 (의미가 장면으로 새는 것 방지)
+            ...(rendersText ? { typography: { headline: overlayHeadline!, subline: overlaySubline, style: '' } } : {}),
             instructions: job.data.instructions,
             hasReferences: references.length > 0,
           }),
-          buildSizePromptSection(sizePreset, { rendersText: overlayMode === 'AI' && Boolean(overlayHeadline) }),
+          buildSizePromptSection(sizePreset, { rendersText }),
         ].join('\n\n'),
         references,
       );
+      const prompt = rendersText
+        ? `${scenePrompt}\n\n${buildTypographySection({
+            headline: overlayHeadline!,
+            subline: overlaySubline,
+            style: buildAiTypographyStyle({ style: aiTypoStyle, font: overlayFont, color: overlayColor }),
+          })}`
+        : scenePrompt;
       const promptVersion = 'generate-copy-images@v6';
       const meta: AiExecutionMeta = {
         provider: this.imageAi.name,

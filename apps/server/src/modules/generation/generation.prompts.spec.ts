@@ -2,6 +2,7 @@ import {
   appendReferences,
   buildAiTypographyStyle,
   buildImagePrompt,
+  buildTypographySection,
 } from './generation.prompts';
 
 describe('image generation prompt', () => {
@@ -68,7 +69,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
     expect(prompt).not.toContain('在戰場上獲勝的場景');
-    expect(prompt).toContain('## Campaign context (tone and casting only');
+    expect(prompt).not.toContain('## Campaign context');
     expect(prompt).not.toContain('## Ad strategy');
     expect(prompt).not.toContain('Core desire:');
     expect(prompt).not.toContain('Visual format:');
@@ -91,30 +92,25 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     } as never);
 
     expect(prompt).toContain(
-      'Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. The only text in the image must be the text specified in the "Text to render" section below.',
+      'Build the scene ONLY from the attached reference images and the user requirement below — do NOT derive the scene, props or setting from any ad copy or campaign strategy. The only text in the image must be the text specified in the "TEXT LAYER" section at the end.',
     );
     expect(prompt).not.toContain('## Approved ad copy');
     expect(prompt).not.toContain('전쟁터에서 승리하는 장면');
     expect(prompt).not.toContain('在戰場上獲勝的場景');
-    expect(prompt).toContain('## Text to render inside the image');
-    expect(prompt).toContain('Headline: "戰場上的智慧女神"');
-    expect(prompt).toContain('Subline: "立即開始聊天"');
+    // 문구 섹션은 buildTypographySection이 프롬프트 맨 끝(참조 뒤)에 붙인다 — 장면부에 문구가 없어야 한다
+    expect(prompt).not.toContain('戰場上的智慧女神');
     expect(prompt).not.toContain('Reserve clean space for a text overlay');
   });
 
   it('uses an English AI typography frame while preserving exact rendered characters', () => {
-    const prompt = buildImagePrompt({
-      brief: { desire: '몰입', hookType: '호기심', visualFormat: '인물 중심' },
-      brandName: 'BabeChat',
-      typography: {
-        headline: '戰場上的智慧女神',
-        subline: '立即開始聊天',
-        style: buildAiTypographyStyle({ style: 'selected', font: 'serif', color: 'gold' }),
-      },
+    const prompt = buildTypographySection({
+      headline: '戰場上的智慧女神',
+      subline: '立即開始聊天',
+      style: buildAiTypographyStyle({ style: 'selected', font: 'serif', color: 'gold' }),
     });
 
     expect(prompt).toContain(
-      '## Text to render inside the image (exactly these characters, with accurate Traditional Chinese strokes)',
+      '## TEXT LAYER — render these exact glyphs on top of the finished scene (accurate Traditional Chinese strokes)',
     );
     expect(prompt).toContain('Headline: "戰場上的智慧女神"');
     expect(prompt).toContain('Subline: "立即開始聊天"');
