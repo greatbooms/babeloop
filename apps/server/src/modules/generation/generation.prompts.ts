@@ -290,7 +290,7 @@ type ReferenceRole = 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
 
 const REFERENCE_ROLE_INSTRUCTIONS: Record<ReferenceRole, string> = {
   CHARACTER:
-    'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork.',
+    'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Sample colors directly from the reference and keep them identical: iris color and its highlights, hair color value and saturation, skin tone, and the overall brightness and contrast of the character. Any color or value drift is an error.',
   STYLE:
     "Replicate this image's look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series.",
   TYPOGRAPHY:

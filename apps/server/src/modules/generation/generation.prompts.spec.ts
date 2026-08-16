@@ -148,7 +148,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
   it.each([
     [
       'CHARACTER' as const,
-      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Do not copy this image's literal text content or logos.",
+      "Reference #1 — CHARACTER: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Sample colors directly from the reference and keep them identical: iris color and its highlights, hair color value and saturation, skin tone, and the overall brightness and contrast of the character. Any color or value drift is an error. Do not copy this image's literal text content or logos.",
     ],
     [
       'STYLE' as const,
@@ -194,7 +194,7 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     ] as never);
 
     expect(prompt).toContain(
-      'Reference #1 — CHARACTER + STYLE + TYPOGRAPHY: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, eye color, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Replicate this image\'s look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series. Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image\'s literal text content or logos.',
+      'Reference #1 — CHARACTER + STYLE + TYPOGRAPHY: Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Sample colors directly from the reference and keep them identical: iris color and its highlights, hair color value and saturation, skin tone, and the overall brightness and contrast of the character. Any color or value drift is an error. Replicate this image\'s look almost exactly — the art style, line and shading technique, rendering finish, color palette, lighting and mood. If it shows an environment or background, recreate that same environment in the new scene. The output should look like it was made by the same artist for the same series. Match the typography feel (typeface style, weight, arrangement) of the text in this image. Do not copy this image\'s literal text content or logos.',
     );
   });
 });
