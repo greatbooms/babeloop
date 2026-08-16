@@ -7,6 +7,15 @@ import {
   ImageGenerationSize,
 } from './image-generation.provider';
 
+export interface ImagesApiResponse {
+  data?: Array<{ b64_json?: string | null }>;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    input_tokens_details?: { text_tokens?: number; image_tokens?: number };
+  };
+}
+
 export interface OpenAIImageGenerationClient {
   images: {
     generate(input: {
@@ -15,7 +24,7 @@ export interface OpenAIImageGenerationClient {
       n: number;
       quality: 'low' | 'high';
       size: ImageGenerationSize;
-    }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
+    }): Promise<ImagesApiResponse>;
     edit(input: {
       model: string;
       image: Awaited<ReturnType<typeof toFile>>[];
@@ -24,7 +33,7 @@ export interface OpenAIImageGenerationClient {
       quality: 'low' | 'high';
       size: ImageGenerationSize;
       input_fidelity: 'high';
-    }): Promise<{ data?: Array<{ b64_json?: string | null }> }>;
+    }): Promise<ImagesApiResponse>;
   };
 }
 
@@ -78,10 +87,25 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
         contentType: 'image/png',
       };
     });
+    // 응답 usage(실사용 토큰)가 있으면 공시 단가로 실비를 계산한다 — 없을 때만 장당 추정 폴백
+    const usage = response.usage;
+    const actualCost = usage
+      ? ((usage.input_tokens_details?.text_tokens ?? 0) * this.pricePerMillion('IMAGE_PRICE_TEXT_IN_PER_M', 5) +
+          (usage.input_tokens_details?.image_tokens ?? 0) * this.pricePerMillion('IMAGE_PRICE_IMAGE_IN_PER_M', 10) +
+          (usage.output_tokens ?? 0) * this.pricePerMillion('IMAGE_PRICE_OUT_PER_M', 40)) /
+        1_000_000
+      : undefined;
     return {
       images,
-      costEstimateUsd: images.length * this.priceFor(input.quality, size),
+      costEstimateUsd: actualCost ?? images.length * this.priceFor(input.quality, size),
+      inputTokens: usage?.input_tokens,
+      outputTokens: usage?.output_tokens,
     };
+  }
+
+  private pricePerMillion(name: string, fallback: number): number {
+    const value = Number(process.env[name] ?? fallback);
+    return Number.isFinite(value) ? value : fallback;
   }
 
   private priceFor(quality: 'low' | 'high', size: ImageGenerationSize): number {

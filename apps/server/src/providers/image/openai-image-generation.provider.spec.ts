@@ -105,3 +105,40 @@ describe('OpenAIImageGenerationProvider', () => {
     expect(result.costEstimateUsd).toBe(0.06);
   });
 });
+describe('usage 기반 실비', () => {
+  it('응답 usage가 있으면 토큰 단가로 실제 비용을 계산한다', async () => {
+    const client = {
+      images: {
+        generate: jest.fn().mockResolvedValue({
+          data: [{ b64_json: Buffer.from('x').toString('base64') }],
+          usage: {
+            input_tokens: 1100,
+            output_tokens: 4160,
+            input_tokens_details: { text_tokens: 1000, image_tokens: 100 },
+          },
+        }),
+        edit: jest.fn(),
+      },
+    };
+    const provider = new OpenAIImageGenerationProvider(client as never);
+    const result = await provider.generate({ prompt: 'p', count: 1, quality: 'high' } as never);
+    // 1000*5 + 100*10 + 4160*40 = 172,400 / 1M = 0.1724
+    expect(result.costEstimateUsd).toBeCloseTo(0.1724, 4);
+    expect(result.inputTokens).toBe(1100);
+    expect(result.outputTokens).toBe(4160);
+  });
+
+  it('usage가 없으면 장당 추정으로 폴백한다', async () => {
+    const client = {
+      images: {
+        generate: jest.fn().mockResolvedValue({ data: [{ b64_json: Buffer.from('x').toString('base64') }] }),
+        edit: jest.fn(),
+      },
+    };
+    const provider = new OpenAIImageGenerationProvider(client as never);
+    const result = await provider.generate({ prompt: 'p', count: 1, quality: 'low' } as never);
+    expect(result.costEstimateUsd).toBeCloseTo(0.04, 4);
+    expect(result.inputTokens).toBeUndefined();
+  });
+});
+

@@ -332,6 +332,7 @@ export function buildTypographySection(typography: {
     `Headline: "${typography.headline}"`,
     typography.subline ? `Subline: "${typography.subline}"` : null,
     `Typography style: ${typography.style}`,
+    '- Size the text so the ENTIRE string fits comfortably inside the frame — prefer a smaller text size over any cropping or overflow.',
     '- Do not render any other text, logos or watermarks.',
   ]
     .filter(Boolean)

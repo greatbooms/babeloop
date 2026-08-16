@@ -17,6 +17,8 @@ export interface GeneratedImageData {
 export interface ImageGenerationOutput {
   images: GeneratedImageData[];
   costEstimateUsd?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 export interface ImageGenerationProvider {

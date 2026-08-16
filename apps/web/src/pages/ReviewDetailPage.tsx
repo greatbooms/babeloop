@@ -252,16 +252,32 @@ export function ReviewDetailPage() {
     color?: string | null;
     copyInfluence?: string | null;
   }) {
-    const sourceLines = (latestLocalization?.text ?? creative?.koreanText ?? '')
-      .trim()
-      .split(/\r?\n/);
     const truncate = (value: string) => Array.from(value.trim()).slice(0, 60).join('');
-    setImageOverlayHeadline(
-      overlay ? truncate(overlay.headline ?? '') : truncate(sourceLines[0] ?? ''),
-    );
-    setImageOverlaySubline(
-      overlay ? truncate(overlay.subline ?? '') : truncate(sourceLines[1] ?? ''),
-    );
+    // 긴 문단을 60자에서 뚝 자르면 '就在 Bab'처럼 단어 중간이 잘린다 (운영 실측) — 문장 경계로 나눠 메인·서브에 배분
+    const sourceText = (latestLocalization?.text ?? creative?.koreanText ?? '').trim();
+    const sentences = sourceText
+      .split(/\r?\n/)
+      .flatMap((line) => line.match(/[^。！？!?]+[。！？!?]?/g) ?? [])
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    let prefillHeadline = '';
+    let sentenceIndex = 0;
+    while (sentenceIndex < sentences.length) {
+      const candidate = prefillHeadline ? `${prefillHeadline}${sentences[sentenceIndex]}` : sentences[sentenceIndex];
+      if (Array.from(candidate).length > 60) break;
+      prefillHeadline = candidate;
+      sentenceIndex += 1;
+    }
+    if (!prefillHeadline && sentences.length) prefillHeadline = truncate(sentences[0]);
+    let prefillSubline = '';
+    while (sentenceIndex < sentences.length) {
+      const candidate = prefillSubline ? `${prefillSubline}${sentences[sentenceIndex]}` : sentences[sentenceIndex];
+      if (Array.from(candidate).length > 60) break;
+      prefillSubline = candidate;
+      sentenceIndex += 1;
+    }
+    setImageOverlayHeadline(overlay ? truncate(overlay.headline ?? '') : prefillHeadline);
+    setImageOverlaySubline(overlay ? truncate(overlay.subline ?? '') : prefillSubline);
     setImageOverlayMode(overlay?.mode === 'AI' ? 'AI' : 'SERVER');
     setImageCopyInfluence(
       overlay?.copyInfluence === CopyInfluence.TextOnly
@@ -459,10 +475,10 @@ export function ReviewDetailPage() {
         <section className="overlay-copy-fields" aria-labelledby="overlay-copy-title">
           <h3 id="overlay-copy-title">{t('review.overlayCopyTitle')}</h3>
           <FormField label={t('review.overlayHeadline')} htmlFor="creative-image-overlay-headline">
-            <input id="creative-image-overlay-headline" maxLength={60} value={imageOverlayHeadline} onChange={(event) => setImageOverlayHeadline(event.target.value)} />
+            <input id="creative-image-overlay-headline" maxLength={60} value={imageOverlayHeadline} onChange={(event) => setImageOverlayHeadline(event.target.value)} /><span className="overlay-char-count">{Array.from(imageOverlayHeadline).length}/60</span>
           </FormField>
           <FormField label={t('review.overlaySubline')} htmlFor="creative-image-overlay-subline">
-            <input id="creative-image-overlay-subline" maxLength={60} value={imageOverlaySubline} onChange={(event) => setImageOverlaySubline(event.target.value)} />
+            <input id="creative-image-overlay-subline" maxLength={60} value={imageOverlaySubline} onChange={(event) => setImageOverlaySubline(event.target.value)} /><span className="overlay-char-count">{Array.from(imageOverlaySubline).length}/60</span>
           </FormField>
           <p className="muted">{t('review.overlayCleanHint')}</p>
           {imageOverlayHeadline.trim() && (

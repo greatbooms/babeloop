@@ -97,6 +97,8 @@ export function buildSizePromptSection(
     composition = composition
       .replace(/ for copy to be composited later; do not draw text\./, ' where the specified text will be placed.')
       .replace(/ for copy to be composited later\./, ' where the specified text will be placed.');
+    // 비정사각 규격은 네이티브에서 중앙 크롭된다 — 글자가 크롭 경계를 넘어 잘리던 실측 문제
+    composition += ` All text must sit fully inside the final ${preset.width}x${preset.height} center-crop area with comfortable margins — no glyph may touch or cross the frame edges.`;
   }
   return [
     `## Output format: ${preset.width}x${preset.height} (${ratio}) — generated at native ${preset.nativeSize} then center-cropped; keep faces and key objects away from the edges.`,

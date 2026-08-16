@@ -343,6 +343,8 @@ export class CreativeGenerationProcessor extends WorkerHost {
           ...(referenceImages.length ? { referenceImages } : {}),
         });
         meta.costEstimateUsd = generated.costEstimateUsd;
+        meta.inputTokens = generated.inputTokens;
+        meta.outputTokens = generated.outputTokens;
         return {
           imageCount: generated.images.length,
           contentTypes: generated.images.map((image) => image.contentType),

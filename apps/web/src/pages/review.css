@@ -128,3 +128,5 @@
 
 /* 소재 유형 칩 — 영상 스크립트는 스테이지 색과 무관한 고정 앰버로 한눈에 구분한다 */
 .tag-video { color: #92400e; background: #fef3c7; border-color: transparent; font-weight: 600; }
+
+.overlay-char-count { justify-self: end; color: var(--muted); font-size: 11px; }
