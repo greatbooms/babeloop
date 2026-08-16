@@ -1,4 +1,10 @@
-import { computeOverlayLayout, renderTextOverlay } from './text-overlay';
+import { createCanvas } from '@napi-rs/canvas';
+import {
+  computeOverlayLayout,
+  extractAccentColor,
+  renderTextOverlay,
+  resolveOverlayColor,
+} from './text-overlay';
 import { join } from 'path';
 
 const TWENTY_PIXEL_PNG = Buffer.from(
@@ -126,5 +132,41 @@ describe('renderTextOverlay', () => {
         color: 'white',
       }),
     ).rejects.toThrow('지원하지 않는 오버레이 폰트');
+  });
+});
+
+describe('overlay colors', () => {
+  it('extracts the saturated accent block instead of the gray background', async () => {
+    const canvas = createCanvas(64, 64);
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#777777';
+    context.fillRect(0, 0, 64, 64);
+    context.fillStyle = '#D4A62A';
+    context.fillRect(16, 16, 32, 32);
+
+    await expect(extractAccentColor(canvas.toBuffer('image/png'))).resolves.toEqual({
+      fill: '#D4A62A',
+      shadow: 'rgba(0,0,0,0.6)',
+    });
+  });
+
+  it('falls back to white when fewer than two percent of pixels are eligible', async () => {
+    const canvas = createCanvas(64, 64);
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#777777';
+    context.fillRect(0, 0, 64, 64);
+
+    await expect(extractAccentColor(canvas.toBuffer('image/png'))).resolves.toEqual({
+      fill: '#FFFFFF',
+      shadow: 'rgba(0,0,0,0.55)',
+    });
+  });
+
+  it('resolves a custom hex color and leaves auto for the caller to extract', () => {
+    expect(resolveOverlayColor('#102030')).toEqual({
+      fill: '#102030',
+      shadow: 'rgba(255,255,255,0.35)',
+    });
+    expect(resolveOverlayColor('auto')).toBeNull();
   });
 });

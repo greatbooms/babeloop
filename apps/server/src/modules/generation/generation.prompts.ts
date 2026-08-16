@@ -1,4 +1,8 @@
-import type { OverlayColor, OverlayFont } from '../../common/media/text-overlay';
+import type {
+  OverlayColor,
+  OverlayColorKey,
+  OverlayFont,
+} from '../../common/media/text-overlay';
 
 // 각 시스템 프롬프트는 기대하는 JSON 필드명을 반드시 명시한다.
 // Mock은 형태를 알고 있지만 실제 모델은 프롬프트에 없는 키 이름을 맞출 수 없다
@@ -112,25 +116,34 @@ const AI_TYPO_FONT_NAMES: Record<OverlayFont, { name: string; category: string }
   genryu: { name: '源流明體 (GenRyuMin TC)', category: 'traditional decorative Ming' },
 };
 
-const AI_TYPO_COLOR_NAMES: Record<OverlayColor, string> = {
+const AI_TYPO_COLOR_NAMES: Record<OverlayColorKey, string> = {
   white: 'white',
   black: 'black',
   gold: 'gold',
 };
+
+function buildAiTypographyColor(color: OverlayColor): string {
+  if (color === 'auto') {
+    return 'a text color that matches the reference typography or the image mood';
+  }
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return `color ${color}`;
+  return `color ${AI_TYPO_COLOR_NAMES[color as OverlayColorKey]}`;
+}
 
 export function buildAiTypographyStyle(params: {
   style: AiTypoStyle;
   font: OverlayFont;
   color: OverlayColor;
 }): string {
+  const color = buildAiTypographyColor(params.color);
   if (params.style === 'match_reference') {
-    return 'Match the typeface style and arrangement of the TYPOGRAPHY reference image';
+    return `Match the typeface style and arrangement of the TYPOGRAPHY reference image, ${color}`;
   }
   if (params.style === 'auto') {
-    return "Choose the typeface that best fits the image's mood";
+    return `Choose the typeface that best fits the image's mood, ${color}`;
   }
   const font = AI_TYPO_FONT_NAMES[params.font];
-  return `${font.name} family (${font.category}) feel, color ${AI_TYPO_COLOR_NAMES[params.color]}`;
+  return `${font.name} family (${font.category}) feel, ${color}`;
 }
 
 export function buildImagePrompt(params: {

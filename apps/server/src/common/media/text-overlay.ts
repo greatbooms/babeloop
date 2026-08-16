@@ -26,7 +26,112 @@ export const OVERLAY_COLORS = {
   gold: { fill: '#E8C87A', shadow: 'rgba(0,0,0,0.6)' },
 } as const;
 
-export type OverlayColor = keyof typeof OVERLAY_COLORS;
+export type OverlayColorKey = keyof typeof OVERLAY_COLORS;
+export type OverlayColor = OverlayColorKey | 'auto' | `#${string}`;
+export type ResolvedOverlayColor = { fill: string; shadow: string };
+
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+function shadowForFill(fill: string, lightThreshold = 0.6): string {
+  const red = Number.parseInt(fill.slice(1, 3), 16);
+  const green = Number.parseInt(fill.slice(3, 5), 16);
+  const blue = Number.parseInt(fill.slice(5, 7), 16);
+  const relativeLuminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  return relativeLuminance > lightThreshold
+    ? 'rgba(0,0,0,0.6)'
+    : 'rgba(255,255,255,0.35)';
+}
+
+export function resolveOverlayColor(
+  color: string,
+  options: { lightThreshold?: number } = {},
+): ResolvedOverlayColor | null {
+  if (color === 'auto') return null;
+  if (Object.prototype.hasOwnProperty.call(OVERLAY_COLORS, color)) {
+    return OVERLAY_COLORS[color as OverlayColorKey];
+  }
+  if (HEX_COLOR_PATTERN.test(color)) {
+    return {
+      fill: color,
+      shadow: shadowForFill(color, options.lightThreshold),
+    };
+  }
+  throw new Error(`지원하지 않는 오버레이 색상: ${String(color)}`);
+}
+
+function rgbToHsv(red: number, green: number, blue: number) {
+  const normalizedRed = red / 255;
+  const normalizedGreen = green / 255;
+  const normalizedBlue = blue / 255;
+  const maximum = Math.max(normalizedRed, normalizedGreen, normalizedBlue);
+  const minimum = Math.min(normalizedRed, normalizedGreen, normalizedBlue);
+  const delta = maximum - minimum;
+  let hue = 0;
+  if (delta > 0) {
+    if (maximum === normalizedRed) {
+      hue = 60 * (((normalizedGreen - normalizedBlue) / delta) % 6);
+    } else if (maximum === normalizedGreen) {
+      hue = 60 * ((normalizedBlue - normalizedRed) / delta + 2);
+    } else {
+      hue = 60 * ((normalizedRed - normalizedGreen) / delta + 4);
+    }
+  }
+  if (hue < 0) hue += 360;
+  return {
+    hue,
+    saturation: maximum === 0 ? 0 : delta / maximum,
+    value: maximum,
+  };
+}
+
+function toHex(red: number, green: number, blue: number): string {
+  return `#${[red, green, blue]
+    .map((channel) => Math.round(channel).toString(16).padStart(2, '0'))
+    .join('')}`.toUpperCase();
+}
+
+export async function extractAccentColor(buffer: Buffer): Promise<ResolvedOverlayColor> {
+  const image = await loadImage(buffer);
+  const canvas = createCanvas(64, 64);
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0, 64, 64);
+  const pixels = context.getImageData(0, 0, 64, 64).data;
+  const buckets = Array.from({ length: 12 }, () => ({
+    count: 0,
+    red: 0,
+    green: 0,
+    blue: 0,
+  }));
+  let eligiblePixels = 0;
+
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    const red = pixels[offset];
+    const green = pixels[offset + 1];
+    const blue = pixels[offset + 2];
+    const { hue, saturation, value } = rgbToHsv(red, green, blue);
+    if (saturation < 0.35 || value < 0.35 || value > 0.95) continue;
+    const bucket = buckets[Math.floor(hue / 30) % buckets.length];
+    bucket.count += 1;
+    bucket.red += red;
+    bucket.green += green;
+    bucket.blue += blue;
+    eligiblePixels += 1;
+  }
+
+  if (eligiblePixels / (pixels.length / 4) < 0.02) {
+    return { ...OVERLAY_COLORS.white };
+  }
+
+  const accent = buckets.reduce((mostFrequent, bucket) =>
+    bucket.count > mostFrequent.count ? bucket : mostFrequent,
+  );
+  const fill = toHex(
+    accent.red / accent.count,
+    accent.green / accent.count,
+    accent.blue / accent.count,
+  );
+  return { fill, shadow: shadowForFill(fill) };
+}
 
 const ANCHORS: Record<OverlayGroup, number> = {
   square: 0.74,
@@ -143,7 +248,11 @@ async function ensureFont(font: OverlayFont): Promise<void> {
 export async function renderTextOverlay(
   buffer: Buffer,
   layout: OverlayLayout,
-  options: { font: OverlayFont; color: OverlayColor } = {
+  options: {
+    font: OverlayFont;
+    color: OverlayColor;
+    resolvedColor?: ResolvedOverlayColor;
+  } = {
     font: 'gothic',
     color: 'white',
   },
@@ -152,7 +261,7 @@ export async function renderTextOverlay(
   if (!fontDefinition) {
     throw new Error(`지원하지 않는 오버레이 폰트: ${String(options.font)}`);
   }
-  const colorDefinition = OVERLAY_COLORS[options.color];
+  const colorDefinition = options.resolvedColor ?? resolveOverlayColor(options.color);
   if (!colorDefinition) {
     throw new Error(`지원하지 않는 오버레이 색상: ${String(options.color)}`);
   }

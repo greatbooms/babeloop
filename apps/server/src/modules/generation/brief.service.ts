@@ -261,7 +261,11 @@ export class BriefService {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
-    if (!Object.prototype.hasOwnProperty.call(OVERLAY_COLORS, overlayColor)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(OVERLAY_COLORS, overlayColor) &&
+      overlayColor !== 'auto' &&
+      !/^#[0-9a-fA-F]{6}$/.test(overlayColor)
+    ) {
       throw new GraphQLError('지원하지 않는 오버레이 색상입니다', {
         extensions: { code: 'BAD_USER_INPUT' },
       });

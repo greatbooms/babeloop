@@ -1,11 +1,16 @@
 import { CreativeGenerationProcessor } from './creative-generation.processor';
 import { JOB_TYPES } from './queue.constants';
 import { resizeImageToSpec } from '../common/media/image-resize';
-import { computeOverlayLayout, renderTextOverlay } from '../common/media/text-overlay';
+import {
+  computeOverlayLayout,
+  extractAccentColor,
+  renderTextOverlay,
+} from '../common/media/text-overlay';
 
 jest.mock('../common/media/image-resize', () => ({ resizeImageToSpec: jest.fn() }));
 jest.mock('../common/media/text-overlay', () => ({
   computeOverlayLayout: jest.fn(),
+  extractAccentColor: jest.fn(),
   renderTextOverlay: jest.fn(),
 }));
 
@@ -57,6 +62,10 @@ describe('CreativeGenerationProcessor image generation', () => {
       lines: [{ text: '主標題', fontSize: 60, y: 400 }],
     });
     jest.mocked(renderTextOverlay).mockReset().mockResolvedValue(OVERLAID_PNG);
+    jest.mocked(extractAccentColor).mockReset().mockResolvedValue({
+      fill: '#D4A62A',
+      shadow: 'rgba(0,0,0,0.6)',
+    });
   });
 
   it('참고 버퍼를 mock 이미지 provider에 전달하고 키와 비용을 저장한다', async () => {
@@ -294,6 +303,97 @@ describe('CreativeGenerationProcessor image generation', () => {
         overlayFont: 'serif',
         overlayColor: 'gold',
       }),
+    });
+  });
+
+  it('자동 색상은 TYPOGRAPHY 참고 버퍼를 우선 추출하고 auto 선택을 저장한다', async () => {
+    const creative = {
+      id: 'creative-copy-1',
+      koreanText: '한국어 연출 재료',
+      localizations: [],
+      brief: {
+        id: 'brief-1',
+        visualFormat: '가로형',
+        hookType: '호기심',
+        desire: '몰입',
+        brand: { name: 'BabeChat' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedImage: { create: jest.fn().mockResolvedValue({ id: 'image-overlay-auto-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = {
+      markRunning: jest.fn(),
+      markSucceeded: jest.fn(),
+      markFailed: jest.fn(),
+    };
+    const imageProvider = {
+      name: 'mock',
+      model: 'mock-image-1',
+      generate: jest.fn().mockResolvedValue({
+        images: [{ buffer: VALID_PNG, contentType: 'image/png' }],
+        costEstimateUsd: 0.04,
+      }),
+    };
+    const styleReference = Buffer.from('style-reference');
+    const typographyReference = Buffer.from('typography-reference');
+    const storage = {
+      getBuffer: jest.fn(async (key: string) =>
+        key.includes('typography') ? typographyReference : styleReference,
+      ),
+      putBuffer: jest.fn(),
+    };
+    const processor = new CreativeGenerationProcessor(
+      prisma as never,
+      aiLog as never,
+      jobRecord as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      storage as never,
+      imageProvider as never,
+      {} as never,
+    );
+
+    await processor.process({
+      id: 'generate-images--creative-copy-1--overlay-auto',
+      name: JOB_TYPES.GENERATE_IMAGES,
+      data: {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        sizePreset: 'landscape_1200x628',
+        referenceKeys: ['refs/style.png', 'refs/typography.png'],
+        references: [
+          { key: 'refs/style.png', roles: ['STYLE'] },
+          { key: 'refs/typography.png', roles: ['TYPOGRAPHY'] },
+        ],
+        overlayHeadline: '今晚，只屬於你的故事',
+        overlayMode: 'SERVER',
+        overlayFont: 'gothic',
+        overlayColor: 'auto',
+      },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    } as never);
+
+    expect(extractAccentColor).toHaveBeenCalledWith(typographyReference);
+    expect(renderTextOverlay).toHaveBeenCalledWith(
+      VALID_PNG,
+      { lines: [{ text: '主標題', fontSize: 60, y: 400 }] },
+      {
+        font: 'gothic',
+        color: 'auto',
+        resolvedColor: { fill: '#D4A62A', shadow: 'rgba(0,0,0,0.6)' },
+      },
+    );
+    expect(prisma.generatedImage.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ overlayColor: 'auto' }),
     });
   });
 

@@ -34,7 +34,11 @@ import {
   OverlayColor,
   OverlayFont,
   OverlayMode,
+  OverlayPresetColor,
+  isCustomOverlayColor,
+  isOverlayColor,
   overlayPreviewText,
+  resolveOverlayPreviewColor,
 } from '../lib/overlay-options';
 import './media.css';
 import './briefs.css';
@@ -126,7 +130,7 @@ const OVERLAY_FONT_LABEL_KEYS: Record<OverlayFont, string> = {
   genryu: 'review.overlayFontGenryu',
 };
 
-const OVERLAY_COLOR_LABEL_KEYS: Record<OverlayColor, string> = {
+const OVERLAY_COLOR_LABEL_KEYS: Record<OverlayPresetColor, string> = {
   white: 'review.overlayColorWhite',
   black: 'review.overlayColorBlack',
   gold: 'review.overlayColorGold',
@@ -156,6 +160,7 @@ export function ReviewDetailPage() {
   const [imageOverlayMode, setImageOverlayMode] = useState<OverlayMode>('SERVER');
   const [imageCopyInfluence, setImageCopyInfluence] = useState<CopyInfluence>(CopyInfluence.Scene);
   const [imageOverlayFont, setImageOverlayFont] = useState<OverlayFont>('gothic');
+  const [imageFontPickerOpen, setImageFontPickerOpen] = useState(false);
   const [imageOverlayColor, setImageOverlayColor] = useState<OverlayColor>('white');
   const [imageAiTypoStyle, setImageAiTypoStyle] = useState<AiTypoStyle>('selected');
   const [imageCount, setImageCount] = useState(2);
@@ -177,6 +182,14 @@ export function ReviewDetailPage() {
   const hasTypographyReference = imageReferences.some(
     (reference) => reference.roles.includes(GenerationReferenceRole.Typography),
   );
+  const selectedOverlayFont = OVERLAY_FONT_OPTIONS.find(
+    (font) => font.id === imageOverlayFont,
+  )!;
+  const overlayPreviewColor = resolveOverlayPreviewColor(imageOverlayColor);
+  const customOverlayColor = isCustomOverlayColor(imageOverlayColor)
+    ? imageOverlayColor
+    : '#7C3AED';
+  const autoColorDisabled = imageOverlayMode === 'AI' && imageReferences.length === 0;
   const creative = data?.creative; const latestLocalization = creative?.localizations[0];
   const { data: briefImagesData } = useQuery(ReviewBriefImagesDocument, {
     variables: { id: creative?.briefId ?? '' },
@@ -225,6 +238,11 @@ export function ReviewDetailPage() {
       setImageAiTypoStyle('selected');
     }
   }, [hasTypographyReference, imageAiTypoStyle]);
+  useEffect(() => {
+    if (autoColorDisabled && imageOverlayColor === 'auto') {
+      setImageOverlayColor('white');
+    }
+  }, [autoColorDisabled, imageOverlayColor]);
 
   function openImageGenerationModal(overlay?: {
     headline?: string | null;
@@ -255,8 +273,9 @@ export function ReviewDetailPage() {
         ? overlay!.font as OverlayFont
         : 'gothic',
     );
+    setImageFontPickerOpen(false);
     setImageOverlayColor(
-      OVERLAY_COLOR_OPTIONS.some((color) => color.id === overlay?.color)
+      isOverlayColor(overlay?.color)
         ? overlay!.color as OverlayColor
         : 'white',
     );
@@ -450,14 +469,16 @@ export function ReviewDetailPage() {
             <div className="overlay-options">
               <fieldset className="overlay-choice-group">
                 <legend>{t('review.overlayMode')}</legend>
-                <label>
+                <div className="overlay-mode-cards">
+                <label className={`overlay-mode-card${imageOverlayMode === 'SERVER' ? ' is-selected' : ''}`}>
                   <input type="radio" name="overlay-mode" value="SERVER" checked={imageOverlayMode === 'SERVER'} onChange={() => setImageOverlayMode('SERVER')} />
-                  <span>{t('review.overlayModeServer')}</span>
+                  <span><strong>{t('review.overlayModeServer')}</strong><small>{t('review.overlayModeServerDescription')}</small></span>
                 </label>
-                <label>
+                <label className={`overlay-mode-card${imageOverlayMode === 'AI' ? ' is-selected' : ''}`}>
                   <input type="radio" name="overlay-mode" value="AI" checked={imageOverlayMode === 'AI'} onChange={() => setImageOverlayMode('AI')} />
-                  <span>{t('review.overlayModeAi')}</span>
+                  <span><strong>{t('review.overlayModeAi')}</strong><small>{t('review.overlayModeAiDescription')}</small></span>
                 </label>
+                </div>
               </fieldset>
               <fieldset className="overlay-choice-group">
                 <legend>{t('review.copyInfluence')}</legend>
@@ -471,21 +492,47 @@ export function ReviewDetailPage() {
                 </label>
               </fieldset>
               <p className="muted">{t('review.copyInfluenceTextOnlyHint')}</p>
-              {imageOverlayMode === 'AI' && <p className="overlay-ai-warning" role="note">{t('review.overlayAiWarning')}</p>}
-              <fieldset className="overlay-font-picker">
+              {imageOverlayMode === 'SERVER' && <fieldset className="overlay-font-picker">
                 <legend>{t('review.overlayFont')}</legend>
-                <div className="overlay-font-grid">
+                <div className="overlay-selected-font">
+                  <div className="overlay-font-card is-selected">
+                    <span className="overlay-font-preview" style={{ fontFamily: `'${selectedOverlayFont.family}'`, color: overlayPreviewColor?.value ?? '#FFFFFF', textShadow: overlayPreviewColor ? `2px 2px 0 ${overlayPreviewColor.shadow}` : 'none' }}>
+                      {overlayPreviewText(imageOverlayHeadline, latestLocalization?.text)}
+                    </span>
+                    <span className="overlay-font-label">{t(selectedOverlayFont.labelKey)}</span>
+                    {imageOverlayColor === 'auto' && <span className="overlay-color-auto-badge">{t('review.overlayColorAutoBadge')}</span>}
+                  </div>
+                  <button type="button" className="overlay-font-toggle" aria-expanded={imageFontPickerOpen} onClick={() => setImageFontPickerOpen((open) => !open)}>
+                    {t(imageFontPickerOpen ? 'review.overlayFontClose' : 'review.overlayFontMore')}
+                  </button>
+                </div>
+                {imageFontPickerOpen && <div className="overlay-font-grid">
                   {OVERLAY_FONT_OPTIONS.map((font) => (
                     <label className={`overlay-font-card${imageOverlayFont === font.id ? ' is-selected' : ''}`} key={font.id}>
-                      <input type="radio" name="overlay-font" value={font.id} checked={imageOverlayFont === font.id} onChange={() => setImageOverlayFont(font.id)} />
-                      <span className="overlay-font-preview" style={{ fontFamily: `'${font.family}'`, color: OVERLAY_COLOR_OPTIONS.find((color) => color.id === imageOverlayColor)!.value, textShadow: `2px 2px 0 ${OVERLAY_COLOR_OPTIONS.find((color) => color.id === imageOverlayColor)!.shadow}` }}>
+                      <input type="radio" name="overlay-font" value={font.id} checked={imageOverlayFont === font.id} onChange={() => { setImageOverlayFont(font.id); setImageFontPickerOpen(false); }} />
+                      <span className="overlay-font-preview" style={{ fontFamily: `'${font.family}'`, color: overlayPreviewColor?.value ?? '#FFFFFF', textShadow: overlayPreviewColor ? `2px 2px 0 ${overlayPreviewColor.shadow}` : 'none' }}>
                         {overlayPreviewText(imageOverlayHeadline, latestLocalization?.text)}
                       </span>
                       <span className="overlay-font-label">{t(font.labelKey)}</span>
                     </label>
                   ))}
-                </div>
+                </div>}
               </fieldset>
+              }
+              {imageOverlayMode === 'AI' && (
+                <fieldset className="overlay-choice-group overlay-ai-styles">
+                  <legend>{t('review.aiTypoStyle')}</legend>
+                  <div className="overlay-ai-selected-row">
+                    <label><input type="radio" name="ai-typo-style" value="selected" checked={imageAiTypoStyle === 'selected'} onChange={() => setImageAiTypoStyle('selected')} /><span>{t('review.aiTypoSelected')}</span></label>
+                    <select aria-label={t('review.aiTypoFontFamily')} value={imageOverlayFont} disabled={imageAiTypoStyle !== 'selected'} onChange={(event) => setImageOverlayFont(event.target.value as OverlayFont)}>
+                      {OVERLAY_FONT_OPTIONS.map((font) => <option key={font.id} value={font.id}>{t(font.labelKey).replace(/\s*\([^)]*\)\s*$/, '')}</option>)}
+                    </select>
+                  </div>
+                  <label className={!hasTypographyReference ? 'is-disabled' : ''}><input type="radio" name="ai-typo-style" value="match_reference" disabled={!hasTypographyReference} checked={imageAiTypoStyle === 'match_reference'} onChange={() => setImageAiTypoStyle('match_reference')} /><span>{t('review.aiTypoMatchReference')}</span></label>
+                  <label><input type="radio" name="ai-typo-style" value="auto" checked={imageAiTypoStyle === 'auto'} onChange={() => setImageAiTypoStyle('auto')} /><span>{t('review.aiTypoAuto')}</span></label>
+                  {!hasTypographyReference && <small className="overlay-ai-reference-hint">{t('review.aiTypoMatchReferenceHint')}</small>}
+                </fieldset>
+              )}
               <fieldset className="overlay-color-picker">
                 <legend>{t('review.overlayColor')}</legend>
                 <div className="overlay-color-options">
@@ -496,17 +543,20 @@ export function ReviewDetailPage() {
                       <span>{t(color.labelKey)}</span>
                     </label>
                   ))}
+                  <label
+                    className={`overlay-color-option${imageOverlayColor === 'auto' ? ' is-selected' : ''}${autoColorDisabled ? ' is-disabled' : ''}`}
+                    title={imageOverlayMode === 'SERVER' && imageReferences.length === 0 ? t('review.overlayColorAutoGeneratedHint') : undefined}
+                  >
+                    <input type="radio" name="overlay-color" value="auto" disabled={autoColorDisabled} checked={imageOverlayColor === 'auto'} onChange={() => setImageOverlayColor('auto')} />
+                    <span className="overlay-color-auto-icon" aria-hidden="true">◐</span>
+                    <span>{t('review.overlayColorAutoReference')}</span>
+                  </label>
+                  <label className={`overlay-color-option overlay-custom-color${isCustomOverlayColor(imageOverlayColor) ? ' is-selected' : ''}`}>
+                    <input aria-label={t('review.overlayColorCustom')} type="color" value={customOverlayColor} onChange={(event) => setImageOverlayColor(event.target.value as `#${string}`)} />
+                    <span>{t('review.overlayColorCustom')}</span>
+                  </label>
                 </div>
               </fieldset>
-              {imageOverlayMode === 'AI' && (
-                <fieldset className="overlay-choice-group overlay-ai-styles">
-                  <legend>{t('review.aiTypoStyle')}</legend>
-                  <label><input type="radio" name="ai-typo-style" value="selected" checked={imageAiTypoStyle === 'selected'} onChange={() => setImageAiTypoStyle('selected')} /><span>{t('review.aiTypoSelected')}</span></label>
-                  <label className={!hasTypographyReference ? 'is-disabled' : ''}><input type="radio" name="ai-typo-style" value="match_reference" disabled={!hasTypographyReference} checked={imageAiTypoStyle === 'match_reference'} onChange={() => setImageAiTypoStyle('match_reference')} /><span>{t('review.aiTypoMatchReference')}</span></label>
-                  <label><input type="radio" name="ai-typo-style" value="auto" checked={imageAiTypoStyle === 'auto'} onChange={() => setImageAiTypoStyle('auto')} /><span>{t('review.aiTypoAuto')}</span></label>
-                  {!hasTypographyReference && <small className="overlay-ai-reference-hint">{t('review.aiTypoMatchReferenceHint')}</small>}
-                </fieldset>
-              )}
             </div>
           )}
         </section>
@@ -697,6 +747,19 @@ export function ReviewDetailPage() {
         <div className="brief-image-grid">
           {creative.images.map((image) => {
             const sizeCaption = imageSizePresetCaption(image.sizePreset);
+            const storedOverlayColor = isOverlayColor(image.overlayColor)
+              ? image.overlayColor
+              : 'white';
+            const storedCustomColor = isCustomOverlayColor(storedOverlayColor);
+            const storedOverlayColorLabel = storedOverlayColor === 'auto'
+              ? t('review.overlayColorAutomatic')
+              : storedCustomColor
+                ? storedOverlayColor
+                : t(OVERLAY_COLOR_LABEL_KEYS[storedOverlayColor]);
+            const storedOverlayColorCaption = <span className="overlay-caption-color">
+              {storedCustomColor && <span className="overlay-caption-swatch" style={{ backgroundColor: storedOverlayColor }} aria-hidden="true" />}
+              {storedOverlayColorLabel}
+            </span>;
             const storedReferences = parseStoredReferences(image.referenceRolesJson);
             const roleComposition = REFERENCE_ROLES.map((referenceRole) => {
               const count = storedReferences.filter(
@@ -723,8 +786,8 @@ export function ReviewDetailPage() {
                       typography: roleComposition[2],
                     })
                     : t('review.referenceCount', { count: image.referenceKeys.length })}</span>}
-                  {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')}</span>}
-                  {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {t(OVERLAY_COLOR_LABEL_KEYS[(image.overlayColor ?? 'white') as OverlayColor])}</span>}
+                  {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')} · {storedOverlayColorCaption}</span>}
+                  {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {storedOverlayColorCaption}</span>}
                   {image.copyInfluence === CopyInfluence.TextOnly && <span className="tag">{t('review.copyInfluenceTextOnlyTag')}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
                 </div>

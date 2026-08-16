@@ -168,6 +168,7 @@ describe('BriefService.requestCreativeImages 검증', () => {
     { overlayMode: 'PAINT' },
     { overlayFont: 'comic' },
     { overlayColor: 'blue' },
+    { overlayColor: '#fff' },
     { overlayMode: 'AI', aiTypoStyle: 'wild' },
   ])('허용되지 않은 오버레이 옵션 $overlayMode$overlayFont$overlayColor$aiTypoStyle 을 거부한다', async (invalidOption) => {
     const { service, jobRecord } = setup();
@@ -183,6 +184,28 @@ describe('BriefService.requestCreativeImages 검증', () => {
       } as never),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('6자리 hex 색상을 이미지 잡 payload에 그대로 전달한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      overlayHeadline: '主標題',
+      overlayColor: '#12AbEF',
+    } as never);
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ overlayColor: '#12AbEF' }),
+      expect.anything(),
+    );
   });
 
   it('메인 문구 없이 기본값이 아닌 오버레이 옵션을 선택하면 거부한다', async () => {

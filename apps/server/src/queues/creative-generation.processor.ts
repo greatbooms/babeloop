@@ -8,6 +8,7 @@ import { StorageService } from '../common/storage/storage.service';
 import { resizeImageToSpec } from '../common/media/image-resize';
 import {
   computeOverlayLayout,
+  extractAccentColor,
   renderTextOverlay,
   type OverlayColor,
   type OverlayFont,
@@ -373,10 +374,22 @@ export class CreativeGenerationProcessor extends WorkerHost {
             headline: overlayHeadline,
             ...(overlaySubline ? { subline: overlaySubline } : {}),
           });
-          const overlaid = await renderTextOverlay(resized, layout, {
-            font: overlayFont,
-            color: overlayColor,
-          });
+          const resolvedColor = overlayColor === 'auto'
+            ? await extractAccentColor(
+                referenceImages[
+                  references.findIndex((reference) =>
+                    reference.roles.includes(GenerationReferenceRole.TYPOGRAPHY),
+                  )
+                ]?.buffer ?? referenceImages[0]?.buffer ?? resized,
+              )
+            : undefined;
+          const overlaid = await renderTextOverlay(
+            resized,
+            layout,
+            resolvedColor
+              ? { font: overlayFont, color: overlayColor, resolvedColor }
+              : { font: overlayFont, color: overlayColor },
+          );
           await this.storage.putBuffer(storageKey, overlaid, 'image/png');
         } else {
           await this.storage.putBuffer(storageKey, resized, 'image/png');

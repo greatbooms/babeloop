@@ -123,6 +123,19 @@ zh-TW (approved): 今晚，沉浸在我的故事裡
     );
   });
 
+  it.each([
+    ['auto', 'a text color that matches the reference typography or the image mood'],
+    ['#12AbEF', 'color #12AbEF'],
+  ])('passes the %s color choice to AI typography instructions', (color, instruction) => {
+    expect(
+      buildAiTypographyStyle({
+        style: 'selected',
+        font: 'gothic',
+        color: color as never,
+      }),
+    ).toContain(instruction);
+  });
+
   it('preserves a Korean user requirement verbatim inside the English override frame', () => {
     const requirement = '분홍색 네온 조명, 글자 금지';
     const prompt = buildImagePrompt({
