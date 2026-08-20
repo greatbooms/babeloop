@@ -415,6 +415,7 @@ model GeneratedImage {
   sizePreset      String?
   referenceKeys   String[]           @default([])
   referenceRolesJson Json?
+  characterCompositeJson Json?
   copyInfluence   String?
   costEstimateUsd Float?
   createdAt       DateTime           @default(now())

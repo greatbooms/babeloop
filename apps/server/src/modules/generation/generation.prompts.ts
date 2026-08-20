@@ -288,6 +288,10 @@ export type GenerationReference = {
 
 type ReferenceRole = 'CHARACTER' | 'STYLE' | 'TYPOGRAPHY';
 
+export function appendBackgroundOnlySection(prompt: string, position: 'LEFT' | 'CENTER' | 'RIGHT'): string {
+  return `${prompt}\n\n## Background only\nDo NOT draw any person or character — they will be composited separately. Leave the ${position} side open for the character.`;
+}
+
 const REFERENCE_ROLE_INSTRUCTIONS: Record<ReferenceRole, string> = {
   CHARACTER:
     'Put this exact character into the new scene. Preserve identical facial features, hairstyle and length, body type, outfit style and overall art finish so it reads as the same person from the same artwork. Sample colors directly from the reference and keep them identical: iris color and its highlights, hair color value and saturation, skin tone, and the overall brightness and contrast of the character. Any color or value drift is an error.',

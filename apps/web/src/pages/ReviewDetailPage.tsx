@@ -8,6 +8,7 @@ import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { graphql } from '../generated';
 import {
+  CharacterCompositePosition,
   CopyInfluence,
   CreativeStatus,
   CreativeType,
@@ -44,7 +45,7 @@ import './media.css';
 import './briefs.css';
 import './review.css';
 
-const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor copyInfluence quality instructions prompt sizePreset referenceKeys referenceRolesJson createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
+const ReviewCreativeDocument = graphql(`query ReviewCreative($id: ID!) { creative(id: $id) { id briefId briefTitle locale type status variantIndex revision koreanText scenesJson minorFlagged minorFlagNote images { id url cleanUrl overlayHeadline overlaySubline overlayMode overlayFont overlayColor copyInfluence quality instructions prompt sizePreset referenceKeys referenceRolesJson characterCompositeJson createdAt costEstimateUsd } videos { id url seconds size prompt instructions referenceKeys costEstimateUsd createdAt } briefReferenceAds { sourceAdId title thumbnailUrl } localizations { id kind locale text koBackTranslation createdAt } policyChecks { id checkType status detailJson createdAt } reviewEvents { id kind actorId note createdAt } experimentVariants { id variantCode trackingCode exportedAt } } }`);
 const ReviewBriefImagesDocument = graphql(`query ReviewBriefImages($id: ID!) { creativeBrief(id: $id) { id images { id url instructions } } }`);
 const ReviewReferenceMediaDocument = graphql(`query ReviewReferenceMedia { mediaAssetsPage(input: { origin: MANUAL, offset: 0, limit: 24 }) { items { id originalFilename thumbnailUrl } } }`);
 const ReviewExperimentsDocument = graphql(`query ReviewExperiments { experiments { id code name } }`);
@@ -75,6 +76,20 @@ type SelectedReference = ReferenceOption & {
 type StoredReference = {
   key: string;
   roles: GenerationReferenceRole[];
+};
+
+type CharacterCompositeSettings = {
+  position: 'LEFT' | 'CENTER' | 'RIGHT';
+  heightRatio: number;
+};
+
+const CHARACTER_COMPOSITE_POSITION_INPUT: Record<
+  CharacterCompositeSettings['position'],
+  CharacterCompositePosition
+> = {
+  LEFT: CharacterCompositePosition.Left,
+  CENTER: CharacterCompositePosition.Center,
+  RIGHT: CharacterCompositePosition.Right,
 };
 
 const REFERENCE_ROLES = [
@@ -109,6 +124,26 @@ function parseStoredReferences(value: string | null | undefined): StoredReferenc
     });
   } catch {
     return [];
+  }
+}
+
+function parseCharacterComposite(value: string | null | undefined): CharacterCompositeSettings | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const position = (parsed as CharacterCompositeSettings).position;
+    const heightRatio = (parsed as CharacterCompositeSettings).heightRatio;
+    if (
+      !['LEFT', 'CENTER', 'RIGHT'].includes(position) ||
+      typeof heightRatio !== 'number' ||
+      !Number.isFinite(heightRatio) ||
+      heightRatio < 0.4 ||
+      heightRatio > 1
+    ) return null;
+    return { position, heightRatio };
+  } catch {
+    return null;
   }
 }
 
@@ -167,6 +202,9 @@ export function ReviewDetailPage() {
   const [imageQuality, setImageQuality] = useState<'low' | 'high'>('low');
   const [imageSizePreset, setImageSizePreset] = useState<ImageSizePresetId>(DEFAULT_IMAGE_SIZE_PRESET);
   const [imageReferences, setImageReferences] = useState<SelectedReference[]>([]);
+  const [imageCharacterCompositeEnabled, setImageCharacterCompositeEnabled] = useState(false);
+  const [imageCharacterCompositePosition, setImageCharacterCompositePosition] = useState<CharacterCompositeSettings['position']>('RIGHT');
+  const [imageCharacterCompositeHeightRatio, setImageCharacterCompositeHeightRatio] = useState(0.9);
   const [imageJobId, setImageJobId] = useState<string | null>(null);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [videoInstructions, setVideoInstructions] = useState('');
@@ -181,6 +219,12 @@ export function ReviewDetailPage() {
   const policyJob = useJobPolling(policyJobId);
   const hasTypographyReference = imageReferences.some(
     (reference) => reference.roles.includes(GenerationReferenceRole.Typography),
+  );
+  const hasCharacterReference = imageReferences.some(
+    (reference) => reference.roles.includes(GenerationReferenceRole.Character),
+  );
+  const characterCompositeReferenceIndex = imageReferences.findIndex((reference) =>
+    reference.roles.includes(GenerationReferenceRole.Character),
   );
   const selectedOverlayFont = OVERLAY_FONT_OPTIONS.find(
     (font) => font.id === imageOverlayFont,
@@ -243,6 +287,16 @@ export function ReviewDetailPage() {
       setImageOverlayColor('white');
     }
   }, [autoColorDisabled, imageOverlayColor]);
+  useEffect(() => {
+    if (!hasCharacterReference && imageCharacterCompositeEnabled) {
+      setImageCharacterCompositeEnabled(false);
+    }
+  }, [hasCharacterReference, imageCharacterCompositeEnabled]);
+  useEffect(() => {
+    if (imageCharacterCompositeEnabled && imageOverlayMode !== 'SERVER') {
+      setImageOverlayMode('SERVER');
+    }
+  }, [imageCharacterCompositeEnabled, imageOverlayMode]);
 
   function openImageGenerationModal(overlay?: {
     headline?: string | null;
@@ -251,7 +305,7 @@ export function ReviewDetailPage() {
     font?: string | null;
     color?: string | null;
     copyInfluence?: string | null;
-  }) {
+  }, characterComposite?: CharacterCompositeSettings | null) {
     const truncate = (value: string) => Array.from(value.trim()).slice(0, 60).join('');
     // 긴 문단을 60자에서 뚝 자르면 '就在 Bab'처럼 단어 중간이 잘린다 (운영 실측) — 문장 경계로 나눠 메인·서브에 배분
     const sourceText = (latestLocalization?.text ?? creative?.koreanText ?? '').trim();
@@ -296,6 +350,9 @@ export function ReviewDetailPage() {
         : 'white',
     );
     setImageAiTypoStyle('selected');
+    setImageCharacterCompositeEnabled(Boolean(characterComposite));
+    setImageCharacterCompositePosition(characterComposite?.position ?? 'RIGHT');
+    setImageCharacterCompositeHeightRatio(characterComposite?.heightRatio ?? 0.9);
     setImageModalOpen(true);
   }
 
@@ -327,6 +384,13 @@ export function ReviewDetailPage() {
                   id: referenceId,
                   roles,
                 }))
+              : undefined,
+            characterComposite: imageCharacterCompositeEnabled && characterCompositeReferenceIndex >= 0
+              ? {
+                  referenceIndex: characterCompositeReferenceIndex,
+                  position: CHARACTER_COMPOSITE_POSITION_INPUT[imageCharacterCompositePosition],
+                  heightRatio: imageCharacterCompositeHeightRatio,
+                }
               : undefined,
           },
         },
@@ -490,11 +554,12 @@ export function ReviewDetailPage() {
                   <input type="radio" name="overlay-mode" value="SERVER" checked={imageOverlayMode === 'SERVER'} onChange={() => setImageOverlayMode('SERVER')} />
                   <span><strong>{t('review.overlayModeServer')}</strong><small>{t('review.overlayModeServerDescription')}</small></span>
                 </label>
-                <label className={`overlay-mode-card${imageOverlayMode === 'AI' ? ' is-selected' : ''}`}>
-                  <input type="radio" name="overlay-mode" value="AI" checked={imageOverlayMode === 'AI'} onChange={() => setImageOverlayMode('AI')} />
+                <label className={`overlay-mode-card${imageOverlayMode === 'AI' ? ' is-selected' : ''}${imageCharacterCompositeEnabled ? ' is-disabled' : ''}`}>
+                  <input type="radio" name="overlay-mode" value="AI" disabled={imageCharacterCompositeEnabled} checked={imageOverlayMode === 'AI'} onChange={() => setImageOverlayMode('AI')} />
                   <span><strong>{t('review.overlayModeAi')}</strong><small>{t('review.overlayModeAiDescription')}</small></span>
                 </label>
                 </div>
+                {imageCharacterCompositeEnabled && <small className="overlay-ai-reference-hint">{t('review.characterCompositeOverlayHint')}</small>}
               </fieldset>
               <fieldset className="overlay-choice-group">
                 <legend>{t('review.copyInfluence')}</legend>
@@ -640,6 +705,30 @@ export function ReviewDetailPage() {
               ) : <p className="muted reference-empty">{t('review.noReferenceImages')}</p>}
             </div>
           ))}
+          {hasCharacterReference && (
+            <section className="character-composite-controls" aria-labelledby="character-composite-title">
+              <label className="character-composite-toggle" htmlFor="character-composite-enabled">
+                <input id="character-composite-enabled" type="checkbox" checked={imageCharacterCompositeEnabled} onChange={(event) => setImageCharacterCompositeEnabled(event.target.checked)} />
+                <span id="character-composite-title">{t('review.characterComposite')}</span>
+              </label>
+              {imageCharacterCompositeEnabled && <>
+                <fieldset className="character-composite-position">
+                  <legend>{t('review.characterCompositePosition')}</legend>
+                  {(['LEFT', 'CENTER', 'RIGHT'] as const).map((position) => (
+                    <label key={position}>
+                      <input type="radio" name="character-composite-position" value={position} checked={imageCharacterCompositePosition === position} onChange={() => setImageCharacterCompositePosition(position)} />
+                      <span>{t(`review.characterCompositePosition${position[0]}${position.slice(1).toLowerCase()}`)}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                <label className="character-composite-height" htmlFor="character-composite-height">
+                  <span>{t('review.characterCompositeHeight', { value: Math.round(imageCharacterCompositeHeightRatio * 100) })}</span>
+                  <input id="character-composite-height" type="range" min="40" max="100" step="1" value={Math.round(imageCharacterCompositeHeightRatio * 100)} onChange={(event) => setImageCharacterCompositeHeightRatio(Number(event.target.value) / 100)} />
+                </label>
+                <p className="character-composite-notice">{t('review.characterCompositeNotice')}</p>
+              </>}
+            </section>
+          )}
         </section>
         <FormField label={t('briefs.imageInstructions')} htmlFor="creative-image-instructions">
           <textarea id="creative-image-instructions" value={imageInstructions} placeholder={t('briefs.imageInstructionsPlaceholder')} onChange={(event) => setImageInstructions(event.target.value)} />
@@ -805,6 +894,7 @@ export function ReviewDetailPage() {
                   {image.overlayHeadline && image.overlayMode === 'AI' && <span className="tag">{t('review.aiTypographyApplied')} · {storedOverlayColorCaption}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && <span className="tag">{t('review.overlayApplied')} · {t(OVERLAY_FONT_LABEL_KEYS[(image.overlayFont ?? 'gothic') as OverlayFont])} · {storedOverlayColorCaption}</span>}
                   {image.copyInfluence === CopyInfluence.TextOnly && <span className="tag">{t('review.copyInfluenceTextOnlyTag')}</span>}
+                  {image.characterCompositeJson && <span className="tag">{t('review.characterCompositeApplied')}</span>}
                   {image.overlayHeadline && image.overlayMode !== 'AI' && image.cleanUrl && <a className="tag" href={image.cleanUrl} download>{t('review.cleanOriginal')}</a>}
                 </div>
                 <p>{image.instructions || t('briefs.noImageInstructions')}</p>
@@ -813,7 +903,7 @@ export function ReviewDetailPage() {
                   <pre>{image.prompt}</pre>
                 </details>
                 {creative.status === CreativeStatus.Approved && (
-                  <button type="button" className="tag image-example-chip" onClick={() => { setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }), roles: inheritedRoles }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor, copyInfluence: image.copyInfluence }); }}>{t('review.reuseInstructions')}</button>
+                  <button type="button" className="tag image-example-chip" onClick={() => { const characterComposite = parseCharacterComposite(image.characterCompositeJson); setImageInstructions(image.instructions); setImageSizePreset(resolveImageSizePresetId(image.sizePreset)); setImageReferences([{ kind: GenerationReferenceKind.GeneratedImage, id: image.id, url: image.url, label: image.instructions || t('review.briefImageReference', { index: 1 }), roles: characterComposite ? [GenerationReferenceRole.Character] : inheritedRoles }]); openImageGenerationModal({ headline: image.overlayHeadline, subline: image.overlaySubline, mode: image.overlayMode, font: image.overlayFont, color: image.overlayColor, copyInfluence: image.copyInfluence }, characterComposite); }}>{t('review.reuseInstructions')}</button>
                 )}
                 <time>{formatDate(String(image.createdAt), lang)}</time>
               </figcaption>

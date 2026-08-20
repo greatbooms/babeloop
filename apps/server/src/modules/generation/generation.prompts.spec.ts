@@ -1,4 +1,5 @@
 import {
+  appendBackgroundOnlySection,
   appendReferences,
   buildAiTypographyStyle,
   buildImagePrompt,
@@ -6,6 +7,12 @@ import {
 } from './generation.prompts';
 
 describe('image generation prompt', () => {
+  it('adds the background-only prohibition and reserves the requested character side', () => {
+    expect(appendBackgroundOnlySection('BASE PROMPT', 'LEFT')).toContain(
+      '## Background only\nDo NOT draw any person or character — they will be composited separately. Leave the LEFT side open for the character.',
+    );
+  });
+
   it('keeps the default SCENE prompt byte-for-byte identical', () => {
     const prompt = buildImagePrompt({
       count: 2,

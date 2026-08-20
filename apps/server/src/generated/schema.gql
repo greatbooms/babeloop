@@ -71,6 +71,18 @@ type BriefReferenceModel {
   title: String
 }
 
+input CharacterCompositeInput {
+  heightRatio: Float = 0.9
+  position: CharacterCompositePosition = RIGHT
+  referenceIndex: Int
+}
+
+enum CharacterCompositePosition {
+  CENTER
+  LEFT
+  RIGHT
+}
+
 type CompetitorModel {
   category: ReferenceCategory!
   createdAt: DateTime!
@@ -310,6 +322,7 @@ input GenerateCreativeBriefInput {
 
 input GenerateCreativeImagesInput {
   aiTypoStyle: String
+  characterComposite: CharacterCompositeInput
   copyInfluence: CopyInfluence = SCENE
   count: Int = 2
   creativeId: ID!
@@ -363,6 +376,7 @@ type GeneratedCreativeModel {
 }
 
 type GeneratedImageModel {
+  characterCompositeJson: String
   cleanUrl: String
   copyInfluence: String
   costEstimateUsd: Float

@@ -6,6 +6,7 @@ import { CreativeType } from '../../generated/prisma';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resizeImageToSpec } from '../common/media/image-resize';
+import { compositeCharacter, obtainCutout } from '../common/media/character-composite';
 import {
   computeOverlayLayout,
   extractAccentColor,
@@ -18,6 +19,7 @@ import { VectorSearchRepository } from '../modules/creative-analysis/vector-sear
 import {
   BRIEF_SYSTEM,
   appendReferences,
+  appendBackgroundOnlySection,
   buildTypographySection,
   buildBriefPrompt,
   buildImagePrompt,
@@ -101,6 +103,13 @@ interface GenerateImagesJobData {
   overlayFont?: OverlayFont;
   overlayColor?: OverlayColor;
   aiTypoStyle?: AiTypoStyle;
+  characterComposite?: {
+    sourceKey: string;
+    storageKey: string;
+    sourceContentType: string;
+    position: 'LEFT' | 'CENTER' | 'RIGHT';
+    heightRatio: number;
+  };
 }
 
 interface GenerateVideoJobData {
@@ -285,7 +294,15 @@ export class CreativeGenerationProcessor extends WorkerHost {
         })),
       );
       const referenceKeys = references.map((reference) => reference.key);
-      const referenceImages = await this.loadReferenceImages(referenceKeys);
+      const backgroundReferences = job.data.characterComposite
+        ? references
+            .map((reference) => ({
+              ...reference,
+              roles: reference.roles.filter((role) => role !== GenerationReferenceRole.CHARACTER),
+            }))
+            .filter((reference) => reference.roles.length > 0)
+        : references;
+      const referenceImages = await this.loadReferenceImages(backgroundReferences.map((reference) => reference.key));
       const overlayHeadline = job.data.overlayHeadline?.trim() || null;
       const overlaySubline = overlayHeadline
         ? job.data.overlaySubline?.trim() || null
@@ -296,8 +313,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
       const aiTypoStyle = job.data.aiTypoStyle ?? 'selected';
       const copyInfluence = job.data.copyInfluence ?? 'SCENE';
       const rendersText = overlayMode === 'AI' && Boolean(overlayHeadline);
-      const scenePrompt = appendReferences(
-        [
+      const baseScenePrompt = [
           buildImagePrompt({
             count: job.data.count,
             brief,
@@ -311,11 +327,15 @@ export class CreativeGenerationProcessor extends WorkerHost {
             // 타이포 유무는 intro·규격 분기에만 쓰고, 실제 문구 섹션은 맨 끝에 붙인다 (의미가 장면으로 새는 것 방지)
             ...(rendersText ? { typography: { headline: overlayHeadline!, subline: overlaySubline, style: '' } } : {}),
             instructions: job.data.instructions,
-            hasReferences: references.length > 0,
+            hasReferences: backgroundReferences.length > 0,
           }),
           buildSizePromptSection(sizePreset, { rendersText }),
-        ].join('\n\n'),
-        references,
+        ].join('\n\n');
+      const scenePrompt = appendReferences(
+        job.data.characterComposite
+          ? appendBackgroundOnlySection(baseScenePrompt, job.data.characterComposite.position)
+          : baseScenePrompt,
+        backgroundReferences,
       );
       const prompt = rendersText
         ? `${scenePrompt}\n\n${buildTypographySection({
@@ -352,6 +372,17 @@ export class CreativeGenerationProcessor extends WorkerHost {
       });
       if (!generated) throw new Error('이미지 생성 결과가 없습니다');
 
+      const cutout = job.data.characterComposite
+        ? await obtainCutout({
+            sourceBuffer: await this.storage.getBuffer(job.data.characterComposite.storageKey),
+            sourceContentType: job.data.characterComposite.sourceContentType,
+            sourceKey: job.data.characterComposite.sourceKey,
+            storage: this.storage,
+            imageAi: this.imageAi,
+            aiLog: this.aiLog,
+          })
+        : null;
+
       const imageIds: string[] = [];
       const costPerImage =
         generated.costEstimateUsd === undefined || generated.images.length === 0
@@ -361,12 +392,15 @@ export class CreativeGenerationProcessor extends WorkerHost {
         const imageId = randomUUID();
         const storageKey = `generated-images/${brief.id}/${imageId}.png`;
         const resized = await resizeImageToSpec(image.buffer, sizePreset.width, sizePreset.height);
+        const composited = cutout && job.data.characterComposite
+          ? await compositeCharacter(resized, cutout.buffer, job.data.characterComposite)
+          : resized;
         const cleanStorageKey = overlayMode === 'SERVER' && overlayHeadline
           ? `generated-images/${brief.id}/${imageId}-clean.png`
           : null;
 
         if (cleanStorageKey && overlayHeadline) {
-          await this.storage.putBuffer(cleanStorageKey, resized, 'image/png');
+          await this.storage.putBuffer(cleanStorageKey, composited, 'image/png');
           const layout = computeOverlayLayout({
             width: sizePreset.width,
             height: sizePreset.height,
@@ -377,14 +411,14 @@ export class CreativeGenerationProcessor extends WorkerHost {
           const resolvedColor = overlayColor === 'auto'
             ? await extractAccentColor(
                 referenceImages[
-                  references.findIndex((reference) =>
+                  backgroundReferences.findIndex((reference) =>
                     reference.roles.includes(GenerationReferenceRole.TYPOGRAPHY),
                   )
-                ]?.buffer ?? referenceImages[0]?.buffer ?? resized,
+                ]?.buffer ?? referenceImages[0]?.buffer ?? composited,
               )
             : undefined;
           const overlaid = await renderTextOverlay(
-            resized,
+            composited,
             layout,
             resolvedColor
               ? { font: overlayFont, color: overlayColor, resolvedColor }
@@ -392,7 +426,7 @@ export class CreativeGenerationProcessor extends WorkerHost {
           );
           await this.storage.putBuffer(storageKey, overlaid, 'image/png');
         } else {
-          await this.storage.putBuffer(storageKey, resized, 'image/png');
+          await this.storage.putBuffer(storageKey, composited, 'image/png');
         }
         const saved = await this.prisma.generatedImage.create({
           data: {
@@ -416,6 +450,14 @@ export class CreativeGenerationProcessor extends WorkerHost {
             referenceKeys,
             copyInfluence,
             ...(references.length ? { referenceRolesJson: references } : {}),
+            ...(cutout && job.data.characterComposite ? {
+              characterCompositeJson: {
+                sourceKey: job.data.characterComposite.sourceKey,
+                cutoutKey: cutout.cutoutKey,
+                position: job.data.characterComposite.position,
+                heightRatio: job.data.characterComposite.heightRatio,
+              },
+            } : {}),
             costEstimateUsd: costPerImage,
           },
         });

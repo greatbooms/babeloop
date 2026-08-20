@@ -7,6 +7,7 @@ export interface ImageGenerationInput {
   quality: ImageQuality;
   size?: ImageGenerationSize;
   referenceImages?: Array<{ buffer: Buffer; contentType: string }>;
+  transparentBackground?: boolean;
 }
 
 export interface GeneratedImageData {

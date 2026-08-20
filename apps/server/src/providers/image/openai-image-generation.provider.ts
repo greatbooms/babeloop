@@ -24,6 +24,7 @@ export interface OpenAIImageGenerationClient {
       n: number;
       quality: 'low' | 'high';
       size: ImageGenerationSize;
+      background?: 'transparent';
     }): Promise<ImagesApiResponse>;
     edit(input: {
       model: string;
@@ -33,6 +34,7 @@ export interface OpenAIImageGenerationClient {
       quality: 'low' | 'high';
       size: ImageGenerationSize;
       input_fidelity: 'high';
+      background?: 'transparent';
     }): Promise<ImagesApiResponse>;
   };
 }
@@ -70,6 +72,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           quality: input.quality,
           size,
           input_fidelity: 'high',
+          ...(input.transparentBackground ? { background: 'transparent' as const } : {}),
         })
       : await this.client.images.generate({
           model: this.model,
@@ -77,6 +80,7 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           n: input.count,
           quality: input.quality,
           size,
+          ...(input.transparentBackground ? { background: 'transparent' as const } : {}),
         });
     const images = (response.data ?? []).map((image, index) => {
       if (!image.b64_json) {

@@ -1,4 +1,4 @@
-import { Field, ID, InputType, Int, registerEnumType } from '@nestjs/graphql';
+import { Field, Float, ID, InputType, Int, registerEnumType } from '@nestjs/graphql';
 import { CreativeType } from '../../../generated/prisma';
 
 export enum GenerationReferenceKind {
@@ -56,6 +56,22 @@ export enum CopyInfluence {
 
 registerEnumType(CopyInfluence, { name: 'CopyInfluence' });
 
+export enum CharacterCompositePosition {
+  LEFT = 'LEFT',
+  CENTER = 'CENTER',
+  RIGHT = 'RIGHT',
+}
+
+registerEnumType(CharacterCompositePosition, { name: 'CharacterCompositePosition' });
+
+@InputType()
+export class CharacterCompositeInput {
+  @Field(() => Int, { nullable: true }) referenceIndex?: number;
+  @Field(() => CharacterCompositePosition, { nullable: true, defaultValue: CharacterCompositePosition.RIGHT })
+  position?: CharacterCompositePosition;
+  @Field(() => Float, { nullable: true, defaultValue: 0.9 }) heightRatio?: number;
+}
+
 @InputType()
 export class GenerationReferenceInput {
   @Field(() => GenerationReferenceKind) kind: GenerationReferenceKind;
@@ -99,6 +115,8 @@ export class GenerateCreativeImagesInput {
   sizePreset?: string;
   @Field(() => [GenerationReferenceInput], { nullable: true })
   references?: GenerationReferenceInput[];
+  @Field(() => CharacterCompositeInput, { nullable: true })
+  characterComposite?: CharacterCompositeInput;
 }
 
 @InputType()

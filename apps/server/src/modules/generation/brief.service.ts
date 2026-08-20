@@ -126,6 +126,9 @@ export class BriefService {
       overlayColor,
       aiTypoStyle,
     );
+    const characterComposite = input.characterComposite
+      ? await this.resolveCharacterComposite(input.characterComposite, input.references ?? [])
+      : undefined;
     const sizePreset = resolveSizePreset(input.sizePreset);
     const creative = await this.prisma.generatedCreative.findUnique({
       where: { id: input.creativeId },
@@ -152,6 +155,7 @@ export class BriefService {
       ...(overlaySubline ? { overlaySubline } : {}),
       ...(overlayHeadline ? { overlayMode, overlayFont, overlayColor } : {}),
       ...(overlayHeadline && overlayMode === 'AI' ? { aiTypoStyle } : {}),
+      ...(characterComposite ? { characterComposite } : {}),
     };
     // 시도마다 실 AI 과금이라 자동 재시도가 비용을 배로 만든다 — 실패는 명확히 보여주고 재시도는 버튼으로
     return this.jobRecord.enqueueOrRetry(
@@ -307,6 +311,65 @@ export class BriefService {
     }
   }
 
+  private async resolveCharacterComposite(
+    composite: NonNullable<GenerateCreativeImagesInput['characterComposite']>,
+    references: GenerationReferenceInput[],
+  ): Promise<{ sourceKey: string; storageKey: string; sourceContentType: string; position: 'LEFT' | 'CENTER' | 'RIGHT'; heightRatio: number }> {
+    const referenceIndex = composite.referenceIndex ?? references.findIndex((reference) =>
+      normalizeReferenceRoles(reference).includes(GenerationReferenceRole.CHARACTER),
+    );
+    if (!Number.isInteger(referenceIndex) || referenceIndex < 0 || referenceIndex >= references.length) {
+      throw new GraphQLError('캐릭터 역할 참고 이미지를 선택해야 합니다', { extensions: { code: 'BAD_USER_INPUT' } });
+    }
+    const reference = references[referenceIndex];
+    if (!normalizeReferenceRoles(reference).includes(GenerationReferenceRole.CHARACTER)) {
+      throw new GraphQLError('캐릭터 합성에는 CHARACTER 역할 참고 이미지가 필요합니다', { extensions: { code: 'BAD_USER_INPUT' } });
+    }
+    const heightRatio = composite.heightRatio ?? 0.9;
+    if (!Number.isFinite(heightRatio) || heightRatio < 0.4 || heightRatio > 1) {
+      throw new GraphQLError('캐릭터 높이 비율은 0.4~1.0이어야 합니다', { extensions: { code: 'BAD_USER_INPUT' } });
+    }
+    const position = composite.position ?? 'RIGHT';
+    const resolved = await this.resolveGenerationReferences([reference]);
+    const storageKey = resolved[0]?.key;
+    if (!storageKey) this.invalidReference(reference);
+
+    if (reference.kind === GenerationReferenceKind.SOURCE_AD) {
+      const sourceAd = await this.prisma.sourceAd.findUnique({
+        where: { id: reference.id },
+        select: { mediaAsset: { select: { id: true, kind: true, contentType: true } } },
+      });
+      if (!sourceAd?.mediaAsset) this.invalidReference(reference);
+      return {
+        sourceKey: sourceAd.mediaAsset.id,
+        storageKey,
+        sourceContentType: this.selectedImageContentType(sourceAd.mediaAsset),
+        position,
+        heightRatio,
+      };
+    }
+    if (reference.kind === GenerationReferenceKind.GENERATED_IMAGE) {
+      const image = await this.prisma.generatedImage.findUnique({
+        where: { id: reference.id },
+        select: { contentType: true },
+      });
+      if (!image) this.invalidReference(reference);
+      return { sourceKey: reference.id, storageKey, sourceContentType: image.contentType, position, heightRatio };
+    }
+    const mediaAsset = await this.prisma.mediaAsset.findUnique({
+      where: { id: reference.id },
+      select: { kind: true, contentType: true },
+    });
+    if (!mediaAsset) this.invalidReference(reference);
+    return {
+      sourceKey: reference.id,
+      storageKey,
+      sourceContentType: this.selectedImageContentType(mediaAsset),
+      position,
+      heightRatio,
+    };
+  }
+
   // [보안 결정 2026-08-12] 참조 조회에 소유자 스코프를 걸지 않는 이유:
   // BabeLoop은 단일 팀 내부 도구로 테넌트·소유권 모델이 없고, 여기서 참조 가능한
   // 세 자원(시안·경쟁 광고·미디어 자산)은 로그인한 모든 팀원이 기존 목록/상세 쿼리로
@@ -374,6 +437,10 @@ export class BriefService {
     thumbnailKey: string | null;
   }): string | null {
     return asset.kind === 'IMAGE' ? asset.storageKey : asset.thumbnailKey;
+  }
+
+  private selectedImageContentType(asset: { kind: string; contentType: string }): string {
+    return asset.kind === 'IMAGE' ? asset.contentType : 'image/jpeg';
   }
 
   private invalidReference(reference: GenerationReferenceInput): never {
@@ -478,6 +545,9 @@ export class BriefService {
             referenceKeys: image.referenceKeys,
             referenceRolesJson: image.referenceRolesJson
               ? JSON.stringify(image.referenceRolesJson)
+              : null,
+            characterCompositeJson: image.characterCompositeJson
+              ? JSON.stringify(image.characterCompositeJson)
               : null,
             copyInfluence: image.copyInfluence,
             createdAt: image.createdAt,

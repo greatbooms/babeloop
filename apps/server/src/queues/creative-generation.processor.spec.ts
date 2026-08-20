@@ -6,12 +6,20 @@ import {
   extractAccentColor,
   renderTextOverlay,
 } from '../common/media/text-overlay';
+import {
+  compositeCharacter,
+  obtainCutout,
+} from '../common/media/character-composite';
 
 jest.mock('../common/media/image-resize', () => ({ resizeImageToSpec: jest.fn() }));
 jest.mock('../common/media/text-overlay', () => ({
   computeOverlayLayout: jest.fn(),
   extractAccentColor: jest.fn(),
   renderTextOverlay: jest.fn(),
+}));
+jest.mock('../common/media/character-composite', () => ({
+  compositeCharacter: jest.fn(),
+  obtainCutout: jest.fn(),
 }));
 
 const VALID_PNG = Buffer.from(
@@ -395,6 +403,96 @@ describe('CreativeGenerationProcessor image generation', () => {
     expect(prisma.generatedImage.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ overlayColor: 'auto' }),
     });
+  });
+
+  it('캐릭터를 제외한 뒤에도 자동 색상은 TYPOGRAPHY 참고 버퍼를 사용한다', async () => {
+    const creative = {
+      id: 'creative-copy-1',
+      koreanText: '한국어 연출 재료',
+      localizations: [],
+      brief: {
+        id: 'brief-1',
+        visualFormat: '가로형',
+        hookType: '호기심',
+        desire: '몰입',
+        brand: { name: 'BabeChat' },
+      },
+    };
+    const prisma = {
+      generatedCreative: { findUniqueOrThrow: jest.fn().mockResolvedValue(creative) },
+      generatedImage: { create: jest.fn().mockResolvedValue({ id: 'image-overlay-composite-auto-1' }) },
+    };
+    const aiLog = { record: jest.fn(async (_meta, run) => run()) };
+    const jobRecord = { markRunning: jest.fn(), markSucceeded: jest.fn(), markFailed: jest.fn() };
+    const imageProvider = {
+      name: 'mock',
+      model: 'mock-image-1',
+      generate: jest.fn().mockResolvedValue({
+        images: [{ buffer: VALID_PNG, contentType: 'image/png' }],
+        costEstimateUsd: 0.04,
+      }),
+    };
+    const characterReference = Buffer.from('character-reference');
+    const styleReference = Buffer.from('style-reference');
+    const typographyReference = Buffer.from('typography-reference');
+    const storage = {
+      getBuffer: jest.fn(async (key: string) =>
+        key.includes('character')
+          ? characterReference
+          : key.includes('typography')
+            ? typographyReference
+            : styleReference,
+      ),
+      putBuffer: jest.fn(),
+    };
+    jest.mocked(obtainCutout).mockResolvedValue({ buffer: VALID_PNG, cutoutKey: 'cutouts/character/hash.png' });
+    jest.mocked(compositeCharacter).mockResolvedValue(VALID_PNG);
+    const processor = new CreativeGenerationProcessor(
+      prisma as never,
+      aiLog as never,
+      jobRecord as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      storage as never,
+      imageProvider as never,
+      {} as never,
+    );
+
+    await processor.process({
+      id: 'generate-images--creative-copy-1--overlay-composite-auto',
+      name: JOB_TYPES.GENERATE_IMAGES,
+      data: {
+        briefId: 'brief-1',
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        sizePreset: 'landscape_1200x628',
+        referenceKeys: ['refs/character.png', 'refs/style.png', 'refs/typography.png'],
+        references: [
+          { key: 'refs/character.png', roles: ['CHARACTER'] },
+          { key: 'refs/style.png', roles: ['STYLE'] },
+          { key: 'refs/typography.png', roles: ['TYPOGRAPHY'] },
+        ],
+        characterComposite: {
+          sourceKey: 'character-1',
+          storageKey: 'refs/character.png',
+          sourceContentType: 'image/png',
+          position: 'RIGHT',
+          heightRatio: 0.9,
+        },
+        overlayHeadline: '今晚，只屬於你的故事',
+        overlayMode: 'SERVER',
+        overlayFont: 'gothic',
+        overlayColor: 'auto',
+      },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    } as never);
+
+    expect(extractAccentColor).toHaveBeenCalledWith(typographyReference);
   });
 
   it('AI 타이포와 TEXT_ONLY 조합은 장면 문구를 빼고 렌더 문구와 방식을 저장한다', async () => {

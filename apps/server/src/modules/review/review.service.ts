@@ -243,6 +243,12 @@ export class ReviewService {
             prompt: image.prompt,
             sizePreset: image.sizePreset,
             referenceKeys: image.referenceKeys,
+            referenceRolesJson: image.referenceRolesJson
+              ? JSON.stringify(image.referenceRolesJson)
+              : null,
+            characterCompositeJson: image.characterCompositeJson
+              ? JSON.stringify(image.characterCompositeJson)
+              : null,
             createdAt: image.createdAt,
             costEstimateUsd: image.costEstimateUsd,
           };

@@ -1,5 +1,5 @@
 import { BriefService } from './brief.service';
-import { GenerationReferenceKind, GenerationReferenceRole } from './brief.inputs';
+import { CharacterCompositePosition, GenerationReferenceKind, GenerationReferenceRole } from './brief.inputs';
 
 describe('BriefService relationships', () => {
   it('삭제된 광고는 titleSnapshot과 deleted를 매핑한다', async () => {
@@ -117,6 +117,68 @@ describe('BriefService.requestCreativeImages 검증', () => {
       } as never),
     ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
     expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it('캐릭터 합성 요청에 CHARACTER 역할 참조가 없으면 BAD_USER_INPUT으로 거부한다', async () => {
+    const { service, jobRecord } = setup();
+
+    await expect(
+      service.requestCreativeImages({
+        creativeId: 'creative-copy-1',
+        instructions: '',
+        count: 1,
+        quality: 'low',
+        references: [{ kind: GenerationReferenceKind.GENERATED_IMAGE, id: 'style-1', role: GenerationReferenceRole.STYLE }],
+        characterComposite: { position: 'RIGHT', heightRatio: 0.9 },
+      } as never),
+    ).rejects.toMatchObject({ extensions: { code: 'BAD_USER_INPUT' } });
+    expect(jobRecord.enqueueOrRetry).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [GenerationReferenceKind.MEDIA_ASSET, 'video-media-1'],
+    [GenerationReferenceKind.SOURCE_AD, 'video-source-ad-1'],
+  ])('비디오 %s 캐릭터 참조는 썸네일의 image MIME을 합성 잡에 전달한다', async (kind, id) => {
+    const videoAsset = {
+      id: 'video-media-1',
+      kind: 'VIDEO',
+      storageKey: 'media/video-media-1/original.mp4',
+      thumbnailKey: 'media/video-media-1/thumbnail.jpg',
+      contentType: 'video/mp4',
+    };
+    const prisma = {
+      generatedCreative: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'creative-copy-1', briefId: 'brief-1', type: 'COPY', status: 'APPROVED' }),
+      },
+      mediaAsset: { findUnique: jest.fn().mockResolvedValue(videoAsset) },
+      sourceAd: { findUnique: jest.fn().mockResolvedValue({ mediaAsset: videoAsset }) },
+    };
+    const jobRecord = { enqueueOrRetry: jest.fn().mockResolvedValue({ id: 'queued-job' }) };
+    const service = new BriefService(prisma as never, jobRecord as never, {} as never, { name: 'creative-generation' } as never, {} as never);
+
+    await service.requestCreativeImages({
+      creativeId: 'creative-copy-1',
+      instructions: '',
+      count: 1,
+      quality: 'low',
+      references: [{ kind, id, role: GenerationReferenceRole.CHARACTER }],
+      characterComposite: { position: CharacterCompositePosition.RIGHT, heightRatio: 0.9 },
+    });
+
+    expect(jobRecord.enqueueOrRetry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        characterComposite: expect.objectContaining({
+          sourceKey: 'video-media-1',
+          storageKey: 'media/video-media-1/thumbnail.jpg',
+          sourceContentType: 'image/jpeg',
+        }),
+      }),
+      { attempts: 1 },
+    );
   });
 
   it('참고 이미지 없이 AI 타이포의 match_reference 스타일을 선택하면 거부한다', async () => {
