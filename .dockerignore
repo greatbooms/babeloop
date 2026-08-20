@@ -12,3 +12,4 @@ e2e/.auth
 docs
 *.log
 perf-snowflake-*.csv
+models/

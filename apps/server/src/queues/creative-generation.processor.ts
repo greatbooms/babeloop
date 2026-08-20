@@ -378,8 +378,6 @@ export class CreativeGenerationProcessor extends WorkerHost {
             sourceContentType: job.data.characterComposite.sourceContentType,
             sourceKey: job.data.characterComposite.sourceKey,
             storage: this.storage,
-            imageAi: this.imageAi,
-            aiLog: this.aiLog,
           })
         : null;
 

@@ -19,7 +19,9 @@ RUN pnpm prisma:generate && pnpm build
 
 FROM base AS runner
 ENV NODE_ENV=production
+ENV CUTOUT_MODEL_PATH=/app/models/isnet-anime.onnx
 COPY --from=builder /app ./
+RUN mkdir -p /app/models
 EXPOSE 16000
 # 기동 시 마이그레이션을 먼저 적용한다 (worker 컨테이너는 compose에서 command 교체)
 CMD ["sh", "-c", "npx prisma migrate deploy && node apps/server/dist/main.js"]

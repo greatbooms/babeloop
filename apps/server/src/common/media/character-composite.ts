@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { ImageGenerationProvider } from '../../providers/image/image-generation.provider';
+import { Logger } from '@nestjs/common';
+import { removeBackground } from './background-removal';
 
 export type CharacterPosition = 'LEFT' | 'CENTER' | 'RIGHT';
 
@@ -9,21 +10,7 @@ export type CharacterCompositeConfig = {
   heightRatio: number;
 };
 
-type CutoutAiLogMeta = {
-  provider: string;
-  model: string;
-  promptVersion: string;
-  inputRef: string;
-  costEstimateUsd?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-};
-
-type CutoutAiLog = {
-  record(meta: CutoutAiLogMeta, run: () => Promise<unknown>): Promise<unknown>;
-};
-
-const CUTOUT_PROMPT = 'Extract ONLY the character exactly as drawn — identical colors, lines and details. Output on a fully transparent background. Do not add, remove or restyle anything.';
+const logger = new Logger('CharacterComposite');
 
 export async function hasAlphaChannel(buffer: Buffer): Promise<boolean> {
   const image = await loadImage(buffer);
@@ -45,8 +32,6 @@ export async function obtainCutout(input: {
   sourceContentType: string;
   sourceKey: string;
   storage: Pick<{ head(key: string): Promise<{ sizeBytes: number } | null>; getBuffer(key: string): Promise<Buffer>; putBuffer(key: string, body: Buffer, contentType: string): Promise<void> }, 'head' | 'getBuffer' | 'putBuffer'>;
-  imageAi: ImageGenerationProvider;
-  aiLog: CutoutAiLog;
 }): Promise<{ buffer: Buffer; cutoutKey: string }> {
   const hash = createHash('sha256').update(input.sourceBuffer).digest('hex');
   const cutoutKey = `cutouts/${input.sourceKey}/${hash}.png`;
@@ -57,29 +42,9 @@ export async function obtainCutout(input: {
   let cutout = input.sourceBuffer;
   let cutoutContentType = input.sourceContentType;
   if (!await hasAlphaChannel(input.sourceBuffer)) {
-    const meta: CutoutAiLogMeta = {
-      provider: input.imageAi.name,
-      model: input.imageAi.model,
-      promptVersion: 'character-cutout@v1',
-      inputRef: `character-cutout:${input.sourceKey}`,
-    };
-    await input.aiLog.record(meta, async () => {
-      const generated = await input.imageAi.generate({
-        prompt: CUTOUT_PROMPT,
-        referenceImages: [{ buffer: input.sourceBuffer, contentType: input.sourceContentType }],
-        transparentBackground: true,
-        quality: 'high',
-        count: 1,
-      });
-      const image = generated.images[0];
-      if (!image) throw new Error('캐릭터 누끼 생성 결과가 없습니다');
-      cutout = image.buffer;
-      cutoutContentType = image.contentType;
-      meta.costEstimateUsd = generated.costEstimateUsd;
-      meta.inputTokens = generated.inputTokens;
-      meta.outputTokens = generated.outputTokens;
-      return { imageCount: 1, contentTypes: [image.contentType] };
-    });
+    logger.log(`로컬 배경 제거 시작: ${input.sourceKey} (외부 호출 없음, 비용 $0)`);
+    cutout = await removeBackground(input.sourceBuffer);
+    cutoutContentType = 'image/png';
   }
   await input.storage.putBuffer(cutoutKey, cutout, cutoutContentType);
   return { buffer: cutout, cutoutKey };

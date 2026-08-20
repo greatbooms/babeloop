@@ -17,4 +17,5 @@ test-results/
 .idea/
 .playwright-mcp/
 secrets/
+models/
 .claude/
