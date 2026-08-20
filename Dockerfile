@@ -21,7 +21,8 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV CUTOUT_MODEL_PATH=/app/models/isnet-anime.onnx
 COPY --from=builder /app ./
-RUN mkdir -p /app/models
+# bookworm-slim엔 curl이 없다 — Docker ADD가 URL을 직접 받는다 (레이어 캐시로 재빌드 시 재다운로드 없음)
+ADD https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-anime.onnx /app/models/isnet-anime.onnx
 EXPOSE 16000
 # 기동 시 마이그레이션을 먼저 적용한다 (worker 컨테이너는 compose에서 command 교체)
 CMD ["sh", "-c", "npx prisma migrate deploy && node apps/server/dist/main.js"]
